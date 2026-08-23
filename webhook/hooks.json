@@ -11,7 +11,7 @@
     "trigger-rule": {
       "match": {
         "type": "value",
-        "value": "{{ getenv \"DEPLOY_TOKEN\" }}",
+        "value": "{{ getenv "DEPLOY_TOKEN" }}",
         "parameter": {
           "source": "header",
           "name": "X-Deploy-Token"
