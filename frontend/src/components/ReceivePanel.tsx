@@ -30,18 +30,18 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
   const preview = pick && Number(amount) > 0 ? Number(amount) * Number(pick.purchase_to_base) : null;
 
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/70 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-auto border border-line-dark bg-roast p-7 text-cream">
+    <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-auto border border-line bg-paper p-7 text-ink">
         <h2 className="font-display text-2xl font-normal">Приёмка</h2>
-        <p className="mt-2 text-sm text-cream-soft">
+        <p className="mt-2 text-sm text-ink-soft">
           Количество — в единицах закупки. Сумма — за всю партию, как в накладной.
         </p>
         <div className="mt-4 max-h-64 overflow-auto">
           {(stock.data ?? []).map((item) => (
             <button
               key={item.id}
-              className={`block w-full border-b border-line-dark py-2.5 text-left text-sm ${
-                pick?.id === item.id ? "text-cream" : "text-cream-soft"
+              className={`block w-full border-b border-line py-2.5 text-left text-sm ${
+                pick?.id === item.id ? "text-ink" : "text-ink-soft"
               }`}
               onClick={() => setPick(item)}
             >
@@ -52,19 +52,18 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
         </div>
         {pick && (
           <div className="mt-5 space-y-4">
-            <p className="text-sm text-cream-soft">
+            <p className="text-sm text-ink-soft">
               {pick.name} · закупка: {pick.purchase_unit} (1 {pick.purchase_unit} ={" "}
               {qty(pick.purchase_to_base, pick.base_unit)})
             </p>
-            <Field label={`Сколько, ${pick.purchase_unit}?`} tone="dark">
-              <Input tone="dark" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+            <Field label={`Сколько, ${pick.purchase_unit}?`}>
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
             </Field>
             {preview !== null && (
-              <p className="font-mono text-xs text-cream-soft">→ на склад: +{qty(preview, pick.base_unit)}</p>
+              <p className="font-mono text-xs text-ink-soft">→ на склад: +{qty(preview, pick.base_unit)}</p>
             )}
-            <Field label="Сумма закупки за партию, ₸" tone="dark">
+            <Field label="Сумма закупки за партию, ₸">
               <Input
-                tone="dark"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 inputMode="decimal"
@@ -76,13 +75,13 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
         {apply.isError && <p className="mt-3 text-sm text-alert">{(apply.error as Error).message}</p>}
         <div className="mt-6 flex gap-3">
           <Button
-            className="flex-1 border-cream bg-transparent text-cream hover:bg-cream hover:text-roast"
+            className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
             disabled={!pick || !amount}
             onClick={() => apply.mutate()}
           >
             Принять
           </Button>
-          <Button variant="ghost" className="text-cream-soft" onClick={onClose}>
+          <Button variant="ghost" className="text-ink-soft" onClick={onClose}>
             Закрыть
           </Button>
         </div>
