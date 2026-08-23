@@ -189,7 +189,7 @@ export function ProductsPage() {
             <div>
               <p className="text-[11px] uppercase tracking-wider text-mute">Рецепт — списание со склада</p>
               <p className="mt-1 mb-2 text-xs text-mute">
-                Выбери сырьё и сколько уходит на 1 порцию. Пример: капучино = зёрна 18 г + молоко 140 мл.
+                Количество — в базовой единице склада. Пример: капучино = зёрна 18 г + молоко 180 мл.
               </p>
               <div className="space-y-2">
                 {editing.ingredients.map((row, idx) => {
@@ -208,12 +208,12 @@ export function ProductsPage() {
                         <option value="">Сырьё…</option>
                         {stock.data?.map((s) => (
                           <option key={s.id} value={s.id}>
-                            {s.name}
+                            {s.name} · {s.base_unit}
                           </option>
                         ))}
                       </select>
                       <Input
-                        placeholder={item ? item.unit : "кол-во"}
+                        placeholder={item ? item.base_unit : "кол-во"}
                         value={row.quantity}
                         onChange={(e) => {
                           const next = [...editing.ingredients];
@@ -250,6 +250,17 @@ export function ProductsPage() {
               >
                 + сырьё в рецепт
               </Button>
+              <p className="mt-3 text-sm">
+                Себестоимость порции:{" "}
+                {money(
+                  editing.ingredients.reduce((sum, row) => {
+                    const item = stock.data?.find((s) => s.id === row.stock_item_id);
+                    if (!item || !row.quantity) return sum;
+                    return sum + Number(row.quantity) * Number(item.cost_per_base_unit);
+                  }, 0),
+                )}
+                <span className="ml-2 text-xs text-mute">на лету, в чек попадёт снимок на момент продажи</span>
+              </p>
             </div>
             {save.isError && <p className="text-sm text-alert">{(save.error as Error).message}</p>}
             <div className="flex gap-2">

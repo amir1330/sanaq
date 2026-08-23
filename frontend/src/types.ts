@@ -79,10 +79,13 @@ export type StockItem = {
   id: number;
   shop_id: number;
   name: string;
-  unit: string;
+  base_unit: string;
+  purchase_unit: string;
+  purchase_to_base: string;
   quantity: string;
+  quantity_in_purchase: string;
   min_quantity: string;
-  cost_per_unit: string;
+  cost_per_base_unit: string;
   updated_at: string;
   is_low: boolean;
 };

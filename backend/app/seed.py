@@ -97,28 +97,34 @@ async def seed_demo(session) -> None:
     await session.flush()
 
     beans = StockItem(
-        shop_id=shop.id, name="Зёрна эспрессо", unit="г",
-        quantity=5000, min_quantity=800, cost_per_unit="0.028",
+        shop_id=shop.id, name="Зёрна эспрессо",
+        base_unit="г", purchase_unit="кг", purchase_to_base="1000",
+        quantity=5000, min_quantity=800, cost_per_base_unit="0.028",
     )
     milk = StockItem(
-        shop_id=shop.id, name="Молоко", unit="мл",
-        quantity=20000, min_quantity=3000, cost_per_unit="0.0018",
+        shop_id=shop.id, name="Молоко",
+        base_unit="мл", purchase_unit="пачка", purchase_to_base="1000",
+        quantity=20000, min_quantity=3000, cost_per_base_unit="0.0018",
     )
     cups = StockItem(
-        shop_id=shop.id, name="Стаканы 300 мл", unit="шт",
-        quantity=400, min_quantity=50, cost_per_unit="0.12",
+        shop_id=shop.id, name="Стаканы 300 мл",
+        base_unit="шт", purchase_unit="шт", purchase_to_base="1",
+        quantity=400, min_quantity=50, cost_per_base_unit="0.12",
     )
     syrup = StockItem(
-        shop_id=shop.id, name="Сироп ваниль", unit="мл",
-        quantity=2000, min_quantity=200, cost_per_unit="0.012",
+        shop_id=shop.id, name="Сироп ваниль",
+        base_unit="мл", purchase_unit="л", purchase_to_base="1000",
+        quantity=2000, min_quantity=200, cost_per_base_unit="0.012",
     )
     croissant = StockItem(
-        shop_id=shop.id, name="Круассан", unit="шт",
-        quantity=40, min_quantity=8, cost_per_unit="1.10",
+        shop_id=shop.id, name="Круассан",
+        base_unit="шт", purchase_unit="шт", purchase_to_base="1",
+        quantity=40, min_quantity=8, cost_per_base_unit="1.10",
     )
     tea_bags = StockItem(
-        shop_id=shop.id, name="Чай сенча", unit="шт",
-        quantity=80, min_quantity=15, cost_per_unit="0.18",
+        shop_id=shop.id, name="Чай сенча",
+        base_unit="шт", purchase_unit="шт", purchase_to_base="1",
+        quantity=80, min_quantity=15, cost_per_base_unit="0.18",
     )
     session.add_all([beans, milk, cups, syrup, croissant, tea_bags])
     await session.flush()
@@ -126,7 +132,7 @@ async def seed_demo(session) -> None:
     products = [
         ("Эспрессо", coffee.id, "3.20", [(beans, "18"), (cups, "1")]),
         ("Американо", coffee.id, "3.80", [(beans, "18"), (cups, "1")]),
-        ("Капучино", coffee.id, "4.50", [(beans, "18"), (milk, "140"), (cups, "1")]),
+        ("Капучино", coffee.id, "4.50", [(beans, "18"), (milk, "180"), (cups, "1")]),
         ("Латте", coffee.id, "4.80", [(beans, "18"), (milk, "200"), (cups, "1")]),
         ("Раф ваниль", coffee.id, "5.40", [(beans, "18"), (milk, "180"), (syrup, "15"), (cups, "1")]),
         ("Сенча", tea.id, "3.50", [(tea_bags, "1"), (cups, "1")]),

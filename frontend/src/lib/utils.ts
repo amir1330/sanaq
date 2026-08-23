@@ -24,8 +24,47 @@ export function payAction(type: "cash" | "card"): string {
 
 export function qty(value: string | number, unit?: string): string {
   const n = Number(value);
-  const text = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  const digits = Number.isInteger(n) ? 0 : n >= 10 ? 1 : 2;
+  const text = new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(n);
   return unit ? `${text} ${unit}` : text;
+}
+
+export function unitCost(value: string | number, unit?: string): string {
+  const n = Number(value ?? 0);
+  const text = new Intl.NumberFormat("kk-KZ", {
+    style: "currency",
+    currency: "KZT",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(n);
+  return unit ? `${text}/${unit}` : text;
+}
+
+export const BASE_UNITS = ["г", "мл", "шт"] as const;
+export const PURCHASE_UNITS = ["пачка", "мешок", "кг", "л", "ящик", "шт"] as const;
+
+export function suggestPurchaseFactor(base: string, purchase: string): string {
+  if (base === "шт" && purchase === "шт") return "1";
+  if (base === "мл" && (purchase === "л" || purchase === "пачка")) return "1000";
+  if (base === "г" && (purchase === "кг" || purchase === "мешок")) return "1000";
+  if (base === purchase) return "1";
+  return "1";
+}
+
+export function stockBalance(item: {
+  quantity: string | number;
+  base_unit: string;
+  purchase_unit: string;
+  purchase_to_base: string | number;
+  quantity_in_purchase?: string | number;
+}): string {
+  const base = qty(item.quantity, item.base_unit);
+  const packs = Number(item.quantity_in_purchase ?? Number(item.quantity) / Number(item.purchase_to_base || 1));
+  if (item.purchase_unit === item.base_unit && Number(item.purchase_to_base) === 1) return base;
+  return `${base} · ≈ ${qty(packs, item.purchase_unit)}`;
 }
 
 export function publicUrl(path: string | null | undefined): string | null {

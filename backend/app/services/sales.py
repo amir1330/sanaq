@@ -93,7 +93,7 @@ async def create_sale(
         cost = Decimal("0")
         for ing in products[product_id].ingredients:
             item = locked.get(ing.stock_item_id)
-            unit_cost = item.cost_per_unit if item else Decimal("0")
+            unit_cost = item.cost_per_base_unit if item else Decimal("0")
             cost += ing.quantity * unit_cost
         cost_by_product[product_id] = cost.quantize(Decimal("0.01"))
 

@@ -29,13 +29,13 @@ def _product_out(product: Product) -> ProductOut:
     ingredients: list[IngredientOut] = []
     for ing in product.ingredients:
         item = ing.stock_item
-        cost += ing.quantity * (item.cost_per_unit if item else Decimal("0"))
+        cost += ing.quantity * (item.cost_per_base_unit if item else Decimal("0"))
         ingredients.append(
             IngredientOut(
                 stock_item_id=ing.stock_item_id,
                 quantity=ing.quantity,
                 stock_item_name=item.name if item else None,
-                unit=item.unit if item else None,
+                unit=item.base_unit if item else None,
             )
         )
     return ProductOut(

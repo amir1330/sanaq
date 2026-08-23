@@ -13,7 +13,7 @@ from app.schemas.stock import (
     StockMovementOut,
 )
 from app.services.access import assert_shop_access, can_receive_stock
-from app.services.stock import apply_stock_movement
+from app.services.stock import apply_stock_movement, to_purchase
 
 router = APIRouter(tags=["stock"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -24,10 +24,13 @@ def _item_out(item: StockItem, *, hide_cost: bool) -> StockItemOut:
         id=item.id,
         shop_id=item.shop_id,
         name=item.name,
-        unit=item.unit,
+        base_unit=item.base_unit,
+        purchase_unit=item.purchase_unit,
+        purchase_to_base=item.purchase_to_base,
         quantity=item.quantity,
+        quantity_in_purchase=to_purchase(item.quantity, item.purchase_to_base),
         min_quantity=item.min_quantity,
-        cost_per_unit=0 if hide_cost else item.cost_per_unit,
+        cost_per_base_unit=0 if hide_cost else item.cost_per_base_unit,
         updated_at=item.updated_at,
         is_low=item.quantity <= item.min_quantity,
     )

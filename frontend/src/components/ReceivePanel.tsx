@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
-import { qty } from "../lib/utils";
+import { qty, stockBalance } from "../lib/utils";
+import type { StockItem } from "../types";
 import { Button, Field, Input } from "./ui";
 
 export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () => void }) {
   const qc = useQueryClient();
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
-  const [pick, setPick] = useState<{ id: number; name: string; unit: string } | null>(null);
+  const [pick, setPick] = useState<StockItem | null>(null);
   const [amount, setAmount] = useState("");
   const [price, setPrice] = useState("");
 
@@ -26,11 +27,15 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
     },
   });
 
+  const preview = pick && Number(amount) > 0 ? Number(amount) * Number(pick.purchase_to_base) : null;
+
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-roast/70 p-4">
       <div className="max-h-[90vh] w-full max-w-md overflow-auto border border-line-dark bg-roast p-7 text-cream">
         <h2 className="font-display text-2xl font-normal">Приёмка</h2>
-        <p className="mt-2 text-sm text-cream-soft">Что привезли — количество и сумма по накладной, если есть.</p>
+        <p className="mt-2 text-sm text-cream-soft">
+          Количество — в единицах закупки. Сумма — за всю партию, как в накладной.
+        </p>
         <div className="mt-4 max-h-64 overflow-auto">
           {(stock.data ?? []).map((item) => (
             <button
@@ -38,19 +43,26 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
               className={`block w-full border-b border-line-dark py-2.5 text-left text-sm ${
                 pick?.id === item.id ? "text-cream" : "text-cream-soft"
               }`}
-              onClick={() => setPick({ id: item.id, name: item.name, unit: item.unit })}
+              onClick={() => setPick(item)}
             >
               {item.name}
-              <span className="ml-2 opacity-70">{qty(item.quantity, item.unit)}</span>
+              <span className="ml-2 opacity-70">{stockBalance(item)}</span>
             </button>
           ))}
         </div>
         {pick && (
           <div className="mt-5 space-y-4">
-            <Field label={`${pick.name}, ${pick.unit}`} tone="dark">
+            <p className="text-sm text-cream-soft">
+              {pick.name} · закупка: {pick.purchase_unit} (1 {pick.purchase_unit} ={" "}
+              {qty(pick.purchase_to_base, pick.base_unit)})
+            </p>
+            <Field label={`Сколько, ${pick.purchase_unit}?`} tone="dark">
               <Input tone="dark" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
             </Field>
-            <Field label="Сумма закупки, ₸" tone="dark">
+            {preview !== null && (
+              <p className="font-mono text-xs text-cream-soft">→ на склад: +{qty(preview, pick.base_unit)}</p>
+            )}
+            <Field label="Сумма закупки за партию, ₸" tone="dark">
               <Input
                 tone="dark"
                 value={price}

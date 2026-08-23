@@ -16,12 +16,16 @@ class StockItem(Base):
         BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    unit: Mapped[str] = mapped_column(Text, nullable=False)
-    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False, default=Decimal("0"))
-    min_quantity: Mapped[Decimal] = mapped_column(
-        Numeric(12, 3), nullable=False, default=Decimal("0")
+    base_unit: Mapped[str] = mapped_column(Text, nullable=False)
+    purchase_unit: Mapped[str] = mapped_column(Text, nullable=False)
+    purchase_to_base: Mapped[Decimal] = mapped_column(
+        Numeric(12, 3), nullable=False, default=Decimal("1")
     )
-    cost_per_unit: Mapped[Decimal] = mapped_column(
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
+    min_quantity: Mapped[Decimal] = mapped_column(
+        Numeric(14, 3), nullable=False, default=Decimal("0")
+    )
+    cost_per_base_unit: Mapped[Decimal] = mapped_column(
         Numeric(12, 4), nullable=False, default=Decimal("0")
     )
     updated_at: Mapped[datetime] = mapped_column(
@@ -44,7 +48,8 @@ class StockMovement(Base):
     type: Mapped[StockMovementType] = mapped_column(
         Enum(StockMovementType, name="stock_movement_type", native_enum=True), nullable=False
     )
-    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+    quantity_purchase: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    quantity_base: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
     price_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     comment: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"))
