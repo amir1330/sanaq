@@ -60,14 +60,13 @@ services:
     restart: unless-stopped
     environment:
       DEPLOY_TOKEN: ${DEPLOY_TOKEN}
-      DeployToken: ${DEPLOY_TOKEN}
       GHCR_TOKEN: ${GHCR_TOKEN:-}
-    command: ["-verbose", "-hooks=/etc/webhook/hooks.json", "-hotreload", "-template"]
+    command: ["-verbose", "-hooks=/etc/webhook/hooks.yaml", "-hotreload", "-template"]
     ports:
       - "9002:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./webhook/hooks.json:/etc/webhook/hooks.json:ro
+      - ./webhook/hooks.yaml:/etc/webhook/hooks.yaml:ro
       - ./webhook/deploy.sh:/scripts/deploy.sh:ro
       - /root/coffeeos:/root/coffeeos
     networks:

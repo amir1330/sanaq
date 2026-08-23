@@ -1,0 +1,17 @@
+- id: deploy
+  execute-command: /scripts/deploy.sh
+  command-working-directory: /root/coffeeos
+  http-methods:
+    - POST
+  include-command-output-in-response: true
+  include-command-output-in-response-on-error: true
+  trigger-rule-mismatch-http-response-code: 403
+  pass-environment-to-command:
+    - source: entire-environment
+  trigger-rule:
+    match:
+      type: value
+      value: '{{ getenv "DEPLOY_TOKEN" }}'
+      parameter:
+        source: header
+        name: X-Deploy-Token

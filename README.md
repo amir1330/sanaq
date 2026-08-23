@@ -39,9 +39,9 @@ cd ../frontend && npm install && npm run dev
 Как у gym-tracker и queue-bot: GitHub Actions собирает образы в GHCR и дергает webhook на VPS.
 
 1. Приватный репозиторий. Секреты только в GitHub Actions и в `/root/coffeeos/.env` на сервере. В git их нет.
-2. Push в `main` → `.github/workflows/deploy.yml` пушит `ghcr.io/amir1330/coffeeos/backend` и `.../nginx`.
-3. POST `http://VPS:9002/hooks/deploy` с заголовком `X-Deploy-Token`.
-4. Webhook на сервере тянет образы и пересоздаёт контейнеры.
+2. Push в `main` → `.github/workflows/ci.yml`: тесты, потом образы в GHCR (`:latest` и `:<sha>`).
+3. POST `http://VPS:9002/hooks/deploy` с заголовком `X-Deploy-Token`. Хука без токена даёт 403, упавший `deploy.sh` — 500. Тело запроса не нужно.
+4. Webhook тянет образы и пересоздаёт `backend` и `nginx`.
 
 Секреты репозитория (Settings → Secrets → Actions):
 

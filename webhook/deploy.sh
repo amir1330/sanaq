@@ -1,26 +1,24 @@
 #!/bin/sh
-set -e
+set -eu
 cd /root/coffeeos
 
-if [ -n "${GHCR_TOKEN:-}" ]; then
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u amir1330 --password-stdin >/dev/null
+if [ -z "${DEPLOY_TOKEN:-}" ]; then
+  echo "DEPLOY_TOKEN is not set in the webhook container" >&2
+  exit 1
 fi
+
+if [ -n "${GHCR_TOKEN:-}" ]; then
+  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u amir1330 --password-stdin >/dev/null
+fi
+
+# Compose v2 inside this image. --compatibility keeps the existing coffeeos_* names.
+DC="docker compose --compatibility"
+FILE="-f docker-compose.prod.yml"
 
 echo "Pulling CoffeeOS images..."
-if docker compose version >/dev/null 2>&1; then
-  DC="docker compose"
-else
-  DC="docker-compose"
-fi
+$DC $FILE pull backend nginx
 
-$DC -f docker-compose.prod.yml pull backend nginx
-
-docker ps -aq --filter name=coffeeos_backend --filter name=coffeeos_nginx | xargs -r docker rm -f
-
-
-$DC -f docker-compose.prod.yml up -d
-
-echo "Pruning old images..."
-docker image prune -f
+echo "Recreating backend and nginx..."
+$DC $FILE up -d --no-build --force-recreate --remove-orphans backend nginx
 
 echo "Deploy complete."
