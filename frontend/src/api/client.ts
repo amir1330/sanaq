@@ -194,7 +194,7 @@ export const api = {
     }
     if (!res.ok) throw new ApiError(res.status, "Не удалось скачать отчёт");
     const blob = await res.blob();
-    downloadBlob(blob, `coffeeos-${from}-${to}.csv`);
+    downloadBlob(blob, `coffeeos-${from}-${to}.xlsx`);
   },
 };
 

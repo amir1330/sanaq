@@ -11,7 +11,7 @@ from app.database import get_session
 from app.models import Expense, PaymentType, Product, Sale, SaleItem, Shop, User, UserRole
 from app.schemas.report import DailyPoint, ReportSummary, SellerPoint, TopProduct
 from app.services.access import assert_shop_access
-from app.services.reports import build_report_csv
+from app.services.reports import build_report_xlsx
 
 router = APIRouter(tags=["reports"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -289,7 +289,7 @@ async def export_report(
         )
     ).all()
 
-    csv = build_report_csv(
+    xlsx = build_report_xlsx(
         shop_name=shop.name if shop else str(shop_id),
         from_date=from_date,
         to_date=to_date,
@@ -318,9 +318,9 @@ async def export_report(
             for row in sale_rows
         ],
     )
-    filename = f"coffeeos-{from_date.isoformat()}-{to_date.isoformat()}.csv"
+    filename = f"coffeeos-{from_date.isoformat()}-{to_date.isoformat()}.xlsx"
     return Response(
-        content=csv.encode("utf-8"),
-        media_type="text/csv; charset=utf-8",
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

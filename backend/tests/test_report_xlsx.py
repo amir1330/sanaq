@@ -1,11 +1,14 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from io import BytesIO
 
-from app.services.reports import build_report_csv
+from openpyxl import load_workbook
+
+from app.services.reports import build_report_xlsx
 
 
-def test_report_csv_has_sections_and_bom():
-    csv = build_report_csv(
+def test_report_xlsx_has_sheets_and_numbers():
+    raw = build_report_xlsx(
         shop_name="Corner",
         from_date=date(2026, 8, 1),
         to_date=date(2026, 8, 23),
@@ -59,11 +62,14 @@ def test_report_csv_has_sections_and_bom():
             }
         ],
     )
-    assert csv.startswith("\ufeff")
-    assert "Corner" in csv
-    assert "Сводка" in csv
-    assert "По дням" in csv
-    assert "Латте" in csv
-    assert "Amina" in csv
-    assert "Аренда" in csv
-    assert "Наличный" in csv
+    wb = load_workbook(BytesIO(raw))
+    assert wb.sheetnames == ["Сводка", "По дням", "Товары", "Продавцы", "Расходы", "Чеки"]
+    cover = wb["Сводка"]
+    assert cover["A2"].value == "Corner"
+    assert cover["B6"].value == 120
+    assert cover["B6"].number_format == "#,##0.00"
+    assert wb["Товары"]["A2"].value == "Латте"
+    assert wb["Продавцы"]["A2"].value == "Amina"
+    assert wb["Расходы"]["B2"].value == "Аренда"
+    assert wb["Чеки"]["D2"].value == "Наличными"
+    assert wb["Чеки"]["E2"].value == 4.5

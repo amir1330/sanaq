@@ -92,7 +92,7 @@ export function DashboardPage() {
           )}
         </div>
         <Button variant="quiet" disabled={!shopId || !rangeOk || exporting} onClick={() => void exportCsv()}>
-          {exporting ? "Собираем…" : "Скачать CSV"}
+          {exporting ? "Собираем…" : "Скачать таблицу"}
         </Button>
       </div>
       {!rangeOk && <p className="mb-4 text-sm text-alert">Дата «с» должна быть раньше «по».</p>}
