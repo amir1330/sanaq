@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coffee
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: coffeeos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coffee -d coffeeos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - coffee-internal
+
+  backend:
+    image: ghcr.io/amir1330/coffeeos/backend:latest
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://coffee:${POSTGRES_PASSWORD}@postgres:5432/coffeeos
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: https://coffee.abuyunus.cc
+      WEB_CONCURRENCY: "2"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - coffee-internal
+
+  nginx:
+    image: ghcr.io/amir1330/coffeeos/nginx:latest
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - web
+      - coffee-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.coffee.rule=Host(`coffee.abuyunus.cc`)"
+      - "traefik.http.routers.coffee.entrypoints=websecure"
+      - "traefik.http.routers.coffee.tls=true"
+      - "traefik.http.services.coffee.loadbalancer.server.port=80"
+
+  webhook:
+    build:
+      context: ./webhook
+    restart: unless-stopped
+    environment:
+      DEPLOY_TOKEN: ${DEPLOY_TOKEN}
+      GHCR_TOKEN: ${GHCR_TOKEN:-}
+    command: ["-verbose", "-hooks=/etc/webhook/hooks.json", "-hotreload", "-template"]
+    ports:
+      - "9002:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./webhook/hooks.json:/etc/webhook/hooks.json:ro
+      - ./webhook/deploy.sh:/scripts/deploy.sh:ro
+      - /root/coffeeos:/root/coffeeos
+    networks:
+      - coffee-internal
+
+networks:
+  web:
+    external: true
+  coffee-internal:
+
+volumes:
+  postgres_data:
+  uploads:
