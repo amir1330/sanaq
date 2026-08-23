@@ -15,8 +15,8 @@ fi
 
 $DC -f docker-compose.prod.yml pull backend nginx
 
-docker stop coffeeos_nginx_1 coffeeos_backend_1 2>/dev/null || true
-docker rm coffeeos_nginx_1 coffeeos_backend_1 2>/dev/null || true
+docker ps -aq --filter name=coffeeos_backend --filter name=coffeeos_nginx | xargs -r docker rm -f
+
 
 $DC -f docker-compose.prod.yml up -d
 

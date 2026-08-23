@@ -22,6 +22,7 @@ if [ ! -f .env ]; then
   printf 'POSTGRES_PASSWORD=%s\nSECRET_KEY=%s\n' \
     "\$(openssl rand -hex 16)" "\$(openssl rand -hex 32)" > .env
 fi
+docker ps -aq --filter name=coffeeos_backend --filter name=coffeeos_nginx | xargs -r docker rm -f
 if docker compose version >/dev/null 2>&1; then
   docker compose -f docker-compose.prod.yml up -d --build
 else
