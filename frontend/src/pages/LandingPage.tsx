@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { Button, Field, Input } from "../components/ui";
 import { homePath, useAuth } from "../store/auth";
@@ -23,13 +23,10 @@ const empty = {
 
 export function LandingPage() {
   const user = useAuth((s) => s.user);
-  const [params] = useSearchParams();
   const [form, setForm] = useState(empty);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
-  const demo = params.get("demo");
-  if (demo) return <Navigate to={`/login?demo=${demo}`} replace />;
 
   async function submit(e: FormEvent) {
     e.preventDefault();

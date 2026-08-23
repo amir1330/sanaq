@@ -10,7 +10,7 @@ docker compose up --build
 
 Открыть [http://localhost:8080](http://localhost:8080).
 
-Демо-аккаунты (создаются при первом старте):
+Локально, только если `SEED_DEMO=1` (так в `docker-compose.yml`):
 
 | Роль | Логин | Пароль |
 |---|---|---|

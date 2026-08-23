@@ -21,7 +21,7 @@ export function PinLoginPage() {
       setSession(pair.access_token, pair.refresh_token, pair.user);
       navigate("/pos");
     } catch {
-      setError("Неверный PIN. Спроси владельца или попробуй 1234 на демо.");
+      setError("Неверный PIN. Спроси владельца.");
       setPin("");
     }
   }

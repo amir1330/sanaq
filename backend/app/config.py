@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     )
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost"
     upload_dir: str = "uploads"
+    seed_demo: bool = False
+    admin_email: str = "admin@coffeeos.local"
+    admin_password: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

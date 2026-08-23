@@ -27,6 +27,8 @@ backend/uploads/shops/
 
 # Secrets
 *.pem
+*.gpg
 credentials.json
 .env.local
 .env.*.local
+coffeeERP.gpg
