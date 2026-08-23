@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CoffeeOS — макет v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --paper-2:#F0EBDD;
+    --line:#DDD5C1;
+    --line-2:#C9BFA5;
+    --ink:#1B1811;
+    --ink-soft:#5B5346;
+    --ink-faint:#8B826D;
+    --roast:#211D17;
+    --roast-2:#2A251D;
+    --line-dark:#3C362B;
+    --cream:#EFE9DA;
+    --cream-soft:#A79D85;
+    --gold:#B08A2E;
+    --turq:#3F8F86;
+    --font-display:'Marcellus', serif;
+    --font-body:'Manrope', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--roast);font-family:var(--font-body);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .eyebrow{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:500;color:var(--ink-faint);}
+  .money{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;}
+
+  .mark{display:block;}
+  .mark line, .mark circle{stroke:currentColor;fill:none;stroke-width:1;}
+
+  .viewer-bar{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    display:flex;align-items:center;justify-content:center;gap:2px;
+    padding:14px;background:var(--roast);border-bottom:1px solid var(--line-dark);
+  }
+  .viewer-bar button{
+    font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    background:transparent;border:none;color:var(--cream-soft);
+    padding:8px 18px;cursor:pointer;transition:.15s;border-bottom:1px solid transparent;
+  }
+  .viewer-bar button.on{color:var(--cream);border-bottom-color:var(--gold);}
+  .viewer-bar button:hover{color:var(--cream);}
+  .view{display:none;padding-top:48px;min-height:100vh;}
+  .view.on{display:block;}
+
+  /* =========================================================
+     LANDING
+  ========================================================= */
+  #landing{background:var(--paper);}
+  .l-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:28px 56px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-size:19px;letter-spacing:.01em;color:var(--ink);}
+  .brand .mark{width:22px;height:22px;color:var(--ink);}
+  .l-header nav{display:flex;gap:28px;align-items:center;font-size:13.5px;}
+  .l-header nav a{color:var(--ink-soft);text-decoration:none;cursor:pointer;}
+  .btn{
+    font-family:var(--font-body);font-weight:600;font-size:13.5px;
+    padding:12px 24px;border:1px solid var(--ink);cursor:pointer;background:transparent;color:var(--ink);
+    transition:.15s;letter-spacing:.01em;
+  }
+  .btn-fill{background:var(--ink);color:var(--paper);}
+  .btn-fill:hover{background:var(--ink-soft);}
+  .btn:not(.btn-fill):hover{background:var(--ink);color:var(--paper);}
+  .btn-quiet{border-color:transparent;padding:12px 4px;}
+  .btn-quiet:hover{background:transparent;color:var(--ink-soft);text-decoration:underline;}
+
+  .l-hero{
+    max-width:680px;margin:0 auto;padding:64px 32px 40px;text-align:center;
+  }
+  .l-hero .eyebrow{display:block;margin-bottom:22px;}
+  .l-hero h1{
+    font-family:var(--font-display);font-size:44px;line-height:1.22;margin:0 0 24px;color:var(--ink);font-weight:400;
+  }
+  .l-hero p.lead{font-size:16px;line-height:1.65;color:var(--ink-soft);max-width:460px;margin:0 auto 36px;}
+  .l-hero .actions{display:flex;gap:16px;justify-content:center;}
+
+  .ornament-divider{
+    display:flex;align-items:center;justify-content:center;gap:18px;
+    padding:56px 0;color:var(--ink-faint);
+  }
+  .ornament-divider .line{width:120px;height:1px;background:var(--line-2);}
+  .ornament-divider .mark{width:34px;height:34px;color:var(--ink);}
+
+  .l-features{
+    max-width:920px;margin:0 auto;padding:0 32px 90px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  }
+  .l-features .f{padding:0 22px;border-left:1px solid var(--line);}
+  .l-features .f:first-child{border-left:none;padding-left:0;}
+  .l-features .f .eyebrow{margin-bottom:14px;}
+  .l-features .f h4{font-family:var(--font-display);font-weight:400;font-size:17px;margin:0 0 10px;}
+  .l-features .f p{font-size:13px;line-height:1.55;color:var(--ink-soft);margin:0;}
+
+  .l-form-wrap{background:var(--roast-2);padding:64px 32px;}
+  .l-form{max-width:420px;margin:0 auto;}
+  .l-form .eyebrow{display:block;margin-bottom:12px;color:var(--cream-soft);}
+  .l-form h3{font-family:var(--font-display);font-weight:400;font-size:26px;margin:0 0 34px;color:var(--cream);}
+  .field{margin-bottom:22px;}
+  .field label{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-soft);margin-bottom:9px;}
+  .field input,.field textarea{
+    width:100%;background:transparent;border:none;border-bottom:1px solid var(--line-dark);
+    padding:9px 0;color:var(--cream);font-family:var(--font-body);font-size:15px;border-radius:0;
+  }
+  .field input::placeholder{color:#5c5647;}
+  .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--gold);}
+  .l-form .btn{width:100%;margin-top:10px;border-color:var(--cream);color:var(--cream);}
+  .l-form .btn:hover{background:var(--cream);color:var(--roast);}
+
+  /* =========================================================
+     POS / KASSA
+  ========================================================= */
+  #pos{background:var(--roast);color:var(--cream);}
+  .pos-shell{display:grid;grid-template-columns:216px 1fr 336px;height:calc(100vh - 48px);}
+  .pos-side{padding:26px 22px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--line-dark);}
+  .shop-tag{display:flex;align-items:center;gap:10px;}
+  .shop-tag .mark{width:20px;height:20px;color:var(--cream);}
+  .shop-tag div b{display:block;font-size:14px;font-weight:600;}
+  .shop-tag div span{font-size:11px;color:var(--cream-soft);}
+  .cashier-pill{
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line-dark);padding:0 0 14px;font-size:12.5px;
+  }
+  .cashier-pill a{color:var(--cream-soft);font-family:var(--font-mono);font-size:10px;text-decoration:none;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line-dark);}
+  .cat-list{display:flex;flex-direction:column;gap:0;flex:1;}
+  .cat-list .cat{
+    padding:11px 0;font-size:13.5px;cursor:pointer;color:var(--cream-soft);border-bottom:1px solid var(--line-dark);
+  }
+  .cat-list .cat.on{color:var(--cream);font-weight:600;}
+  .shift-box{padding-top:14px;border-top:1px solid var(--line-dark);font-size:12.5px;}
+  .shift-box .row{display:flex;justify-content:space-between;padding:6px 0;}
+  .shift-box .row.nal .money{color:var(--gold);}
+  .shift-box .row.beznal .money{color:var(--turq);}
+  .pos-side .btn{width:100%;text-align:center;border-color:var(--line-dark);color:var(--cream-soft);font-size:12.5px;padding:11px 0;}
+  .pos-side .btn:hover{background:var(--cream);color:var(--roast);}
+  .pos-side .btn.primary{border-color:var(--cream);color:var(--cream);}
+  .pos-side .btn.primary:hover{background:var(--cream);color:var(--roast);}
+
+  .pos-grid{padding:26px;overflow:auto;}
+  .pos-grid .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-dark);border:1px solid var(--line-dark);}
+  .pcard{
+    background:var(--roast);color:var(--cream);padding:20px 16px;cursor:pointer;transition:.12s;
+  }
+  .pcard:hover{background:var(--roast-2);}
+  .pcard .pc-tag{font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;color:var(--cream-soft);letter-spacing:.06em;}
+  .pcard .pc-name{font-size:14.5px;font-weight:500;margin:8px 0 12px;}
+  .pcard .pc-price{font-family:var(--font-mono);font-weight:600;font-size:14px;color:var(--cream-soft);}
+
+  .pos-check{border-left:1px solid var(--line-dark);display:flex;flex-direction:column;padding:26px 24px;}
+  .pos-check h4{font-family:var(--font-display);font-weight:400;font-size:16px;margin:0 0 18px;letter-spacing:.02em;}
+  .check-items{flex:1;overflow:auto;display:flex;flex-direction:column;}
+  .citem{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line-dark);font-size:13.5px;}
+  .citem .qty{display:flex;align-items:center;gap:8px;}
+  .qty button{width:20px;height:20px;border:1px solid var(--line-dark);background:transparent;color:var(--cream);cursor:pointer;font-size:12px;line-height:1;}
+  .citem .name{flex:1;}
+  .citem .money{color:var(--cream);}
+  .check-total{border-top:1px solid var(--line-dark);margin-top:14px;padding-top:16px;}
+  .check-total .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--cream-soft);margin-bottom:18px;}
+  .check-total .row b{font-family:var(--font-mono);font-size:24px;color:var(--cream);font-weight:600;}
+  .pay-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-dark);border:1px solid var(--line-dark);}
+  .pay-row button{padding:14px 0;font-weight:600;font-size:12.5px;border:none;cursor:pointer;letter-spacing:.02em;}
+  .pay-nal{background:var(--roast);color:var(--gold);}
+  .pay-nal:hover{background:var(--gold);color:var(--roast);}
+  .pay-beznal{background:var(--roast);color:var(--turq);}
+  .pay-beznal:hover{background:var(--turq);color:var(--roast);}
+
+  /* =========================================================
+     OWNER CABINET
+  ========================================================= */
+  #owner{background:var(--paper);}
+  .o-shell{max-width:1080px;margin:0 auto;padding:0 32px 70px;}
+  .o-header{display:flex;align-items:center;justify-content:space-between;padding:24px 0;border-bottom:1px solid var(--line);margin-bottom:34px;}
+  .o-header .brand{font-size:15.5px;}
+  .o-header .brand .mark{width:17px;height:17px;}
+  .o-nav{display:flex;gap:26px;font-size:13px;}
+  .o-nav span{color:var(--ink-faint);cursor:pointer;padding-bottom:4px;border-bottom:1px solid transparent;}
+  .o-nav span.on{color:var(--ink);border-bottom-color:var(--ink);}
+  .o-header .who{font-size:12.5px;color:var(--ink-faint);}
+
+  .period-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;}
+  .chips{display:flex;gap:0;border:1px solid var(--line-2);}
+  .chip{font-size:12px;padding:9px 16px;cursor:pointer;color:var(--ink-soft);border-right:1px solid var(--line-2);}
+  .chip:last-child{border-right:none;}
+  .chip.on{background:var(--ink);color:var(--paper);}
+  .period-row .btn-quiet{border:1px solid var(--line-2);padding:9px 16px;font-size:12px;}
+  .period-row .btn-quiet:hover{background:transparent;color:var(--ink);border-color:var(--ink);text-decoration:none;}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);margin-bottom:1px;}
+  .tile{
+    padding:22px 24px;border-right:1px solid var(--line);
+  }
+  .tile:last-child{border-right:none;}
+  .tile .big{font-family:var(--font-mono);font-size:23px;font-weight:600;margin-top:10px;color:var(--ink);}
+  .tile.profit .big{color:var(--gold);}
+
+  .chart-card{
+    border:1px solid var(--line);border-top:none;padding:30px 24px;margin-bottom:1px;
+  }
+  .chart-card h4{margin:0 0 6px;font-family:var(--font-display);font-weight:400;font-size:17px;}
+  .chart-card .legend{display:flex;gap:20px;font-size:12px;margin-bottom:26px;color:var(--ink-soft);}
+  .legend .dot{width:7px;height:7px;display:inline-block;margin-right:7px;border-radius:1px;}
+  .dot.gold{background:var(--gold);} .dot.turq{background:var(--turq);}
+  .bars{display:flex;align-items:flex-end;gap:22px;height:130px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .bar-stack{width:100%;max-width:22px;display:flex;flex-direction:column-reverse;}
+  .bar-stack .seg-gold{background:var(--gold);}
+  .bar-stack .seg-turq{background:var(--turq);}
+  .bar-col .lbl{font-size:10px;color:var(--ink-faint);font-family:var(--font-mono);letter-spacing:.04em;}
+
+  .table-card{border:1px solid var(--line);border-top:none;}
+  .table-card table{width:100%;border-collapse:collapse;font-size:13px;}
+  .table-card th{text-align:left;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);padding:13px 24px;border-bottom:1px solid var(--line);font-weight:500;}
+  .table-card td{padding:13px 24px;border-bottom:1px solid var(--line);color:var(--ink-soft);}
+  .table-card tr:last-child td{border-bottom:none;}
+  .table-card td.money{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<div class="viewer-bar">
+  <button data-v="landing" class="on">Лендинг</button>
+  <button data-v="pos">Касса</button>
+  <button data-v="owner">Кабинет владельца</button>
+</div>
+
+<!-- ============ LANDING ============ -->
+<div class="view on" id="landing">
+  <header class="l-header">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24"><use href="#shanyrak"></use></svg>
+      CoffeeOS
+    </div>
+    <nav>
+      <a>Возможности</a>
+      <a>Тема</a>
+      <button class="btn">Войти</button>
+    </nav>
+  </header>
+
+  <div class="l-hero">
+    <span class="eyebrow">Учёт для кофейни</span>
+    <h1>Касса, склад и деньги — в одном месте</h1>
+    <p class="lead">CoffeeOS считает выручку, себестоимость и остатки сам, пока бариста пробивает чек. Владелец видит прибыль, не открывая тетрадь.</p>
+    <div class="actions">
+      <button class="btn btn-fill">Оставить заявку</button>
+      <button class="btn btn-quiet">Как это работает</button>
+    </div>
+  </div>
+
+  <div class="ornament-divider">
+    <span class="line"></span>
+    <svg class="mark" viewBox="0 0 24 24"><use href="#shanyrak"></use></svg>
+    <span class="line"></span>
+  </div>
+
+  <div class="l-features">
+    <div class="f">
+      <span class="eyebrow">Касса</span>
+      <h4>Нал и безнал</h4>
+      <p>PIN-вход, чек за два касания, смена людей за кассой без переоткрытия смены.</p>
+    </div>
+    <div class="f">
+      <span class="eyebrow">Склад</span>
+      <h4>Списывается сам</h4>
+      <p>Рецепт товара — и остатки уходят автоматически при каждой продаже.</p>
+    </div>
+    <div class="f">
+      <span class="eyebrow">Смены</span>
+      <h4>Ящик сходится</h4>
+      <p>Открытие, инкассация, закрытие — расхождение видно сразу, не в конце месяца.</p>
+    </div>
+    <div class="f">
+      <span class="eyebrow">Деньги</span>
+      <h4>Прибыль день в день</h4>
+      <p>Себестоимость и чистыми — на дашборде, без сведения таблиц вручную.</p>
+    </div>
+  </div>
+
+  <div class="l-form-wrap">
+    <div class="l-form">
+      <span class="eyebrow">Подключить точку</span>
+      <h3>Оставить заявку</h3>
+      <div class="field"><label>Название кофейни</label><input placeholder="Дастархан кофе"></div>
+      <div class="field"><label>Город</label><input placeholder="Алматы"></div>
+      <div class="field"><label>Телефон*</label><input placeholder="+7 700 000 00 00"></div>
+      <button class="btn">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ POS ============ -->
+<div class="view" id="pos">
+  <div class="pos-shell">
+    <div class="pos-side">
+      <div class="shop-tag">
+        <svg class="mark" viewBox="0 0 24 24"><use href="#shanyrak"></use></svg>
+        <div><b>Дастархан кофе</b><span>ул. Абая, 12</span></div>
+      </div>
+      <div class="cashier-pill"><span>Айгерим Б.</span><a href="#">Сменить</a></div>
+      <div class="cat-list">
+        <div class="cat on">Всё меню</div>
+        <div class="cat">Кофе</div>
+        <div class="cat">Чай</div>
+        <div class="cat">Выпечка</div>
+        <div class="cat">Холодное</div>
+      </div>
+      <div class="shift-box">
+        <div class="row nal"><span>Наличными</span><span class="money">18 400 ₸</span></div>
+        <div class="row beznal"><span>Безналично</span><span class="money">31 900 ₸</span></div>
+        <div class="row"><span>Чеков</span><span class="money">27</span></div>
+      </div>
+      <button class="btn">Внести / изъять</button>
+      <button class="btn primary">Закрыть смену</button>
+    </div>
+
+    <div class="pos-grid">
+      <div class="grid" id="posGrid">
+        <div class="pcard" data-name="Капучино 300мл" data-price="1400"><div class="pc-tag">Кофе</div><div class="pc-name">Капучино 300мл</div><div class="pc-price">1 400 ₸</div></div>
+        <div class="pcard" data-name="Латте 350мл" data-price="1500"><div class="pc-tag">Кофе</div><div class="pc-name">Латте 350мл</div><div class="pc-price">1 500 ₸</div></div>
+        <div class="pcard" data-name="Американо" data-price="1100"><div class="pc-tag">Кофе</div><div class="pc-name">Американо</div><div class="pc-price">1 100 ₸</div></div>
+        <div class="pcard" data-name="Раф ореховый" data-price="1700"><div class="pc-tag">Кофе</div><div class="pc-name">Раф ореховый</div><div class="pc-price">1 700 ₸</div></div>
+        <div class="pcard" data-name="Матча латте" data-price="1800"><div class="pc-tag">Чай</div><div class="pc-name">Матча латте</div><div class="pc-price">1 800 ₸</div></div>
+        <div class="pcard" data-name="Чёрный чай" data-price="900"><div class="pc-tag">Чай</div><div class="pc-name">Чёрный чай</div><div class="pc-price">900 ₸</div></div>
+        <div class="pcard" data-name="Круассан" data-price="1200"><div class="pc-tag">Выпечка</div><div class="pc-name">Круассан</div><div class="pc-price">1 200 ₸</div></div>
+        <div class="pcard" data-name="Чизкейк" data-price="1900"><div class="pc-tag">Выпечка</div><div class="pc-name">Чизкейк</div><div class="pc-price">1 900 ₸</div></div>
+        <div class="pcard" data-name="Айс-латте" data-price="1600"><div class="pc-tag">Холодное</div><div class="pc-name">Айс-латте</div><div class="pc-price">1 600 ₸</div></div>
+      </div>
+    </div>
+
+    <div class="pos-check">
+      <h4>Чек</h4>
+      <div class="check-items" id="checkItems">
+        <div style="color:var(--cream-soft);font-size:13px;padding:20px 0;text-align:center;">Чек пустой — коснитесь товара слева</div>
+      </div>
+      <div class="check-total">
+        <div class="row"><span>К оплате</span><b class="money" id="checkTotal">0 ₸</b></div>
+        <div class="pay-row">
+          <button class="pay-nal">Наличными</button>
+          <button class="pay-beznal">Безналично</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OWNER ============ -->
+<div class="view" id="owner">
+  <div class="o-shell">
+    <div class="o-header">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 24 24"><use href="#shanyrak"></use></svg>
+        Дастархан кофе
+      </div>
+      <div class="o-nav">
+        <span class="on">Отчёты</span><span>Меню</span><span>Склад</span><span>Бариста</span><span>Расходы</span><span>Смены</span><span>Касса</span><span>Настройки</span>
+      </div>
+      <div class="who">Айдос Т. · Выйти</div>
+    </div>
+
+    <div class="period-row">
+      <div class="chips">
+        <div class="chip">Сегодня</div>
+        <div class="chip on">7 дней</div>
+        <div class="chip">Этот месяц</div>
+        <div class="chip">Свои даты</div>
+      </div>
+      <button class="btn-quiet">Скачать CSV</button>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><span class="eyebrow">Выручка</span><div class="big">312 400 ₸</div></div>
+      <div class="tile profit"><span class="eyebrow">Прибыль</span><div class="big">118 700 ₸</div></div>
+      <div class="tile"><span class="eyebrow">Расходы</span><div class="big">64 200 ₸</div></div>
+      <div class="tile"><span class="eyebrow">Чистыми</span><div class="big">54 500 ₸</div></div>
+    </div>
+
+    <div class="chart-card">
+      <h4>Наличные и безналичные</h4>
+      <div class="legend"><span><span class="dot gold"></span>Наличными</span><span><span class="dot turq"></span>Безналично</span></div>
+      <div class="bars" id="barsChart"></div>
+    </div>
+
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Товар</th><th>Продано</th><th>Выручка</th><th>Себестоимость</th></tr></thead>
+        <tbody>
+          <tr><td>Капучино 300мл</td><td>142</td><td class="money">198 800 ₸</td><td class="money">41 200 ₸</td></tr>
+          <tr><td>Латте 350мл</td><td>98</td><td class="money">147 000 ₸</td><td class="money">33 600 ₸</td></tr>
+          <tr><td>Круассан</td><td>76</td><td class="money">91 200 ₸</td><td class="money">28 500 ₸</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <!-- shanyrak: quiet abstraction of the yurt roof lattice — spokes in a circle, nothing more -->
+    <g id="shanyrak">
+      <circle cx="12" cy="12" r="10.5"/>
+      <line x1="12" y1="1.5" x2="12" y2="22.5"/>
+      <line x1="1.5" y1="12" x2="22.5" y2="12"/>
+      <line x1="4.6" y1="4.6" x2="19.4" y2="19.4"/>
+      <line x1="19.4" y1="4.6" x2="4.6" y2="19.4"/>
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+    </g>
+  </defs>
+</svg>
+
+<script>
+document.querySelectorAll('.viewer-bar button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.viewer-bar button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.v).classList.add('on');
+  });
+});
+
+const cart = {};
+function fmt(n){return n.toLocaleString('ru-RU')+' ₸';}
+function renderCart(){
+  const box = document.getElementById('checkItems');
+  const keys = Object.keys(cart);
+  if(keys.length===0){
+    box.innerHTML = '<div style="color:var(--cream-soft);font-size:13px;padding:20px 0;text-align:center;">Чек пустой — коснитесь товара слева</div>';
+    document.getElementById('checkTotal').textContent = '0 ₸';
+    return;
+  }
+  let total = 0;
+  box.innerHTML = keys.map(name=>{
+    const it = cart[name];
+    total += it.price*it.qty;
+    return `<div class="citem">
+      <div class="qty"><button onclick="changeQty('${name}',-1)">−</button><span>${it.qty}</span><button onclick="changeQty('${name}',1)">+</button></div>
+      <div class="name">${name}</div>
+      <div class="money">${fmt(it.price*it.qty)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('checkTotal').textContent = fmt(total);
+}
+window.changeQty = function(name,delta){
+  cart[name].qty += delta;
+  if(cart[name].qty<=0) delete cart[name];
+  renderCart();
+};
+document.getElementById('posGrid').addEventListener('click', e=>{
+  const card = e.target.closest('.pcard');
+  if(!card) return;
+  const name = card.dataset.name, price = parseInt(card.dataset.price,10);
+  if(!cart[name]) cart[name] = {price, qty:0};
+  cart[name].qty += 1;
+  renderCart();
+});
+
+const days = [
+  {lbl:'ПН', gold:14, turq:22},{lbl:'ВТ', gold:11, turq:18},{lbl:'СР', gold:18, turq:26},
+  {lbl:'ЧТ', gold:9,  turq:15},{lbl:'ПТ', gold:21, turq:33},{lbl:'СБ', gold:26, turq:38},{lbl:'ВС', gold:19, turq:29},
+];
+const maxV = Math.max(...days.map(d=>d.gold+d.turq));
+document.getElementById('barsChart').innerHTML = days.map(d=>{
+  const h = 110;
+  const goldH = (d.gold/maxV)*h, turqH = (d.turq/maxV)*h;
+  return `<div class="bar-col">
+    <div class="bar-stack" style="height:${goldH+turqH}px;">
+      <div class="seg-gold" style="height:${goldH}px;"></div>
+      <div class="seg-turq" style="height:${turqH}px;"></div>
+    </div>
+    <div class="lbl">${d.lbl}</div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>

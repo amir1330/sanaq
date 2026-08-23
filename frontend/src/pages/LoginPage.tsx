@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { Brand } from "../components/Mark";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { Button, Field, Input } from "../components/ui";
 import { homePath, useAuth } from "../store/auth";
 
@@ -30,22 +32,22 @@ export function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-mute">
-        <Link to="/" className="hover:text-ink">
-          CoffeeOS
+    <div className="min-h-screen bg-paper">
+      <header className="flex items-center justify-between px-6 py-7 md:px-14">
+        <Link to="/">
+          <Brand />
         </Link>
-      </p>
-      <h1 className="mt-3 text-4xl font-medium tracking-tight">Вход</h1>
-      <p className="mt-3 text-sm text-mute">Почта или телефон и пароль, который выдал владелец.</p>
-      <form onSubmit={(e) => void signIn(e)} className="mt-8 border border-line bg-foam p-6">
-        <div className="space-y-3">
+        <ThemeToggle />
+      </header>
+      <div className="mx-auto max-w-[420px] px-6 pt-16">
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Кабинет</p>
+        <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+          Почта или телефон и пароль, который выдал владелец.
+        </p>
+        <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
           <Field label="Почта или телефон">
-            <Input
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-              autoComplete="username"
-            />
+            <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
           </Field>
           <Field label="Пароль">
             <Input
@@ -59,14 +61,14 @@ export function LoginPage() {
           <Button className="w-full" disabled={pending || !login || !password}>
             {pending ? "Входим…" : "Войти"}
           </Button>
-        </div>
-        <p className="mt-4 text-sm text-mute">
+        </form>
+        <p className="mt-6 text-sm text-mute">
           Общий планшет на стойке —{" "}
           <Link to="/pin" className="text-ink underline">
             вход по PIN
           </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

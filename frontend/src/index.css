@@ -3,12 +3,55 @@
 @tailwind utilities;
 
 :root {
-  color: #101211;
-  background: #f4f5f3;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  --ink: 27 24 17;
+  --ink-soft: 91 83 70;
+  --paper: 247 244 236;
+  --paper-2: 240 235 221;
+  --foam: 247 244 236;
+  --line: 221 213 193;
+  --line-2: 201 191 165;
+  --sun: 176 138 46;
+  --sun-hot: 196 158 62;
+  --sky: 63 143 134;
+  --sky-deep: 47 120 113;
+  --mute: 91 83 70;
+  --faint: 139 130 109;
+  --alert: 176 74 52;
+  --roast: 33 29 23;
+  --roast-2: 42 37 29;
+  --line-dark: 60 54 43;
+  --cream: 239 233 218;
+  --cream-soft: 167 157 133;
+  color-scheme: light;
+  color: rgb(var(--ink));
+  background: rgb(var(--paper));
+  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01" on;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.dark {
+  --ink: 239 233 218;
+  --ink-soft: 167 157 133;
+  --paper: 33 29 23;
+  --paper-2: 42 37 29;
+  --foam: 42 37 29;
+  --line: 60 54 43;
+  --line-2: 80 73 58;
+  --sun: 176 138 46;
+  --sun-hot: 196 158 62;
+  --sky: 63 143 134;
+  --sky-deep: 86 168 160;
+  --mute: 167 157 133;
+  --faint: 139 130 109;
+  --alert: 214 110 86;
+  --roast: 33 29 23;
+  --roast-2: 42 37 29;
+  --line-dark: 60 54 43;
+  --cream: 239 233 218;
+  --cream-soft: 167 157 133;
+  color-scheme: dark;
 }
 
 html,
@@ -19,7 +62,8 @@ body,
 
 body {
   margin: 0;
-  background: #f4f5f3;
+  background: rgb(var(--paper));
+  color: rgb(var(--ink));
 }
 
 button,
@@ -30,13 +74,13 @@ textarea {
 }
 
 ::selection {
-  background: #e8b923;
-  color: #101211;
+  background: rgb(var(--sun));
+  color: rgb(var(--roast));
 }
 
 :focus-visible {
-  outline: 2px solid #0e7c86;
-  outline-offset: 2px;
+  outline: 1px solid rgb(var(--sun));
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

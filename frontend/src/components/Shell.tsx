@@ -2,10 +2,12 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useAuth } from "../store/auth";
+import { Brand } from "./Mark";
 import { ShopBrand } from "./ShopBrand";
+import { ThemeToggle } from "./ThemeToggle";
 
 const ownerLinks = [
-  { to: "/owner", label: "Деньги" },
+  { to: "/owner", label: "Отчёты" },
   { to: "/owner/products", label: "Меню" },
   { to: "/owner/stock", label: "Склад" },
   { to: "/owner/staff", label: "Бариста" },
@@ -29,36 +31,35 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="sticky top-0 z-20 border-b border-line bg-paper">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-5 py-3">
-          <button
-            onClick={() => navigate(kind === "admin" ? "/admin" : "/owner")}
-            className="min-w-0"
-          >
-            <ShopBrand
-              shop={kind === "owner" ? currentShop : null}
-              fallback={kind === "admin" ? "CoffeeOS" : "Кофейня"}
-            />
+      <div className="mx-auto max-w-[1080px] px-8 pb-[70px]">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-line py-6">
+          <button onClick={() => navigate(kind === "admin" ? "/admin" : "/owner")} className="min-w-0">
+            {kind === "admin" ? (
+              <Brand className="text-[15.5px]" markClass="h-[17px] w-[17px]" />
+            ) : (
+              <ShopBrand shop={currentShop} fallback="Кофейня" />
+            )}
           </button>
-          <nav className="flex flex-1 flex-wrap gap-1">
+          <nav className="flex flex-1 flex-wrap justify-center gap-6 text-[13px]">
             {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
                 end={l.to === "/owner" || l.to === "/admin"}
                 className={({ isActive }) =>
-                  `px-3 py-1.5 text-sm ${isActive ? "bg-ink text-paper" : "text-mute hover:text-ink"}`
+                  isActive
+                    ? "border-b border-ink pb-1 text-ink"
+                    : "border-b border-transparent pb-1 text-faint hover:text-ink"
                 }
               >
                 {l.label}
               </NavLink>
             ))}
           </nav>
-          {kind === "owner" && (shops.data?.length ?? 0) > 1 && (
-            <label className="flex items-center gap-2 text-sm text-mute">
-              Точка
+          <div className="flex items-center gap-4 text-[12.5px] text-faint">
+            {kind === "owner" && (shops.data?.length ?? 0) > 1 && (
               <select
-                className="border border-line bg-foam px-2 py-1.5 text-ink"
+                className="border-0 border-b border-line-2 bg-transparent py-1 text-ink outline-none"
                 value={shopId ?? ""}
                 onChange={(e) => setShopId(Number(e.target.value))}
               >
@@ -68,12 +69,11 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                   </option>
                 ))}
               </select>
-            </label>
-          )}
-          <div className="text-right">
-            <p className="text-sm">{user?.full_name}</p>
+            )}
+            <ThemeToggle />
+            <span>{user?.full_name}</span>
             <button
-              className="text-sm text-mute underline"
+              className="hover:text-ink"
               onClick={() => {
                 logout();
                 navigate("/login");
@@ -82,11 +82,11 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
               Выйти
             </button>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-5 py-8">
-        <Outlet />
-      </main>
+        </header>
+        <main>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

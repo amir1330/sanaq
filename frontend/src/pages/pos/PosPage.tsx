@@ -199,18 +199,28 @@ export function PosPage() {
   });
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-paper lg:grid-cols-[220px_1fr_360px]">
-      <aside className="border-r border-line bg-foam p-5">
-        <ShopBrand shop={currentShop} fallback="Касса" size="md" />
-        <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-mute">Касса</p>
-        <button className="mt-1 text-left" onClick={() => setPanel("seller")}>
-          <p className="text-lg font-medium">{seller?.name ?? user?.full_name}</p>
-          <p className="text-sm text-sky underline">Сменить человека</p>
-        </button>
-        <div className="mt-8 space-y-1">
-          <p className="px-3 pb-1 text-[11px] uppercase tracking-wider text-mute">Категории</p>
+    <div className="grid min-h-screen grid-cols-1 bg-roast text-cream lg:grid-cols-[216px_1fr_336px]">
+      <aside className="flex flex-col gap-7 border-r border-line-dark px-[22px] py-[26px]">
+        <div>
+          <ShopBrand shop={currentShop} fallback="Касса" size="md" />
+          {currentShop?.address && (
+            <p className="mt-1 pl-8 text-[11px] text-cream-soft">{currentShop.address}</p>
+          )}
+        </div>
+        <div className="flex items-center justify-between border-b border-line-dark pb-3.5 text-[12.5px]">
+          <span>{seller?.name ?? user?.full_name}</span>
           <button
-            className={`block w-full px-3 py-2 text-left text-sm ${categoryId === "all" ? "bg-ink text-paper" : "text-mute hover:text-ink"}`}
+            className="font-mono text-[10px] uppercase tracking-[0.06em] text-cream-soft underline decoration-line-dark underline-offset-4"
+            onClick={() => setPanel("seller")}
+          >
+            Сменить
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col">
+          <button
+            className={`border-b border-line-dark py-[11px] text-left text-[13.5px] ${
+              categoryId === "all" ? "font-semibold text-cream" : "text-cream-soft"
+            }`}
             onClick={() => setCategoryId("all")}
           >
             Всё меню
@@ -218,44 +228,63 @@ export function PosPage() {
           {categories.data?.map((c) => (
             <button
               key={c.id}
-              className={`block w-full px-3 py-2 text-left text-sm ${categoryId === c.id ? "bg-ink text-paper" : "text-mute hover:text-ink"}`}
+              className={`border-b border-line-dark py-[11px] text-left text-[13.5px] ${
+                categoryId === c.id ? "font-semibold text-cream" : "text-cream-soft"
+              }`}
               onClick={() => setCategoryId(c.id)}
             >
               {c.name}
             </button>
           ))}
         </div>
-        <div className="mt-10 space-y-2 text-sm">
+        <div className="space-y-2 text-[12.5px]">
           {shift.data ? (
             <>
-              <p className="text-[11px] uppercase tracking-wider text-sky">Смена открыта</p>
-              <p>Наличный {money(shift.data.cash_revenue)}</p>
-              <p>Безналичный {money(shift.data.card_revenue)}</p>
-              <p className="text-mute">{shift.data.sales_count} чеков за смену</p>
-              {(shift.data.sellers ?? []).map((row) => (
-                <p key={row.barista_id} className="text-mute">
-                  {row.barista_name}: {money(row.revenue)}
-                </p>
-              ))}
-              <Button variant="foam" className="w-full" onClick={() => setPanel("move")}>
-                Внести / изъять наличные
-              </Button>
-              <Button variant="ink" className="w-full" onClick={() => setPanel("close")}>
+              <div className="border-t border-line-dark pt-3.5">
+                <div className="flex justify-between py-1.5">
+                  <span>Наличными</span>
+                  <span className="font-mono font-semibold text-gold">{money(shift.data.cash_revenue)}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span>Безналично</span>
+                  <span className="font-mono font-semibold text-turq">{money(shift.data.card_revenue)}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span>Чеков</span>
+                  <span className="font-mono font-semibold">{shift.data.sales_count}</span>
+                </div>
+              </div>
+              <button
+                className="w-full border border-line-dark py-2.5 text-[12.5px] text-cream-soft hover:bg-cream hover:text-roast"
+                onClick={() => setPanel("move")}
+              >
+                Внести / изъять
+              </button>
+              <button
+                className="w-full border border-cream py-2.5 text-[12.5px] text-cream hover:bg-cream hover:text-roast"
+                onClick={() => setPanel("close")}
+              >
                 Закрыть смену
-              </Button>
+              </button>
             </>
           ) : (
-            <Button className="w-full" onClick={() => setPanel("open")}>
+            <button
+              className="w-full border border-cream py-2.5 text-[12.5px] text-cream hover:bg-cream hover:text-roast"
+              onClick={() => setPanel("open")}
+            >
               Открыть смену
-            </Button>
+            </button>
           )}
           {(user?.role !== "barista" || user?.can_receive_stock) && (
-            <Button variant="foam" className="w-full" onClick={() => setReceiveOpen(true)}>
-              Приёмка товара
-            </Button>
+            <button
+              className="w-full border border-line-dark py-2.5 text-[12.5px] text-cream-soft hover:bg-cream hover:text-roast"
+              onClick={() => setReceiveOpen(true)}
+            >
+              Приёмка
+            </button>
           )}
           <button
-            className="w-full text-left text-sm text-mute underline"
+            className="pt-2 text-left text-[12.5px] text-cream-soft underline"
             onClick={() => {
               logout();
               navigate("/login");
@@ -266,7 +295,7 @@ export function PosPage() {
         </div>
       </aside>
 
-      <section className="relative p-4">
+      <section className="overflow-auto p-[26px]">
         {notice && (
           <Banner tone={notice.tone}>
             {notice.text}{" "}
@@ -276,109 +305,93 @@ export function PosPage() {
           </Banner>
         )}
         {!shiftOpen && (
-          <Banner tone="warn">
-            Смена закрыта. Нажми «Открыть смену», посчитай наличные в ящике — потом можно продавать.
-          </Banner>
+          <Banner tone="warn">Смена закрыта. Открой смену — потом можно продавать.</Banner>
         )}
-        <div className="grid grid-cols-2 gap-px bg-line md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-px border border-line-dark bg-line-dark md:grid-cols-3">
           {visible.map((p) => (
             <button
               key={p.id}
               onClick={() => add(p)}
-              className={`aspect-[5/4] bg-foam p-4 text-left transition hover:bg-paper ${!shiftOpen ? "opacity-50" : ""}`}
+              className={`bg-roast px-4 py-5 text-left text-cream transition hover:bg-roast-2 ${!shiftOpen ? "opacity-50" : ""}`}
             >
-              <p className="text-[11px] uppercase tracking-wider text-mute">{p.category_name}</p>
-              <p className="mt-3 text-lg font-medium leading-tight">{p.name}</p>
-              <p className="mt-6 text-sm text-sky">{money(p.sale_price)}</p>
+              <p className="font-mono text-[9.5px] uppercase tracking-wide text-cream-soft">{p.category_name}</p>
+              <p className="mt-2 text-[14.5px] font-medium">{p.name}</p>
+              <p className="mt-3 font-mono text-sm font-semibold text-cream-soft">{money(p.sale_price)}</p>
             </button>
           ))}
         </div>
       </section>
 
-      <aside className="border-l border-line bg-foam">
-        <div className="flex h-full flex-col px-5 py-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-mute">Текущий чек</p>
-          <p className="mt-1 text-sm text-mute">Нажми товар слева, чтобы добавить</p>
-          <div className="mt-5 min-h-[200px] flex-1 space-y-2">
-            {cart.length === 0 && (
-              <p className="border border-dashed border-line px-3 py-8 text-center text-sm text-mute">
-                Чек пустой
-              </p>
-            )}
-            {cart.map((l) => (
-              <div key={l.product.id} className="flex items-center gap-2 border border-line px-2 py-2 text-sm">
+      <aside className="flex flex-col border-l border-line-dark px-6 py-[26px]">
+        <h4 className="mb-[18px] font-display text-base font-normal tracking-wide">Чек</h4>
+        <div className="flex min-h-[200px] flex-1 flex-col overflow-auto">
+          {cart.length === 0 && (
+            <p className="py-5 text-center text-[13px] text-cream-soft">Чек пустой — коснитесь товара слева</p>
+          )}
+          {cart.map((l) => (
+            <div key={l.product.id} className="flex items-center gap-2.5 border-b border-line-dark py-3 text-[13.5px]">
+              <div className="flex items-center gap-2">
                 <button
-                  className="h-9 w-9 border border-line text-lg"
+                  className="h-5 w-5 border border-line-dark text-xs leading-none text-cream"
                   onClick={() => changeQty(l.product.id, -1)}
-                  aria-label="Убрать одну"
                 >
                   −
                 </button>
-                <span className="flex-1">
-                  {l.product.name}
-                  <span className="mt-0.5 block text-xs text-mute">
-                    {l.quantity} × {money(l.product.sale_price)}
-                  </span>
-                </span>
-                <span>{money(Number(l.product.sale_price) * l.quantity)}</span>
+                <span>{l.quantity}</span>
                 <button
-                  className="h-9 w-9 border border-line text-lg"
+                  className="h-5 w-5 border border-line-dark text-xs leading-none text-cream"
                   onClick={() => changeQty(l.product.id, 1)}
-                  aria-label="Добавить ещё"
                 >
                   +
                 </button>
               </div>
-            ))}
-          </div>
-          <div className="border-t border-line pt-4">
-            <div className="flex items-end justify-between">
-              <span className="text-sm text-mute">К оплате</span>
-              <span className="text-2xl font-medium text-sun">{money(total)}</span>
+              <span className="flex-1">{l.product.name}</span>
+              <span className="font-mono font-semibold">{money(Number(l.product.sale_price) * l.quantity)}</span>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-2">
-              <Button
-                variant="ink"
-                className="h-14 text-base"
-                disabled={!shiftOpen || cart.length === 0 || sell.isPending}
-                onClick={() => sell.mutate("cash")}
-              >
-                {payAction("cash")}
-              </Button>
-              <Button
-                variant="sky"
-                className="h-14 text-base"
-                disabled={!shiftOpen || cart.length === 0 || sell.isPending}
-                onClick={() => sell.mutate("card")}
-              >
-                {payAction("card")}
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-mute">
-              Безнал — карта, Kaspi, перевод. Нал — купюры в ящик.
-            </p>
-            {cart.length > 0 && (
-              <button className="mt-3 w-full text-center text-sm text-mute underline" onClick={() => setCart([])}>
-                Очистить чек
-              </button>
-            )}
+          ))}
+        </div>
+        <div className="mt-3.5 border-t border-line-dark pt-4">
+          <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-cream-soft">
+            <span>К оплате</span>
+            <b className="font-mono text-2xl font-semibold text-cream">{money(total)}</b>
           </div>
+          <div className="grid grid-cols-2 gap-px border border-line-dark bg-line-dark">
+            <button
+              disabled={!shiftOpen || cart.length === 0 || sell.isPending}
+              onClick={() => sell.mutate("cash")}
+              className="bg-roast py-3.5 text-[12.5px] font-semibold tracking-wide text-gold hover:bg-gold hover:text-roast disabled:opacity-40"
+            >
+              {payAction("cash")}
+            </button>
+            <button
+              disabled={!shiftOpen || cart.length === 0 || sell.isPending}
+              onClick={() => sell.mutate("card")}
+              className="bg-roast py-3.5 text-[12.5px] font-semibold tracking-wide text-turq hover:bg-turq hover:text-roast disabled:opacity-40"
+            >
+              {payAction("card")}
+            </button>
+          </div>
+          {cart.length > 0 && (
+            <button className="mt-3 w-full text-center text-sm text-cream-soft underline" onClick={() => setCart([])}>
+              Очистить чек
+            </button>
+          )}
         </div>
       </aside>
 
       {panel !== "none" && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
-          <div className="w-full max-w-sm border border-line bg-foam p-6">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/70 p-4">
+          <div className="w-full max-w-sm border border-line-dark bg-roast p-7 text-cream">
             {panel === "open" && (
               <>
-                <h2 className="text-2xl font-medium">Открыть смену</h2>
-                <p className="mt-2 text-sm text-mute">
+                <h2 className="font-display text-2xl font-normal">Открыть смену</h2>
+                <p className="mt-2 text-sm text-cream-soft">
                   Пересчитай купюры в ящике и впиши сумму. Это стартовая касса.
                 </p>
-                <label className="mt-4 block text-sm text-mute">
-                  Наличные в ящике сейчас, ₸
+                <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-cream-soft">
+                  Наличные в ящике, ₸
                   <input
-                    className="mt-1 w-full border border-line px-3 py-2 text-ink"
+                    className="mt-2 w-full border-0 border-b border-line-dark bg-transparent py-2 text-[15px] text-cream outline-none focus:border-gold"
                     value={cashOpen}
                     onChange={(e) => setCashOpen(e.target.value)}
                     placeholder="0"
@@ -386,11 +399,11 @@ export function PosPage() {
                     autoFocus
                   />
                 </label>
-                <div className="mt-4 flex gap-2">
-                  <Button className="flex-1" onClick={() => openShift.mutate()}>
+                <div className="mt-6 flex gap-3">
+                  <Button className="flex-1 border-cream bg-transparent text-cream hover:bg-cream hover:text-roast" onClick={() => openShift.mutate()}>
                     Открыть смену
                   </Button>
-                  <Button variant="ghost" onClick={() => setPanel("none")}>
+                  <Button variant="ghost" className="text-cream-soft" onClick={() => setPanel("none")}>
                     Назад
                   </Button>
                 </div>
@@ -398,14 +411,14 @@ export function PosPage() {
             )}
             {panel === "close" && (
               <>
-                <h2 className="text-2xl font-medium">Закрыть смену</h2>
-                <p className="mt-2 text-sm text-mute">
+                <h2 className="font-display text-2xl font-normal">Закрыть смену</h2>
+                <p className="mt-2 text-sm text-cream-soft">
                   По продажам в ящике должно быть {money(shift.data?.expected_cash)}. Пересчитай факт.
                 </p>
-                <label className="mt-4 block text-sm text-mute">
+                <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-cream-soft">
                   Сколько наличных насчитал, ₸
                   <input
-                    className="mt-1 w-full border border-line px-3 py-2"
+                    className="mt-2 w-full border-0 border-b border-line-dark bg-transparent py-2 text-[15px] text-cream outline-none focus:border-gold"
                     value={cashClose}
                     onChange={(e) => setCashClose(e.target.value)}
                     placeholder={String(shift.data?.expected_cash ?? "")}
@@ -413,11 +426,11 @@ export function PosPage() {
                     autoFocus
                   />
                 </label>
-                <div className="mt-4 flex gap-2">
-                  <Button className="flex-1" onClick={() => closeShift.mutate()}>
+                <div className="mt-6 flex gap-3">
+                  <Button className="flex-1 border-cream bg-transparent text-cream hover:bg-cream hover:text-roast" onClick={() => closeShift.mutate()}>
                     Закрыть смену
                   </Button>
-                  <Button variant="ghost" onClick={() => setPanel("none")}>
+                  <Button variant="ghost" className="text-cream-soft" onClick={() => setPanel("none")}>
                     Назад
                   </Button>
                 </div>
@@ -425,16 +438,16 @@ export function PosPage() {
             )}
             {panel === "seller" && (
               <>
-                <h2 className="text-2xl font-medium">Кто на кассе</h2>
-                <p className="mt-2 text-sm text-mute">
-                  Ящик общий. Чеки пишутся на того, кого выберешь. Смену закрывать не надо.
+                <h2 className="font-display text-2xl font-normal">Кто на кассе</h2>
+                <p className="mt-2 text-sm text-cream-soft">
+                  Ящик общий. Чеки пишутся на того, кого выберешь.
                 </p>
-                <div className="mt-4 space-y-1">
+                <div className="mt-4">
                   {(crew.data ?? []).map((member) => (
                     <button
                       key={member.id}
-                      className={`block w-full px-3 py-2 text-left text-sm ${
-                        seller?.id === member.id ? "bg-ink text-paper" : "hover:bg-paper"
+                      className={`block w-full border-b border-line-dark py-2.5 text-left text-sm ${
+                        seller?.id === member.id ? "text-cream" : "text-cream-soft"
                       }`}
                       onClick={() => void chooseSeller(member)}
                     >
@@ -443,62 +456,68 @@ export function PosPage() {
                   ))}
                 </div>
                 {pendingSeller && (
-                  <label className="mt-4 block text-sm text-mute">
+                  <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-cream-soft">
                     PIN · {pendingSeller.full_name}
                     <input
-                      className="mt-1 w-full border border-line px-3 py-2"
+                      className="mt-2 w-full border-0 border-b border-line-dark bg-transparent py-2 text-[15px] text-cream outline-none focus:border-gold"
                       value={sellerPin}
                       onChange={(e) => setSellerPin(e.target.value)}
                       inputMode="numeric"
                       autoFocus
                     />
-                    <Button className="mt-2 w-full" disabled={sellerPin.length < 4} onClick={() => void confirmSellerPin()}>
+                    <Button
+                      className="mt-4 w-full border-cream bg-transparent text-cream hover:bg-cream hover:text-roast"
+                      disabled={sellerPin.length < 4}
+                      onClick={() => void confirmSellerPin()}
+                    >
                       Это я
                     </Button>
                   </label>
                 )}
-                {sellerError && <p className="mt-2 text-sm text-rust">{sellerError}</p>}
-                <div className="mt-4">
-                  <Button variant="ghost" onClick={() => setPanel("none")}>
-                    Назад
-                  </Button>
-                </div>
+                {sellerError && <p className="mt-2 text-sm text-alert">{sellerError}</p>}
+                <Button variant="ghost" className="mt-4 text-cream-soft" onClick={() => setPanel("none")}>
+                  Назад
+                </Button>
               </>
             )}
             {panel === "move" && (
               <>
-                <h2 className="text-2xl font-medium">Наличные в ящике</h2>
-                <p className="mt-2 text-sm text-mute">
-                  Внести — положил свои/размен. Изъять — забрал в сейф или себе.
+                <h2 className="font-display text-2xl font-normal">Наличные в ящике</h2>
+                <p className="mt-2 text-sm text-cream-soft">
+                  Внести — положил размен. Изъять — забрал в сейф.
                 </p>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button
-                    variant={moveType === "deposit" ? "primary" : "foam"}
+                <div className="mt-4 grid grid-cols-2 gap-px border border-line-dark bg-line-dark">
+                  <button
+                    className={`py-3 text-[12.5px] ${moveType === "deposit" ? "bg-cream text-roast" : "bg-roast text-cream-soft"}`}
                     onClick={() => setMoveType("deposit")}
                   >
                     Внести
-                  </Button>
-                  <Button
-                    variant={moveType === "withdrawal" ? "primary" : "foam"}
+                  </button>
+                  <button
+                    className={`py-3 text-[12.5px] ${moveType === "withdrawal" ? "bg-cream text-roast" : "bg-roast text-cream-soft"}`}
                     onClick={() => setMoveType("withdrawal")}
                   >
                     Изъять
-                  </Button>
+                  </button>
                 </div>
-                <label className="mt-4 block text-sm text-mute">
+                <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-cream-soft">
                   Сумма, ₸
                   <input
-                    className="mt-1 w-full border border-line px-3 py-2"
+                    className="mt-2 w-full border-0 border-b border-line-dark bg-transparent py-2 text-[15px] text-cream outline-none focus:border-gold"
                     value={moveAmount}
                     onChange={(e) => setMoveAmount(e.target.value)}
                     inputMode="decimal"
                   />
                 </label>
-                <div className="mt-4 flex gap-2">
-                  <Button className="flex-1" disabled={!moveAmount} onClick={() => cashMove.mutate()}>
+                <div className="mt-6 flex gap-3">
+                  <Button
+                    className="flex-1 border-cream bg-transparent text-cream hover:bg-cream hover:text-roast"
+                    disabled={!moveAmount}
+                    onClick={() => cashMove.mutate()}
+                  >
                     Записать
                   </Button>
-                  <Button variant="ghost" onClick={() => setPanel("none")}>
+                  <Button variant="ghost" className="text-cream-soft" onClick={() => setPanel("none")}>
                     Назад
                   </Button>
                 </div>

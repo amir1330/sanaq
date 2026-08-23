@@ -1,3 +1,4 @@
+import { downloadBlob } from "../lib/utils";
 import { useAuth } from "../store/auth";
 import type {
   AdminStats,
@@ -96,8 +97,12 @@ export const api = {
   deleteLogo: (shopId: number) => request<Shop>(`/shops/${shopId}/logo`, { method: "DELETE" }),
 
   adminShops: () => request<Shop[]>("/admin/shops"),
-  createShop: (body: { name: string; address?: string; timezone?: string }) =>
-    request<Shop>("/admin/shops", { method: "POST", body: json(body) }),
+  createShop: (body: {
+    name: string;
+    address?: string;
+    timezone?: string;
+    owner?: { full_name: string; email: string; password: string; phone?: string };
+  }) => request<Shop>("/admin/shops", { method: "POST", body: json(body) }),
   patchShop: (id: number, body: Partial<Shop>) =>
     request<Shop>(`/admin/shops/${id}`, { method: "PATCH", body: json(body) }),
   createOwner: (shopId: number, body: { full_name: string; email: string; password: string; phone?: string }) =>
@@ -167,6 +172,30 @@ export const api = {
     request<DailyPoint[]>(`/shops/${shopId}/reports/daily?from=${from}&to=${to}`),
   sellers: (shopId: number, from: string, to: string) =>
     request<SellerPoint[]>(`/shops/${shopId}/reports/sellers?from=${from}&to=${to}`),
+  exportReport: async (shopId: number, from: string, to: string) => {
+    const { accessToken, refreshToken, setSession, logout } = useAuth.getState();
+    const headers = new Headers();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+    let res = await fetch(`${BASE}/shops/${shopId}/reports/export?from=${from}&to=${to}`, { headers });
+    if (res.status === 401 && refreshToken) {
+      const refreshed = await fetch(`${BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!refreshed.ok) {
+        logout();
+        throw new ApiError(401, "Сессия истекла");
+      }
+      const pair = (await refreshed.json()) as TokenPair;
+      setSession(pair.access_token, pair.refresh_token, pair.user);
+      headers.set("Authorization", `Bearer ${pair.access_token}`);
+      res = await fetch(`${BASE}/shops/${shopId}/reports/export?from=${from}&to=${to}`, { headers });
+    }
+    if (!res.ok) throw new ApiError(res.status, "Не удалось скачать отчёт");
+    const blob = await res.blob();
+    downloadBlob(blob, `coffeeos-${from}-${to}.csv`);
+  },
 };
 
 export { ApiError };

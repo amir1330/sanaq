@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Field, Input, PageTitle } from "../../components/ui";
-import { publicUrl } from "../../lib/utils";
+import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
+import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
-
-const timezones = ["Asia/Almaty", "Asia/Aqtobe", "Asia/Aqtau", "Europe/Helsinki", "UTC"];
 
 export function SettingsPage() {
   const shopId = useAuth((s) => s.shopId)!;
@@ -85,17 +83,16 @@ export function SettingsPage() {
             />
           </Field>
           <Field label="Часовой пояс">
-            <select
-              className="w-full border border-line bg-foam px-3 py-2.5 text-ink outline-none focus:border-ink"
+            <Select
               value={form.timezone}
               onChange={(e) => setForm({ ...form, timezone: e.target.value })}
             >
-              {[form.timezone, ...timezones.filter((z) => z !== form.timezone)].map((z) => (
+              {[form.timezone, ...TIMEZONES.filter((z) => z !== form.timezone)].map((z) => (
                 <option key={z} value={z}>
                   {z}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <div className="flex items-end">
             <Button className="w-full" disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>

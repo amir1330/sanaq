@@ -1,14 +1,32 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { Brand, Mark } from "../components/Mark";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { Button, Field, Input } from "../components/ui";
 import { homePath, useAuth } from "../store/auth";
 
-const lines = [
-  { name: "Касса", note: "Наличный и безналичный. Чек за секунды." },
-  { name: "Склад", note: "Рецепт списывает зёрна и молоко сам." },
-  { name: "Смены", note: "Открыл, закрыл, касса сошлась." },
-  { name: "Деньги", note: "Выручка, себестоимость, чистыми." },
+const features = [
+  {
+    kicker: "Касса",
+    title: "Нал и безнал",
+    note: "PIN-вход, чек за два касания, смена людей за кассой без переоткрытия смены.",
+  },
+  {
+    kicker: "Склад",
+    title: "Списывается сам",
+    note: "Рецепт товара — и остатки уходят автоматически при каждой продаже.",
+  },
+  {
+    kicker: "Смены",
+    title: "Ящик сходится",
+    note: "Открытие, инкассация, закрытие — расхождение видно сразу, не в конце месяца.",
+  },
+  {
+    kicker: "Деньги",
+    title: "Прибыль день в день",
+    note: "Себестоимость и чистыми — на дашборде, без сведения таблиц вручную.",
+  },
 ];
 
 const empty = {
@@ -33,7 +51,10 @@ export function LandingPage() {
     setPending(true);
     setError("");
     try {
-      await api.createLead(form);
+      await api.createLead({
+        ...form,
+        contact_name: form.contact_name || form.shop_name,
+      });
       setDone(true);
       setForm(empty);
     } catch (err) {
@@ -45,122 +66,122 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="border-b border-line">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
-          <p className="text-sm font-medium tracking-[0.16em] uppercase">CoffeeOS</p>
+      <header className="flex items-center justify-between px-6 py-7 md:px-14">
+        <Brand />
+        <nav className="flex items-center gap-7 text-[13.5px]">
+          <a href="#features" className="text-ink-soft hover:text-ink">
+            Возможности
+          </a>
+          <ThemeToggle />
           {user ? (
-            <Link to={homePath(user.role)} className="bg-ink px-4 py-2 text-sm text-paper">
+            <Link to={homePath(user.role)} className="border border-ink px-6 py-3 text-[13.5px] font-semibold">
               В кабинет
             </Link>
           ) : (
-            <Link to="/login" className="text-sm text-mute underline">
+            <Link to="/login" className="border border-ink px-6 py-3 text-[13.5px] font-semibold hover:bg-ink hover:text-paper">
               Войти
             </Link>
           )}
-        </div>
+        </nav>
       </header>
 
-      <main className="mx-auto grid max-w-5xl gap-10 px-5 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-        <section>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-mute">Для кофейни</p>
-          <h1 className="mt-3 max-w-xl text-4xl font-medium tracking-tight md:text-5xl">
-            Учёт, как на стойке.
-          </h1>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-mute">
-            Одна программа: касса, склад, смены и прибыль. Пока без оплаты — оставь заявку,
-            мы свяжемся и заведём кофейню.
-          </p>
+      <section className="mx-auto max-w-[720px] px-8 pb-10 pt-16 text-center">
+        <p className="mb-5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
+          Учёт для кофейни
+        </p>
+        <h1 className="font-display text-[36px] font-normal leading-[1.22] text-ink md:text-[44px]">
+          Полная аналитика кофейни: от чека до чистой прибыли
+        </h1>
+        <p className="mx-auto mt-6 max-w-[520px] text-base leading-[1.65] text-ink-soft">
+          Избавьтесь от ручного сведения смен. Точный учёт молока и зерна, контроль выручки и прозрачные отчёты без
+          путаницы.
+        </p>
+        <div className="mt-9 flex justify-center gap-4">
+          <a href="#request" className="border border-ink bg-ink px-6 py-3 text-[13.5px] font-semibold text-paper hover:bg-mute">
+            Сделать учёт прозрачным
+          </a>
+          <a href="#features" className="px-1 py-3 text-[13.5px] font-semibold text-ink hover:underline">
+            Как это работает
+          </a>
+        </div>
+      </section>
 
-          <div className="mt-10 border border-line bg-foam">
-            <div className="flex items-baseline justify-between border-b border-dashed border-line px-5 py-4">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Чек</p>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">CoffeeOS</p>
-            </div>
-            <ul>
-              {lines.map((line) => (
-                <li
-                  key={line.name}
-                  className="flex items-start justify-between gap-6 border-b border-dashed border-line px-5 py-4"
-                >
-                  <div>
-                    <p className="text-lg">{line.name}</p>
-                    <p className="mt-1 text-sm text-mute">{line.note}</p>
-                  </div>
-                  <p className="shrink-0 text-sm text-sky">входит</p>
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-baseline justify-between px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Итого</p>
-              <p className="text-lg">по запросу</p>
-            </div>
+      <div className="flex items-center justify-center gap-[18px] py-14 text-faint">
+        <span className="h-px w-[120px] bg-line-2" />
+        <Mark className="h-[34px] w-[34px] text-ink" />
+        <span className="h-px w-[120px] bg-line-2" />
+      </div>
+
+      <section id="features" className="mx-auto grid max-w-[920px] grid-cols-1 gap-10 px-8 pb-[90px] md:grid-cols-4 md:gap-0">
+        {features.map((f, i) => (
+          <div key={f.kicker} className={`md:px-[22px] ${i === 0 ? "md:pl-0" : "md:border-l md:border-line"}`}>
+            <p className="mb-3.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
+              {f.kicker}
+            </p>
+            <h4 className="mb-2.5 font-display text-[17px] font-normal">{f.title}</h4>
+            <p className="m-0 text-[13px] leading-[1.55] text-ink-soft">{f.note}</p>
           </div>
-        </section>
+        ))}
+      </section>
 
-        <section id="request" className="border border-line bg-foam p-6">
+      <section id="request" className="bg-roast-2 px-8 py-16">
+        <div className="mx-auto max-w-[420px]">
           {done ? (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Заявка</p>
-              <h2 className="mt-2 text-2xl font-medium">Приняли.</h2>
-              <p className="mt-3 text-sm leading-relaxed text-mute">
+            <>
+              <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">Заявка</p>
+              <h3 className="mb-4 font-display text-[26px] font-normal text-cream">Приняли</h3>
+              <p className="text-sm leading-relaxed text-cream-soft">
                 Напишем или позвоним. Обычно в тот же день. Оплата позже — сейчас только запрос.
               </p>
-              <Button className="mt-6" variant="foam" onClick={() => setDone(false)}>
+              <Button
+                variant="foam"
+                className="mt-8 w-full border-cream text-cream hover:bg-cream hover:text-roast"
+                onClick={() => setDone(false)}
+              >
                 Отправить ещё одну
               </Button>
-            </div>
+            </>
           ) : (
             <form onSubmit={(e) => void submit(e)}>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-mute">Заявка</p>
-              <h2 className="mt-2 text-2xl font-medium">Оставить запрос</h2>
-              <p className="mt-2 text-sm text-mute">Телефон обязателен. Деньги сейчас не списываем.</p>
-              <div className="mt-6 space-y-3">
-                <Field label="Кофейня">
+              <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">
+                Подключить точку
+              </p>
+              <h3 className="mb-8 font-display text-[26px] font-normal text-cream">Оставить заявку</h3>
+              <div className="space-y-[22px]">
+                <Field label="Название кофейни" tone="dark">
                   <Input
+                    tone="dark"
                     required
                     value={form.shop_name}
                     onChange={(e) => setForm({ ...form, shop_name: e.target.value })}
-                    placeholder="Erassyl Coffee"
+                    placeholder="Дастархан кофе"
                   />
                 </Field>
-                <Field label="Город">
+                <Field label="Город" tone="dark">
                   <Input
+                    tone="dark"
                     required
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
                     placeholder="Алматы"
                   />
                 </Field>
-                <Field label="Как к тебе обращаться">
+                <Field label="Как к тебе обращаться" tone="dark">
                   <Input
-                    required
+                    tone="dark"
                     value={form.contact_name}
                     onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                    placeholder="Имя"
                   />
                 </Field>
-                <Field label="Телефон / WhatsApp">
+                <Field label="Телефон*" tone="dark">
                   <Input
+                    tone="dark"
                     required
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     placeholder="+7 700 000 00 00"
-                  />
-                </Field>
-                <Field label="Почта, если удобно">
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
-                </Field>
-                <Field label="Комментарий">
-                  <textarea
-                    value={form.comment}
-                    onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                    rows={3}
-                    className="w-full border border-line bg-foam px-3 py-2.5 text-ink outline-none focus:border-ink"
-                    placeholder="Сколько точек, когда хотите начать"
                   />
                 </Field>
                 <div className="hidden" aria-hidden>
@@ -171,15 +192,18 @@ export function LandingPage() {
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
                   />
                 </div>
-                {error && <p className="text-sm text-rust">{error}</p>}
-                <Button className="w-full" disabled={pending}>
-                  {pending ? "Отправляем…" : "Отправить заявку"}
+                {error && <p className="text-sm text-alert">{error}</p>}
+                <Button
+                  className="mt-2.5 w-full border-cream bg-transparent text-cream hover:bg-cream hover:text-roast"
+                  disabled={pending}
+                >
+                  {pending ? "Отправляем…" : "Отправить"}
                 </Button>
               </div>
             </form>
           )}
-        </section>
-      </main>
+        </div>
+      </section>
     </div>
   );
 }

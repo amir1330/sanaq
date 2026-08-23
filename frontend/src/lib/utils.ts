@@ -15,11 +15,11 @@ export function money(value: string | number | null | undefined): string {
 }
 
 export function payLabel(type: "cash" | "card"): string {
-  return type === "cash" ? "Наличный" : "Безналичный";
+  return type === "cash" ? "Наличными" : "Безналично";
 }
 
 export function payAction(type: "cash" | "card"): string {
-  return type === "cash" ? "Оплатить наличными" : "Оплатить безналично";
+  return type === "cash" ? "Наличными" : "Безналично";
 }
 
 export function qty(value: string | number, unit?: string): string {
@@ -42,7 +42,11 @@ export function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function startOfPeriod(period: "today" | "week" | "month"): { from: string; to: string } {
+export type Period = "today" | "week" | "month" | "custom";
+
+export const TIMEZONES = ["Asia/Almaty", "Asia/Aqtobe", "Asia/Aqtau", "Europe/Helsinki", "UTC"];
+
+export function startOfPeriod(period: Exclude<Period, "custom">): { from: string; to: string } {
   const now = new Date();
   const to = isoDate(now);
   if (period === "today") return { from: to, to };
@@ -53,4 +57,20 @@ export function startOfPeriod(period: "today" | "week" | "month"): { from: strin
   }
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
   return { from: isoDate(from), to };
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function generatePassword(length = 12): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }

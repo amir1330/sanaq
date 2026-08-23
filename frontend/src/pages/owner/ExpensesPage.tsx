@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Field, Input, PageTitle } from "../../components/ui";
+import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
 import { money } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
@@ -29,15 +29,14 @@ export function ExpensesPage() {
       />
       <Card className="mb-4 grid gap-3 md:grid-cols-4">
         <Field label="Статья">
-          <select
-            className="w-full rounded-md border border-ink/15 bg-foam px-3 py-2.5"
+          <Select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
             {cats.map((c) => (
               <option key={c}>{c}</option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Сумма">
           <Input value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
@@ -51,9 +50,9 @@ export function ExpensesPage() {
           </Button>
         </div>
       </Card>
-      <div className="overflow-hidden rounded-lg bg-foam">
+      <div className="border border-line">
         <table className="w-full text-sm">
-          <thead className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
+          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
               <th className="px-4 py-3">Дата</th>
               <th>Статья</th>

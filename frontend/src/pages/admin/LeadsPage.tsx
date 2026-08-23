@@ -28,15 +28,15 @@ export function LeadsPage() {
         hint="С лендинга. Пока без оплаты — человек просит завести кофейню. Потом создаёшь точку во вкладке «Кофейни»."
       />
       <Card className="mb-4">
-        <p className="font-mono text-[11px] uppercase tracking-wider text-ink/45">Новых</p>
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Новых</p>
         <p className="mt-2 font-mono text-3xl">{fresh}</p>
       </Card>
       {list.length === 0 ? (
         <Empty>Заявок ещё нет. Они появятся, когда кто-то заполнит форму на главной.</Empty>
       ) : (
-        <div className="overflow-hidden rounded-lg bg-foam">
+        <div className="border border-line">
           <table className="w-full text-sm">
-            <thead className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
+            <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
                 <th className="px-4 py-3">Кофейня</th>
                 <th>Контакт</th>

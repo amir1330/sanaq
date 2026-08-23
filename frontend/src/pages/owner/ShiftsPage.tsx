@@ -28,7 +28,7 @@ export function ShiftsPage() {
         title="Смены"
         hint="Смена — ящик. Выручка внутри считается по каждому, кто пробивал чеки."
       />
-      <div className="border border-line bg-foam">
+      <div className="border border-line">
         <table className="w-full text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-mute">
             <tr className="border-b border-line text-left">
@@ -84,8 +84,8 @@ export function ShiftsPage() {
       </div>
       {closeId !== null && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
-          <div className="w-full max-w-sm border border-line bg-foam p-6">
-            <h2 className="text-2xl font-medium">Закрыть смену</h2>
+          <div className="w-full max-w-sm border border-line bg-paper p-7">
+            <h2 className="font-display text-2xl font-normal">Закрыть смену</h2>
             <p className="mt-2 text-sm text-mute">Сколько наличных в ящике сейчас.</p>
             <input
               className="mt-4 w-full border border-line px-3 py-2"

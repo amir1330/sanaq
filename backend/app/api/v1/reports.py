@@ -1,15 +1,17 @@
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import roles
 from app.database import get_session
-from app.models import Expense, PaymentType, Product, Sale, SaleItem, User, UserRole
+from app.models import Expense, PaymentType, Product, Sale, SaleItem, Shop, User, UserRole
 from app.schemas.report import DailyPoint, ReportSummary, SellerPoint, TopProduct
 from app.services.access import assert_shop_access
+from app.services.reports import build_report_csv
 
 router = APIRouter(tags=["reports"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -247,3 +249,78 @@ async def sellers_report(
         )
         for row in result.all()
     ]
+
+
+@router.get("/shops/{shop_id}/reports/export")
+async def export_report(
+    shop_id: int,
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    if from_date > to_date:
+        raise HTTPException(400, "from must be before to")
+    await assert_shop_access(session, user, shop_id)
+    shop = await session.get(Shop, shop_id)
+    summary = await report_summary(shop_id, from_date, to_date, user, session)
+    daily = await daily_report(shop_id, from_date, to_date, user, session)
+    products = await top_products(shop_id, from_date, to_date, user, session, limit=50)
+    sellers = await sellers_report(shop_id, from_date, to_date, user, session)
+    start, end = _range(from_date, to_date)
+
+    expense_rows = (
+        await session.execute(
+            select(Expense)
+            .where(Expense.shop_id == shop_id, Expense.created_at >= start, Expense.created_at <= end)
+            .order_by(Expense.created_at)
+        )
+    ).scalars().all()
+    sale_rows = (
+        await session.execute(
+            select(Sale.id, Sale.created_at, Sale.payment_type, Sale.total_amount, Sale.is_refunded, User.full_name)
+            .join(User, User.id == Sale.barista_id)
+            .where(
+                Sale.shop_id == shop_id,
+                Sale.created_at >= start,
+                Sale.created_at <= end,
+            )
+            .order_by(Sale.created_at)
+        )
+    ).all()
+
+    csv = build_report_csv(
+        shop_name=shop.name if shop else str(shop_id),
+        from_date=from_date,
+        to_date=to_date,
+        summary=summary.model_dump(),
+        daily=[row.model_dump() for row in daily],
+        products=[row.model_dump() for row in products],
+        sellers=[row.model_dump() for row in sellers],
+        expenses=[
+            {
+                "created_at": row.created_at,
+                "category": row.category,
+                "amount": row.amount,
+                "comment": row.comment,
+            }
+            for row in expense_rows
+        ],
+        sales=[
+            {
+                "id": row.id,
+                "created_at": row.created_at,
+                "payment_type": row.payment_type.value if hasattr(row.payment_type, "value") else row.payment_type,
+                "total_amount": row.total_amount,
+                "is_refunded": row.is_refunded,
+                "barista_name": row.full_name,
+            }
+            for row in sale_rows
+        ],
+    )
+    filename = f"coffeeos-{from_date.isoformat()}-{to_date.isoformat()}.csv"
+    return Response(
+        content=csv.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

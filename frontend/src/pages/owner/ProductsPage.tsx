@@ -109,7 +109,7 @@ export function ProductsPage() {
       {(products.data ?? []).length === 0 ? (
         <Empty>Меню пустое. Добавь первый товар — он появится на кассе.</Empty>
       ) : (
-        <div className="border border-line bg-foam">
+        <div className="border border-line">
           <table className="w-full text-sm">
             <thead className="text-[11px] uppercase tracking-wider text-mute">
               <tr className="border-b border-line text-left">
@@ -145,13 +145,13 @@ export function ProductsPage() {
       {editing && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
           <form
-            className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-auto border border-line bg-foam p-6"
+            className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-auto border border-line bg-paper p-7"
             onSubmit={(e) => {
               e.preventDefault();
               save.mutate();
             }}
           >
-            <h2 className="text-2xl font-medium">{editing.id ? "Изменить товар" : "Новый товар"}</h2>
+            <h2 className="font-display text-2xl font-normal">{editing.id ? "Изменить товар" : "Новый товар"}</h2>
             <Field label="Как называется на кассе">
               <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
             </Field>
@@ -164,7 +164,7 @@ export function ProductsPage() {
             </Field>
             <Field label="Категория">
               <select
-                className="w-full border border-line bg-foam px-3 py-2.5"
+                className="w-full border-0 border-b border-line-2 bg-transparent py-2.5 outline-none focus:border-ink"
                 value={editing.category_id ?? ""}
                 onChange={(e) =>
                   setEditing({ ...editing, category_id: e.target.value ? Number(e.target.value) : null })
@@ -197,7 +197,7 @@ export function ProductsPage() {
                   return (
                     <div key={idx} className="grid grid-cols-[1fr_7rem_auto] gap-2">
                       <select
-                        className="border border-line bg-foam px-2 py-2 text-sm"
+                        className="border-0 border-b border-line-2 bg-transparent px-0 py-2 text-sm outline-none"
                         value={row.stock_item_id}
                         onChange={(e) => {
                           const next = [...editing.ingredients];

@@ -1,157 +1,352 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Field, Input, PageTitle } from "../../components/ui";
-import { money, publicUrl } from "../../lib/utils";
+import { Button, Card, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
+import { generatePassword, money, publicUrl, TIMEZONES } from "../../lib/utils";
+
+type ShopForm = {
+  name: string;
+  address: string;
+  timezone: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
+  owner_password: string;
+};
+
+const emptyShop = (): ShopForm => ({
+  name: "",
+  address: "",
+  timezone: "Asia/Almaty",
+  owner_name: "",
+  owner_email: "",
+  owner_phone: "",
+  owner_password: "",
+});
+
+type OwnerForm = {
+  shopId: number;
+  shopName: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
 
 export function AdminPage() {
   const qc = useQueryClient();
   const shops = useQuery({ queryKey: ["admin-shops"], queryFn: api.adminShops });
   const stats = useQuery({ queryKey: ["admin-stats"], queryFn: api.adminStats });
-  const [shop, setShop] = useState({ name: "", address: "Алматы", timezone: "Asia/Almaty" });
-  const [owner, setOwner] = useState({
-    shopId: 0,
-    full_name: "",
-    email: "",
-    password: "",
-  });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [shopForm, setShopForm] = useState<ShopForm>(emptyShop);
+  const [createdNote, setCreatedNote] = useState("");
+  const [owner, setOwner] = useState<OwnerForm | null>(null);
+
+  function refresh() {
+    void qc.invalidateQueries({ queryKey: ["admin-shops"] });
+    void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+  }
 
   const createShop = useMutation({
-    mutationFn: () => api.createShop(shop),
-    onSuccess: () => {
-      setShop({ name: "", address: "Алматы", timezone: "Asia/Almaty" });
-      void qc.invalidateQueries({ queryKey: ["admin-shops"] });
-      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    mutationFn: () =>
+      api.createShop({
+        name: shopForm.name.trim(),
+        address: shopForm.address.trim() || undefined,
+        timezone: shopForm.timezone,
+        owner: {
+          full_name: shopForm.owner_name.trim(),
+          email: shopForm.owner_email.trim(),
+          phone: shopForm.owner_phone.trim() || undefined,
+          password: shopForm.owner_password,
+        },
+      }),
+    onSuccess: (shop) => {
+      setCreatedNote(
+        `Точка «${shop.name}» готова. Владелец входит как ${shopForm.owner_email.trim()}`,
+      );
+      setShopForm(emptyShop());
+      setCreateOpen(false);
+      refresh();
     },
   });
+
   const toggle = useMutation({
     mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
       api.patchShop(id, { is_active }),
+    onSuccess: refresh,
+  });
+
+  const createOwner = useMutation({
+    mutationFn: () => {
+      if (!owner) throw new Error("Нет точки");
+      return api.createOwner(owner.shopId, {
+        full_name: owner.full_name.trim(),
+        email: owner.email.trim(),
+        phone: owner.phone.trim() || undefined,
+        password: owner.password,
+      });
+    },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["admin-shops"] });
-      void qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      setCreatedNote(`Владелец ${owner?.email} добавлен в «${owner?.shopName}»`);
+      setOwner(null);
+      refresh();
     },
   });
-  const createOwner = useMutation({
-    mutationFn: () =>
-      api.createOwner(owner.shopId, {
-        full_name: owner.full_name,
-        email: owner.email,
-        password: owner.password,
-      }),
-    onSuccess: () => setOwner({ ...owner, full_name: "", email: "" }),
-  });
+
+  const canCreate =
+    shopForm.name.trim() &&
+    shopForm.owner_name.trim() &&
+    shopForm.owner_email.trim() &&
+    shopForm.owner_password.length >= 6;
+
+  const rows = stats.data?.shops ?? [];
 
   return (
     <div>
       <PageTitle
         kicker="Система"
         title="Кофейни"
-        hint="Сначала создай точку, потом «Владелец» — ему придёт вход в свою кофейню."
+        hint="Точка и владелец создаются вместе. Ему сразу можно отдать почту и пароль."
+        action={
+          <Button
+            onClick={() => {
+              setShopForm(emptyShop());
+              setCreateOpen(true);
+            }}
+          >
+            Новая точка
+          </Button>
+        }
       />
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <Card>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-ink/45">Точек</p>
-          <p className="mt-2 font-mono text-3xl">{stats.data?.shops_count ?? "—"}</p>
+
+      {createdNote && (
+        <p className="mb-4 border border-sky/30 bg-sky/10 px-4 py-3 text-sm text-ink">{createdNote}</p>
+      )}
+
+      <div className="mb-6 grid gap-px bg-line md:grid-cols-3">
+        <Card className="border-0">
+          <p className="text-[11px] uppercase tracking-wider text-mute">Точек</p>
+          <p className="mt-2 text-3xl">{stats.data?.shops_count ?? "—"}</p>
         </Card>
-        <Card>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-ink/45">Активных</p>
-          <p className="mt-2 font-mono text-3xl">{stats.data?.active_shops ?? "—"}</p>
+        <Card className="border-0">
+          <p className="text-[11px] uppercase tracking-wider text-mute">Активных</p>
+          <p className="mt-2 text-3xl">{stats.data?.active_shops ?? "—"}</p>
         </Card>
-        <Card>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-ink/45">Пользователей</p>
-          <p className="mt-2 font-mono text-3xl">{stats.data?.users_count ?? "—"}</p>
+        <Card className="border-0">
+          <p className="text-[11px] uppercase tracking-wider text-mute">Пользователей</p>
+          <p className="mt-2 text-3xl">{stats.data?.users_count ?? "—"}</p>
         </Card>
       </div>
-      <Card className="mb-4 grid gap-3 md:grid-cols-4">
-        <Field label="Название">
-          <Input value={shop.name} onChange={(e) => setShop({ ...shop, name: e.target.value })} />
-        </Field>
-        <Field label="Адрес">
-          <Input value={shop.address} onChange={(e) => setShop({ ...shop, address: e.target.value })} />
-        </Field>
-        <Field label="Часовой пояс">
-          <Input value={shop.timezone} onChange={(e) => setShop({ ...shop, timezone: e.target.value })} />
-        </Field>
-        <div className="flex items-end">
-          <Button className="w-full" onClick={() => createShop.mutate()}>
-            Создать точку
+
+      {rows.length === 0 ? (
+        <Card>
+          <p className="text-sm text-mute">Пока нет точек. Нажми «Новая точка» — заведём кофейню и вход для владельца.</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {rows.map((row) => {
+            const shop = shops.data?.find((s) => s.id === row.shop_id);
+            return (
+              <Card key={row.shop_id} className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+                <div>
+                  <div className="flex items-center gap-3">
+                    {shop?.logo_url ? (
+                      <img src={publicUrl(shop.logo_url) ?? ""} alt="" className="h-10 w-10 object-contain" />
+                    ) : (
+                      <span className="grid h-10 w-10 place-items-center bg-sun text-roast text-sm">
+                        {row.shop_name.slice(0, 1)}
+                      </span>
+                    )}
+                    <div>
+                      <p className="text-lg font-medium">
+                        {row.shop_name}
+                        {!row.is_active && <span className="ml-2 text-sm text-alert">выкл</span>}
+                      </p>
+                      <p className="text-sm text-mute">
+                        {shop?.address || "Адрес не указан"} · {shop?.timezone ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-mute">
+                    30 дней: {money(row.revenue)} выручки · {money(row.profit)} чистыми · {row.sales_count} чеков
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="foam"
+                    onClick={() =>
+                      setOwner({
+                        shopId: row.shop_id,
+                        shopName: row.shop_name,
+                        full_name: "",
+                        email: "",
+                        phone: "",
+                        password: "",
+                      })
+                    }
+                  >
+                    Владелец
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => toggle.mutate({ id: row.shop_id, is_active: !row.is_active })}
+                  >
+                    {row.is_active ? "Выключить" : "Включить"}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Новая точка"
+        hint="Сразу заведи владельца — без него точка пустая."
+        wide
+      >
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-[11px] uppercase tracking-wider text-mute">Кофейня</p>
+            <Field label="Название">
+              <Input
+                value={shopForm.name}
+                onChange={(e) => setShopForm({ ...shopForm, name: e.target.value })}
+                placeholder="Например, Corner на Абая"
+              />
+            </Field>
+            <Field label="Адрес">
+              <Input
+                value={shopForm.address}
+                onChange={(e) => setShopForm({ ...shopForm, address: e.target.value })}
+                placeholder="улица, город"
+              />
+            </Field>
+            <Field label="Часовой пояс">
+              <Select
+                value={shopForm.timezone}
+                onChange={(e) => setShopForm({ ...shopForm, timezone: e.target.value })}
+              >
+                {TIMEZONES.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className="space-y-3">
+            <p className="text-[11px] uppercase tracking-wider text-mute">Владелец</p>
+            <Field label="Имя">
+              <Input
+                value={shopForm.owner_name}
+                onChange={(e) => setShopForm({ ...shopForm, owner_name: e.target.value })}
+              />
+            </Field>
+            <Field label="Почта для входа">
+              <Input
+                type="email"
+                value={shopForm.owner_email}
+                onChange={(e) => setShopForm({ ...shopForm, owner_email: e.target.value })}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Телефон">
+              <Input
+                value={shopForm.owner_phone}
+                onChange={(e) => setShopForm({ ...shopForm, owner_phone: e.target.value })}
+                placeholder="+7…"
+              />
+            </Field>
+            <Field label="Пароль, от 6 символов">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={shopForm.owner_password}
+                  onChange={(e) => setShopForm({ ...shopForm, owner_password: e.target.value })}
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="foam"
+                  onClick={() => setShopForm({ ...shopForm, owner_password: generatePassword() })}
+                >
+                  Сгенерировать
+                </Button>
+              </div>
+            </Field>
+          </div>
+        </div>
+        {createShop.isError && (
+          <p className="mt-4 text-sm text-alert">{(createShop.error as Error).message}</p>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+            Отмена
+          </Button>
+          <Button disabled={!canCreate || createShop.isPending} onClick={() => createShop.mutate()}>
+            {createShop.isPending ? "Создаём…" : "Создать точку и вход"}
           </Button>
         </div>
-      </Card>
-      <div className="overflow-hidden rounded-lg bg-foam">
-        <table className="w-full text-sm">
-          <thead className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
-            <tr className="border-b border-ink/10 text-left">
-              <th className="px-4 py-3">Точка</th>
-              <th>30 дней выручка</th>
-              <th>Прибыль</th>
-              <th>Чеки</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(stats.data?.shops ?? shops.data ?? []).map((s) => {
-              const row = "shop_id" in s ? s : null;
-              const shopRow = shops.data?.find((x) => x.id === (row?.shop_id ?? (s as { id: number }).id));
-              const id = row?.shop_id ?? (s as { id: number }).id;
-              const name = row?.shop_name ?? (s as { name: string }).name;
-              const active = row?.is_active ?? shopRow?.is_active ?? true;
-              return (
-                <tr key={id} className="border-b border-ink/5">
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2">
-                      {shopRow?.logo_url ? (
-                        <img src={publicUrl(shopRow.logo_url) ?? ""} alt="" className="h-7 w-7 object-contain" />
-                      ) : null}
-                      {name}
-                    </span>
-                    {!active && <span className="ml-2 text-rust">выкл</span>}
-                  </td>
-                  <td className="font-mono">{row ? money(row.revenue) : "—"}</td>
-                  <td className="font-mono">{row ? money(row.profit) : "—"}</td>
-                  <td className="font-mono">{row?.sales_count ?? "—"}</td>
-                  <td className="px-4 text-right">
-                    <button className="underline" onClick={() => toggle.mutate({ id, is_active: !active })}>
-                      {active ? "Выключить" : "Включить"}
-                    </button>
-                    <button className="ml-3 underline" onClick={() => setOwner({ ...owner, shopId: id })}>
-                      Создать владельца
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {owner.shopId > 0 && (
-        <Card className="mt-4 grid gap-3 md:grid-cols-4">
-          <Field label={`Владелец для точки #${owner.shopId}`}>
-            <Input
-              placeholder="Имя"
-              value={owner.full_name}
-              onChange={(e) => setOwner({ ...owner, full_name: e.target.value })}
-            />
-          </Field>
-          <Field label="Email">
-            <Input value={owner.email} onChange={(e) => setOwner({ ...owner, email: e.target.value })} />
-          </Field>
-          <Field label="Пароль">
-            <Input value={owner.password} onChange={(e) => setOwner({ ...owner, password: e.target.value })} />
-          </Field>
-          <div className="flex items-end gap-2">
-            <Button onClick={() => createOwner.mutate()}>Создать</Button>
-            <Button variant="ghost" onClick={() => setOwner({ ...owner, shopId: 0 })}>
-              Скрыть
-            </Button>
+      </Dialog>
+
+      <Dialog
+        open={!!owner}
+        onClose={() => setOwner(null)}
+        title={owner ? `Владелец для «${owner.shopName}»` : "Владелец"}
+        hint="Ещё один человек с доступом в кабинет этой точки."
+      >
+        {owner && (
+          <div className="space-y-3">
+            <Field label="Имя">
+              <Input value={owner.full_name} onChange={(e) => setOwner({ ...owner, full_name: e.target.value })} />
+            </Field>
+            <Field label="Почта">
+              <Input
+                type="email"
+                value={owner.email}
+                onChange={(e) => setOwner({ ...owner, email: e.target.value })}
+              />
+            </Field>
+            <Field label="Телефон">
+              <Input value={owner.phone} onChange={(e) => setOwner({ ...owner, phone: e.target.value })} />
+            </Field>
+            <Field label="Пароль">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={owner.password}
+                  onChange={(e) => setOwner({ ...owner, password: e.target.value })}
+                />
+                <Button variant="foam" onClick={() => setOwner({ ...owner, password: generatePassword() })}>
+                  Сгенерировать
+                </Button>
+              </div>
+            </Field>
+            {createOwner.isError && (
+              <p className="text-sm text-alert">{(createOwner.error as Error).message}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setOwner(null)}>
+                Отмена
+              </Button>
+              <Button
+                disabled={
+                  createOwner.isPending ||
+                  !owner.full_name.trim() ||
+                  !owner.email.trim() ||
+                  owner.password.length < 6
+                }
+                onClick={() => createOwner.mutate()}
+              >
+                {createOwner.isPending ? "Создаём…" : "Добавить"}
+              </Button>
+            </div>
           </div>
-          {createOwner.isSuccess && <p className="text-sm text-pine">Owner создан</p>}
-          {createOwner.isError && (
-            <p className="text-sm text-rust">{(createOwner.error as Error).message}</p>
-          )}
-        </Card>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 }

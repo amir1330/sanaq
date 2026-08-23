@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import roles
@@ -31,9 +32,27 @@ async def create_shop(
     _: User = Depends(admin_only),
     session: AsyncSession = Depends(get_session),
 ):
-    shop = Shop(**body.model_dump())
+    data = body.model_dump(exclude={"owner"})
+    shop = Shop(**data)
     session.add(shop)
-    await session.commit()
+    await session.flush()
+    if body.owner:
+        owner = User(
+            shop_id=shop.id,
+            role=UserRole.owner,
+            full_name=body.owner.full_name,
+            email=body.owner.email,
+            phone=body.owner.phone,
+            password_hash=hash_secret(body.owner.password),
+        )
+        session.add(owner)
+        await session.flush()
+        session.add(OwnerShop(owner_id=owner.id, shop_id=shop.id))
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Такая почта или телефон уже есть") from exc
     await session.refresh(shop)
     return shop
 
@@ -81,7 +100,11 @@ async def create_owner(
     session.add(owner)
     await session.flush()
     session.add(OwnerShop(owner_id=owner.id, shop_id=shop_id))
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Такая почта или телефон уже есть") from exc
     await session.refresh(owner)
     return UserOut(
         id=owner.id,

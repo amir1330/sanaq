@@ -68,9 +68,9 @@ export function StaffPage() {
         </div>
       </Card>
       {create.isError && <p className="mb-3 text-sm text-rust">{(create.error as Error).message}</p>}
-      <div className="overflow-hidden rounded-lg bg-foam">
+      <div className="border border-line">
         <table className="w-full text-sm">
-          <thead className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
+          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
               <th className="px-4 py-3">Имя</th>
               <th>Контакт</th>

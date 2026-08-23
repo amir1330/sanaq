@@ -3,11 +3,19 @@ from pydantic import BaseModel, EmailStr, Field
 from app.schemas.common import ORMModel
 
 
+class OwnerCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str = Field(min_length=6)
+    phone: str | None = None
+
+
 class ShopCreate(BaseModel):
     name: str
     address: str | None = None
-    timezone: str = "Europe/Helsinki"
+    timezone: str = "Asia/Almaty"
     is_active: bool = True
+    owner: OwnerCreate | None = None
 
 
 class ShopUpdate(BaseModel):
@@ -15,13 +23,6 @@ class ShopUpdate(BaseModel):
     address: str | None = None
     timezone: str | None = None
     is_active: bool | None = None
-
-
-class OwnerCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str = Field(min_length=6)
-    phone: str | None = None
 
 
 class AdminShopStats(ORMModel):

@@ -43,8 +43,8 @@ export function StockPage() {
         hint="Приход — закупка (пересчитает среднюю цену). Списание — порча или инвентаризация. Касса сама снимает сырьё по рецепту."
       />
       {(stock.data ?? []).some((i) => i.is_low) && (
-        <Card className="mb-4 border border-rust/30 bg-[#f7ebe3]">
-          <p className="font-semibold text-roast">Заканчивается</p>
+        <Card className="mb-4 border border-alert/40 bg-alert/10">
+          <p className="font-semibold text-alert">Заканчивается</p>
           <p className="mt-1 text-sm">
             {stock.data
               ?.filter((i) => i.is_low)
@@ -80,9 +80,9 @@ export function StockPage() {
           </Button>
         </div>
       </Card>
-      <div className="overflow-hidden rounded-lg bg-foam">
+      <div className="border border-line">
         <table className="w-full text-sm">
-          <thead className="font-mono text-[11px] uppercase tracking-wider text-ink/45">
+          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
               <th className="px-4 py-3">id</th>
               <th>Название</th>
@@ -113,7 +113,7 @@ export function StockPage() {
       </div>
       {move && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
-          <div className="w-full max-w-sm space-y-3 rounded-lg bg-foam p-6">
+          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
             <h2 className="text-2xl font-medium">
               {move.type === "income" ? "Закупка" : "Списать"} · {move.item.name}
             </h2>
