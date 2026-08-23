@@ -26,6 +26,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       CORS_ORIGINS: https://coffee.abuyunus.cc
       WEB_CONCURRENCY: "2"
+      SEED_DEMO: "0"
     depends_on:
       postgres:
         condition: service_healthy

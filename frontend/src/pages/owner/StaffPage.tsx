@@ -11,7 +11,7 @@ export function StaffPage() {
   const [form, setForm] = useState({
     full_name: "",
     pin_code: "",
-    password: "barista123",
+    password: "",
     phone: "",
     can_receive_stock: false,
   });
@@ -19,7 +19,7 @@ export function StaffPage() {
   const create = useMutation({
     mutationFn: () => api.createStaff(shopId, form),
     onSuccess: () => {
-      setForm({ full_name: "", pin_code: "", password: "barista123", phone: "", can_receive_stock: false });
+      setForm({ full_name: "", pin_code: "", password: "", phone: "", can_receive_stock: false });
       void qc.invalidateQueries({ queryKey: ["staff", shopId] });
     },
   });

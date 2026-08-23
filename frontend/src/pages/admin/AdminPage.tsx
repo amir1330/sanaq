@@ -13,7 +13,7 @@ export function AdminPage() {
     shopId: 0,
     full_name: "",
     email: "",
-    password: "owner123",
+    password: "",
   });
 
   const createShop = useMutation({

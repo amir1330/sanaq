@@ -10,6 +10,8 @@ rsync -az --delete \
   --exclude 'backend/.venv' \
   --exclude 'backend/.pytest_cache' \
   --exclude '.env' \
+  --exclude '*.gpg' \
+  --exclude 'coffeeERP.gpg' \
   "$ROOT/" "$HOST:$DEST/"
 
 ssh "$HOST" bash -s <<REMOTE
