@@ -32,6 +32,7 @@ export function StockPage() {
     min_quantity: string;
     cost_per_base_unit: string;
   } | null>(null);
+  const [remove, setRemove] = useState<StockItem | null>(null);
 
   const add = useMutation({
     mutationFn: () => api.createStock(shopId, create),
@@ -52,6 +53,14 @@ export function StockPage() {
     onSuccess: () => {
       setEdit(null);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+    },
+  });
+  const drop = useMutation({
+    mutationFn: () => api.deleteStock(shopId, remove!.id),
+    onSuccess: () => {
+      setRemove(null);
+      void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
   const apply = useMutation({
@@ -177,29 +186,43 @@ export function StockPage() {
                 <td className="font-mono">{stockBalance(i)}</td>
                 <td className="font-mono text-mute">{qty(i.min_quantity, i.base_unit)}</td>
                 <td className="font-mono">{unitCost(i.cost_per_base_unit, i.base_unit)}</td>
-                <td className="space-x-3 px-4 text-right">
-                  <button
-                    className="underline"
-                    onClick={() =>
-                      setEdit({
-                        id: i.id,
-                        name: i.name,
-                        base_unit: i.base_unit,
-                        purchase_unit: i.purchase_unit,
-                        purchase_to_base: String(Number(i.purchase_to_base)),
-                        min_quantity: String(Number(i.min_quantity)),
-                        cost_per_base_unit: String(Number(i.cost_per_base_unit)),
-                      })
-                    }
-                  >
-                    Изменить
-                  </button>
-                  <button className="underline" onClick={() => setMove({ item: i, type: "income", qty: "", price: "" })}>
-                    Приход
-                  </button>
-                  <button className="underline" onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "" })}>
-                    Списать
-                  </button>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
+                    <button
+                      className="underline"
+                      onClick={() =>
+                        setEdit({
+                          id: i.id,
+                          name: i.name,
+                          base_unit: i.base_unit,
+                          purchase_unit: i.purchase_unit,
+                          purchase_to_base: String(Number(i.purchase_to_base)),
+                          min_quantity: String(Number(i.min_quantity)),
+                          cost_per_base_unit: String(Number(i.cost_per_base_unit)),
+                        })
+                      }
+                    >
+                      Изменить
+                    </button>
+                    <button className="underline" onClick={() => setMove({ item: i, type: "income", qty: "", price: "" })}>
+                      Приход
+                    </button>
+                    <button
+                      className="underline"
+                      onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "" })}
+                    >
+                      Списать
+                    </button>
+                    <button
+                      className="underline text-alert"
+                      onClick={() => {
+                        drop.reset();
+                        setRemove(i);
+                      }}
+                    >
+                      Удалить
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -263,6 +286,35 @@ export function StockPage() {
                 Сохранить
               </Button>
               <Button variant="ghost" onClick={() => setEdit(null)}>
+                Отмена
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {remove && (
+        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
+          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
+            <h2 className="text-2xl font-medium">Удалить · {remove.name}</h2>
+            <p className="text-sm text-mute">
+              Позиция пропадёт со склада вместе с историей приходов. Если сырьё стоит в рецепте — сначала уберите его
+              из меню.
+            </p>
+            {Number(remove.quantity) > 0 && (
+              <p className="text-sm text-alert">Сейчас на остатке {stockBalance(remove)} — это тоже исчезнет.</p>
+            )}
+            {drop.isError && <p className="text-sm text-alert">{(drop.error as Error).message}</p>}
+            <div className="flex gap-2">
+              <Button variant="danger" onClick={() => drop.mutate()} disabled={drop.isPending}>
+                Удалить
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  drop.reset();
+                  setRemove(null);
+                }}
+              >
                 Отмена
               </Button>
             </div>

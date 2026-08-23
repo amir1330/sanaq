@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 from fastapi import HTTPException, status
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import StockItem, StockMovement, StockMovementType, User
+from app.models import Product, ProductIngredient, StockItem, StockMovement, StockMovementType, User
 
 
 def to_base(purchase_qty: Decimal, purchase_to_base: Decimal) -> Decimal:
@@ -80,6 +81,24 @@ async def apply_stock_movement(
     session.add(movement)
     await session.flush()
     return movement
+
+
+async def remove_stock_item(session: AsyncSession, item: StockItem) -> None:
+    used = (
+        await session.execute(
+            select(Product.name)
+            .join(ProductIngredient, ProductIngredient.product_id == Product.id)
+            .where(ProductIngredient.stock_item_id == item.id)
+            .order_by(Product.name)
+        )
+    ).scalars().all()
+    if used:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Сначала уберите из рецептов: {', '.join(used)}",
+        )
+    await session.execute(delete(StockMovement).where(StockMovement.stock_item_id == item.id))
+    await session.delete(item)
 
 
 def product_cost(ingredients: list, qty: int = 1) -> Decimal:

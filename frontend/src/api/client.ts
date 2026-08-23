@@ -133,6 +133,8 @@ export const api = {
     request<StockItem>(`/shops/${shopId}/stock-items`, { method: "POST", body: json(body) }),
   patchStock: (shopId: number, id: number, body: object) =>
     request<StockItem>(`/shops/${shopId}/stock-items/${id}`, { method: "PATCH", body: json(body) }),
+  deleteStock: (shopId: number, id: number) =>
+    request<void>(`/shops/${shopId}/stock-items/${id}`, { method: "DELETE" }),
   stockMove: (shopId: number, id: number, body: object) =>
     request(`/shops/${shopId}/stock-items/${id}/movements`, { method: "POST", body: json(body) }),
 

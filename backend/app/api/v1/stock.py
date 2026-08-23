@@ -13,7 +13,7 @@ from app.schemas.stock import (
     StockMovementOut,
 )
 from app.services.access import assert_shop_access, can_receive_stock
-from app.services.stock import apply_stock_movement, to_purchase
+from app.services.stock import apply_stock_movement, remove_stock_item, to_purchase
 
 router = APIRouter(tags=["stock"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -82,6 +82,21 @@ async def update_stock_item(
     await session.commit()
     await session.refresh(item)
     return _item_out(item, hide_cost=False)
+
+
+@router.delete("/shops/{shop_id}/stock-items/{item_id}", status_code=204)
+async def delete_stock_item(
+    shop_id: int,
+    item_id: int,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    item = await session.get(StockItem, item_id)
+    if item is None or item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Сырьё не найдено")
+    await remove_stock_item(session, item)
+    await session.commit()
 
 
 @router.post(
