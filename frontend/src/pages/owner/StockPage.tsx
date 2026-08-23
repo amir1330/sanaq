@@ -19,6 +19,7 @@ export function StockPage() {
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const [creating, setCreating] = useState(false);
   const [create, setCreate] = useState(emptyCreate);
   const [move, setMove] = useState<{ item: StockItem; type: "income" | "writeoff"; qty: string; price: string } | null>(
     null,
@@ -38,6 +39,7 @@ export function StockPage() {
     mutationFn: () => api.createStock(shopId, create),
     onSuccess: () => {
       setCreate(emptyCreate);
+      setCreating(false);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
     },
   });
@@ -84,6 +86,16 @@ export function StockPage() {
     setCreate(next);
   }
 
+  function toggleCreate() {
+    if (creating) {
+      add.reset();
+      setCreate(emptyCreate);
+      setCreating(false);
+      return;
+    }
+    setCreating(true);
+  }
+
   const incomePreview =
     move?.type === "income" && Number(move.qty) > 0
       ? Number(move.qty) * Number(move.item.purchase_to_base)
@@ -95,6 +107,11 @@ export function StockPage() {
         kicker="Склад"
         title="Сырьё"
         hint="Остаток и рецепт всегда в базовой единице (мл, г, шт). На приёмке вводишь пачки и сумму за партию — склад пересчитает сам."
+        action={
+          <Button variant={creating ? "ghost" : "primary"} onClick={toggleCreate}>
+            {creating ? "Свернуть" : "Добавить сырьё"}
+          </Button>
+        }
       />
       {(stock.data ?? []).some((i) => i.is_low) && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
@@ -107,6 +124,7 @@ export function StockPage() {
           </p>
         </Card>
       )}
+      {creating && (
       <Card className="mb-4 grid gap-3 md:grid-cols-3">
         <Field label="Название">
           <Input
@@ -159,13 +177,17 @@ export function StockPage() {
             placeholder="можно 0 — заполнится с приёмки"
           />
         </Field>
-        <div className="flex items-end md:col-span-3">
-          <Button className="w-full md:w-auto" onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
-            Добавить сырьё
+        <div className="flex flex-wrap items-end gap-2 md:col-span-3">
+          <Button onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
+            Сохранить
+          </Button>
+          <Button variant="ghost" onClick={toggleCreate}>
+            Отмена
           </Button>
         </div>
         {add.isError && <p className="text-sm text-alert md:col-span-3">{(add.error as Error).message}</p>}
       </Card>
+      )}
       <div className="border border-line">
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
