@@ -16,6 +16,6 @@ echo "Pulling CoffeeOS images..."
 $DC $FILE pull backend nginx
 
 echo "Recreating backend and nginx..."
-$DC $FILE up -d --no-build --force-recreate --remove-orphans backend nginx
+$DC $FILE up -d --no-build --no-deps --force-recreate backend nginx
 
 echo "Deploy complete."
