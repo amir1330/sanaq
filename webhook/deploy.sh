@@ -2,16 +2,13 @@
 set -eu
 cd /root/coffeeos
 
-if [ -z "${DEPLOY_TOKEN:-}" ]; then
-  echo "DEPLOY_TOKEN is not set in the webhook container" >&2
+if [ -z "${GHCR_TOKEN:-}" ]; then
+  echo "GHCR_TOKEN is missing. CI must send X-Ghcr-Token (GITHUB_TOKEN)." >&2
   exit 1
 fi
 
-if [ -n "${GHCR_TOKEN:-}" ]; then
-  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u amir1330 --password-stdin >/dev/null
-fi
+printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-amir1330}" --password-stdin >/dev/null
 
-# Compose v2 inside this image. --compatibility keeps the existing coffeeos_* names.
 DC="docker compose --compatibility"
 FILE="-f docker-compose.prod.yml"
 

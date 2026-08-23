@@ -7,7 +7,12 @@
   include-command-output-in-response-on-error: true
   trigger-rule-mismatch-http-response-code: 403
   pass-environment-to-command:
-    - source: entire-environment
+    - source: header
+      name: X-Ghcr-Token
+      envname: GHCR_TOKEN
+    - source: header
+      name: X-Ghcr-User
+      envname: GHCR_USER
   trigger-rule:
     match:
       type: value

@@ -69,8 +69,13 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
         run: |
           set -euo pipefail
           curl --fail-with-body --max-time 180 -sS -X POST \
+            -H "Content-Type: text/plain" \
             -H "X-Deploy-Token: ${DEPLOY_TOKEN}" \
+            -H "X-Ghcr-Token: ${GHCR_TOKEN}" \
+            -H "X-Ghcr-User: ${GHCR_USER}" \
             "http://${VPS_HOST}:9002/hooks/deploy"
