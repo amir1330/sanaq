@@ -5,9 +5,34 @@ import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { RevisionsPanel } from "../../components/RevisionsPanel";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
-import { BASE_UNITS, PURCHASE_UNITS, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
+
+function CostHint({
+  purchasePrice,
+  factor,
+  purchaseUnit,
+  baseUnit,
+}: {
+  purchasePrice: string;
+  factor: string;
+  purchaseUnit: string;
+  baseUnit: string;
+}) {
+  const perBase = Number(costPerBase(purchasePrice, factor));
+  const pack = Number(purchasePrice);
+  const n = Number(factor);
+  if (!n || n <= 0) return <p className="mt-1 text-[12.5px] text-mute">Сначала сколько {baseUnit} в одной {purchaseUnit}</p>;
+  if (!(pack > 0) || (n === 1 && purchaseUnit === baseUnit)) {
+    return <p className="mt-1 text-[12.5px] text-mute">Можно 0 — подставится с приёмки</p>;
+  }
+  return (
+    <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+      → {unitCost(perBase, baseUnit)}
+    </p>
+  );
+}
 
 const emptyCreate = {
   name: "",
@@ -15,7 +40,7 @@ const emptyCreate = {
   purchase_unit: "пачка",
   purchase_to_base: "1000",
   min_quantity: "0",
-  cost_per_base_unit: "0",
+  cost_per_purchase: "0",
 };
 
 export function StockPage() {
@@ -46,7 +71,7 @@ export function StockPage() {
     purchase_unit: string;
     purchase_to_base: string;
     min_quantity: string;
-    cost_per_base_unit: string;
+    cost_per_purchase: string;
     image_url: string | null;
   } | null>(null);
   const [editPhoto, setEditPhoto] = useState<File | null>(null);
@@ -56,7 +81,14 @@ export function StockPage() {
 
   const add = useMutation({
     mutationFn: async () => {
-      const item = await api.createStock(shopId, create);
+      const item = await api.createStock(shopId, {
+        name: create.name,
+        base_unit: create.base_unit,
+        purchase_unit: create.purchase_unit,
+        purchase_to_base: create.purchase_to_base,
+        min_quantity: create.min_quantity,
+        cost_per_base_unit: costPerBase(create.cost_per_purchase, create.purchase_to_base),
+      });
       if (createPhoto) await api.uploadStockImage(shopId, item.id, createPhoto);
     },
     onSuccess: () => {
@@ -75,7 +107,7 @@ export function StockPage() {
         purchase_unit: edit!.purchase_unit,
         purchase_to_base: edit!.purchase_to_base,
         min_quantity: edit!.min_quantity,
-        cost_per_base_unit: edit!.cost_per_base_unit,
+        cost_per_base_unit: costPerBase(edit!.cost_per_purchase, edit!.purchase_to_base),
       });
       if (dropEditPhoto && !editPhoto) await api.deleteStockImage(shopId, edit!.id);
       if (editPhoto) await api.uploadStockImage(shopId, edit!.id, editPhoto);
@@ -148,7 +180,7 @@ export function StockPage() {
       purchase_unit: i.purchase_unit,
       purchase_to_base: String(Number(i.purchase_to_base)),
       min_quantity: String(Number(i.min_quantity)),
-      cost_per_base_unit: String(Number(i.cost_per_base_unit)),
+      cost_per_purchase: costPerPurchase(i.cost_per_base_unit, i.purchase_to_base),
       image_url: i.image_url,
     });
   }
@@ -254,12 +286,18 @@ export function StockPage() {
             inputMode="decimal"
           />
         </Field>
-        <Field label={`Цена за 1 ${create.base_unit}, ₸`}>
+        <Field label={`Цена за 1 ${create.purchase_unit}, ₸`}>
           <Input
-            value={create.cost_per_base_unit}
-            onChange={(e) => setCreate({ ...create, cost_per_base_unit: e.target.value })}
+            value={create.cost_per_purchase}
+            onChange={(e) => setCreate({ ...create, cost_per_purchase: e.target.value })}
             inputMode="decimal"
-            placeholder="можно 0 — заполнится с приёмки"
+            placeholder="как в чеке за одну пачку"
+          />
+          <CostHint
+            purchasePrice={create.cost_per_purchase}
+            factor={create.purchase_to_base}
+            purchaseUnit={create.purchase_unit}
+            baseUnit={create.base_unit}
           />
         </Field>
         <div className="flex flex-wrap items-end gap-2 md:col-span-3">
@@ -308,7 +346,14 @@ export function StockPage() {
                 </td>
                 <td className="font-mono">{stockBalance(i)}</td>
                 <td className="font-mono text-mute">{qty(i.min_quantity, i.base_unit)}</td>
-                <td className="font-mono">{unitCost(i.cost_per_base_unit, i.base_unit)}</td>
+                <td className="font-mono">
+                  {unitCost(costPerPurchase(i.cost_per_base_unit, i.purchase_to_base), i.purchase_unit)}
+                  {Number(i.purchase_to_base) !== 1 || i.purchase_unit !== i.base_unit ? (
+                    <span className="mt-0.5 block text-[11px] text-mute">
+                      {unitCost(i.cost_per_base_unit, i.base_unit)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-5 py-3.5 text-right">
                   <div className="flex flex-wrap justify-end gap-2">
                     <button
@@ -411,11 +456,18 @@ export function StockPage() {
                 inputMode="decimal"
               />
             </Field>
-            <Field label={`Цена за 1 ${edit.base_unit}, ₸`}>
+            <Field label={`Цена за 1 ${edit.purchase_unit}, ₸`}>
               <Input
-                value={edit.cost_per_base_unit}
-                onChange={(e) => setEdit({ ...edit, cost_per_base_unit: e.target.value })}
+                value={edit.cost_per_purchase}
+                onChange={(e) => setEdit({ ...edit, cost_per_purchase: e.target.value })}
                 inputMode="decimal"
+                placeholder="как в чеке за одну пачку"
+              />
+              <CostHint
+                purchasePrice={edit.cost_per_purchase}
+                factor={edit.purchase_to_base}
+                purchaseUnit={edit.purchase_unit}
+                baseUnit={edit.base_unit}
               />
             </Field>
             {saveEdit.isError && <p className="text-sm text-alert">{(saveEdit.error as Error).message}</p>}

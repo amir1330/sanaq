@@ -44,7 +44,7 @@ export function unitCost(value: string | number, unit?: string): string {
 }
 
 export const BASE_UNITS = ["г", "мл", "шт"] as const;
-export const PURCHASE_UNITS = ["пачка", "мешок", "кг", "л", "ящик", "шт"] as const;
+export const PURCHASE_UNITS = ["пачка", "мешок", "кг", "г", "л", "мл", "ящик", "шт"] as const;
 
 export function suggestPurchaseFactor(base: string, purchase: string): string {
   if (base === "шт" && purchase === "шт") return "1";
@@ -52,6 +52,21 @@ export function suggestPurchaseFactor(base: string, purchase: string): string {
   if (base === "г" && (purchase === "кг" || purchase === "мешок")) return "1000";
   if (base === purchase) return "1";
   return "1";
+}
+
+export function costPerBase(purchasePrice: string | number, purchaseToBase: string | number): string {
+  const pack = Number(purchasePrice);
+  const factor = Number(purchaseToBase);
+  if (!Number.isFinite(pack) || !Number.isFinite(factor) || factor <= 0) return "0";
+  return (pack / factor).toFixed(4);
+}
+
+export function costPerPurchase(costPerBaseUnit: string | number, purchaseToBase: string | number): string {
+  const base = Number(costPerBaseUnit);
+  const factor = Number(purchaseToBase);
+  if (!Number.isFinite(base) || !Number.isFinite(factor)) return "0";
+  const n = base * (factor > 0 ? factor : 1);
+  return String(Number(n.toFixed(4)));
 }
 
 export function stockBalance(item: {
