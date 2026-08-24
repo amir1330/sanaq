@@ -38,7 +38,7 @@ export function LoginPage() {
         </Link>
       </header>
       <div className="mx-auto max-w-[420px] px-6 pt-16">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Вход</p>
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Аккаунт</p>
         <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
         <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
           <Field label="Почта или телефон">

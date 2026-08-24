@@ -293,7 +293,10 @@ export function StockItemPage() {
 
       {panel === "writeoff" && (
         <Modal title={`Списать · ${item.name}`} onClose={() => setPanel(null)}>
-          <p className="text-sm text-mute">По факту, в {item.base_unit}. Себестоимость уйдёт с остатка по FIFO.</p>
+          <p className="text-sm text-mute">
+            По факту, в {item.base_unit}. Уйдёт с остатка по FIFO. Это не «Расход» (аренда/зарплата) — порча и брак
+            живут здесь, в истории позиции.
+          </p>
           <Field label={`Сколько, ${item.base_unit}`}>
             <Input
               value={writeoff.qty}

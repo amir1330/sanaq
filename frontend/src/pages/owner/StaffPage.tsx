@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Check, Empty, Field, Input, PageTitle } from "../../components/ui";
+import { Button, Check, Dialog, Empty, Field, Input, PageTitle } from "../../components/ui";
 import { generatePassword } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
@@ -17,6 +17,7 @@ export function StaffPage() {
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const staff = useQuery({ queryKey: ["staff", shopId], queryFn: () => api.staff(shopId) });
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [passwordEdit, setPasswordEdit] = useState<{ id: number; password: string } | null>(null);
 
@@ -31,6 +32,7 @@ export function StaffPage() {
       }),
     onSuccess: () => {
       setForm(emptyForm);
+      setOpen(false);
       void qc.invalidateQueries({ queryKey: ["staff", shopId] });
     },
   });
@@ -46,64 +48,25 @@ export function StaffPage() {
   const canAdd =
     form.full_name.trim().length > 0 && form.email.trim().includes("@") && form.password.length >= 6;
 
+  function closeDialog() {
+    setOpen(false);
+    setForm(emptyForm);
+    create.reset();
+  }
+
   return (
     <div>
       <PageTitle
         kicker="Люди"
         title="Сотрудники"
-        hint="Почта и пароль — человек сам входит на сайте и попадает на кассу. Права: только касса или ещё приёмка."
+        hint="Почта и пароль — человек входит через «Войти» и попадает только на кассу. Приёмку можно разрешить отдельно."
+        action={<Button onClick={() => setOpen(true)}>Добавить</Button>}
       />
-      <Card className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-6">
-        <Field label="Имя">
-          <Input
-            value={form.full_name}
-            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            placeholder="Амина"
-          />
-        </Field>
-        <Field label="Почта для входа">
-          <Input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            autoComplete="off"
-            placeholder="amina@…"
-          />
-        </Field>
-        <Field label="Пароль, от 6 символов">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              autoComplete="new-password"
-            />
-            <Button type="button" variant="foam" onClick={() => setForm({ ...form, password: generatePassword() })}>
-              Сгенерировать
-            </Button>
-          </div>
-        </Field>
-        <Field label="Телефон">
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+7…" />
-        </Field>
-        <div className="flex items-end pb-1">
-          <Check
-            checked={form.can_receive_stock}
-            onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
-          >
-            Приёмка на кассе
-          </Check>
-        </div>
-        <div className="flex items-end">
-          <Button className="w-full" disabled={!canAdd || create.isPending} onClick={() => create.mutate()}>
-            Добавить
-          </Button>
-        </div>
-      </Card>
-      {create.isError && <p className="mb-3 text-sm text-rust">{(create.error as Error).message}</p>}
+
       {patch.isError && <p className="mb-3 text-sm text-rust">{(patch.error as Error).message}</p>}
+
       {people.length === 0 ? (
-        <Empty>Добавь сотрудника сверху — отдай почту и пароль, он войдёт через «Войти» и увидит только кассу.</Empty>
+        <Empty>Пока никого нет. Нажми «Добавить» — отдай почту и пароль сотруднику.</Empty>
       ) : (
         <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">
@@ -113,16 +76,20 @@ export function StaffPage() {
                 <th>Почта</th>
                 <th>Права</th>
                 <th>Пароль</th>
-                <th>Статус</th>
+                <th className="px-4 text-right">Статус</th>
               </tr>
             </thead>
             <tbody>
               {people.map((u) => (
                 <tr key={u.id} className="border-b border-ink/5">
-                  <td className="px-4 py-3">{u.full_name}</td>
+                  <td className="px-4 py-3">
+                    <p>{u.full_name}</p>
+                    {u.phone ? <p className="text-mute">{u.phone}</p> : null}
+                  </td>
                   <td className="font-mono text-xs">{u.email || "—"}</td>
                   <td>
                     <button
+                      type="button"
                       className="underline"
                       onClick={() =>
                         patch.mutate({ id: u.id, body: { can_receive_stock: !u.can_receive_stock } })
@@ -133,7 +100,7 @@ export function StaffPage() {
                   </td>
                   <td>
                     {passwordEdit?.id === u.id ? (
-                      <span className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 py-1">
                         <Input
                           className="w-36"
                           value={passwordEdit.password}
@@ -141,6 +108,7 @@ export function StaffPage() {
                           placeholder="новый пароль"
                         />
                         <button
+                          type="button"
                           className="underline"
                           disabled={passwordEdit.password.length < 6 || patch.isPending}
                           onClick={() =>
@@ -149,18 +117,23 @@ export function StaffPage() {
                         >
                           Сохранить
                         </button>
-                        <button className="text-mute underline" onClick={() => setPasswordEdit(null)}>
+                        <button type="button" className="text-mute underline" onClick={() => setPasswordEdit(null)}>
                           Отмена
                         </button>
-                      </span>
+                      </div>
                     ) : (
-                      <button className="underline" onClick={() => setPasswordEdit({ id: u.id, password: "" })}>
+                      <button
+                        type="button"
+                        className="underline"
+                        onClick={() => setPasswordEdit({ id: u.id, password: "" })}
+                      >
                         сменить
                       </button>
                     )}
                   </td>
                   <td className="px-4 text-right">
                     <button
+                      type="button"
                       className="underline"
                       onClick={() => patch.mutate({ id: u.id, body: { is_active: !u.is_active } })}
                     >
@@ -173,6 +146,74 @@ export function StaffPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={open}
+        onClose={closeDialog}
+        title="Новый сотрудник"
+        hint="Отдай почту и пароль. Вход — через «Войти», увидит только кассу."
+      >
+        <div className="space-y-4">
+          <Field label="Имя">
+            <Input
+              value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              placeholder="Амина"
+              autoFocus
+            />
+          </Field>
+          <Field label="Почта для входа">
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              autoComplete="off"
+              placeholder="amina@…"
+            />
+          </Field>
+          <Field label="Пароль">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                autoComplete="new-password"
+                placeholder="от 6 символов"
+              />
+              <Button
+                type="button"
+                variant="foam"
+                className="shrink-0"
+                onClick={() => setForm({ ...form, password: generatePassword() })}
+              >
+                Сгенерировать
+              </Button>
+            </div>
+          </Field>
+          <Field label="Телефон">
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+7… · необязательно"
+            />
+          </Field>
+          <Check
+            checked={form.can_receive_stock}
+            onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
+          >
+            Приёмка на кассе
+          </Check>
+          {create.isError && <p className="text-sm text-rust">{(create.error as Error).message}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button type="button" disabled={!canAdd || create.isPending} onClick={() => create.mutate()}>
+              {create.isPending ? "Добавляем…" : "Добавить"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

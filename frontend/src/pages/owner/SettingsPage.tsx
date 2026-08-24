@@ -73,34 +73,36 @@ export function SettingsPage() {
       <SessionCard />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <Card className="grid gap-4 md:grid-cols-2">
-          <Field label="Название">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <Field label="Адрес">
-            <Input
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="улица, город"
-            />
-          </Field>
-          <Field label="Часовой пояс">
-            <Select
-              value={form.timezone}
-              onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-            >
-              {[form.timezone, ...TIMEZONES.filter((z) => z !== form.timezone)].map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="flex items-end">
-            <Button className="w-full" disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>
+        <Card className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Название">
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </Field>
+            <Field label="Адрес">
+              <Input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder="улица, город"
+              />
+            </Field>
+            <Field label="Часовой пояс">
+              <Select
+                value={form.timezone}
+                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+              >
+                {[form.timezone, ...TIMEZONES.filter((z) => z !== form.timezone)].map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className="flex justify-end">
+            <Button disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>
               {save.isSuccess && !save.isPending ? "Сохранено" : "Сохранить"}
             </Button>
           </div>
