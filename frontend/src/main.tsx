@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { applyTheme, useTheme } from "./store/theme";
+import { bootTheme } from "./store/theme";
 import "./index.css";
 
-applyTheme(useTheme.getState().theme);
+bootTheme();
 
 const client = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },

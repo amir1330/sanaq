@@ -1,3 +1,4 @@
+import { formatApiError } from "../lib/errors";
 import { downloadBlob } from "../lib/utils";
 import { useAuth } from "../store/auth";
 import type {
@@ -60,7 +61,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail ?? data);
+    const detail = formatApiError(data.detail, data.message || res.statusText);
     throw new ApiError(res.status, detail || res.statusText);
   }
   return data as T;
@@ -163,6 +164,7 @@ export const api = {
     request<Product>(`/shops/${shopId}/products/${id}/image`, { method: "DELETE" }),
 
   stock: (shopId: number) => request<StockItem[]>(`/shops/${shopId}/stock-items`),
+  stockItem: (shopId: number, id: number) => request<StockItem>(`/shops/${shopId}/stock-items/${id}`),
   createStock: (shopId: number, body: object) =>
     request<StockItem>(`/shops/${shopId}/stock-items`, { method: "POST", body: json(body) }),
   patchStock: (shopId: number, id: number, body: object) =>
@@ -178,6 +180,10 @@ export const api = {
     request<StockItem>(`/shops/${shopId}/stock-items/${id}/image`, { method: "DELETE" }),
   stockMove: (shopId: number, id: number, body: object) =>
     request(`/shops/${shopId}/stock-items/${id}/movements`, { method: "POST", body: json(body) }),
+  stockRegrade: (shopId: number, id: number, body: object) =>
+    request(`/shops/${shopId}/stock-items/${id}/regrade`, { method: "POST", body: json(body) }),
+  stockTransfer: (shopId: number, id: number, body: object) =>
+    request(`/shops/${shopId}/stock-items/${id}/transfer`, { method: "POST", body: json(body) }),
   stockJournal: (shopId: number, itemId?: number) =>
     request<StockJournalEntry[]>(
       `/shops/${shopId}/stock-journal${itemId ? `?item_id=${itemId}` : ""}`,

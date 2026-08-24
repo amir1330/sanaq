@@ -49,6 +49,21 @@ class StockMovementCreate(BaseModel):
     comment: str | None = None
 
 
+class StockRegradeIn(BaseModel):
+    to_item_id: int
+    quantity_from: Decimal
+    quantity_to: Decimal | None = None
+    comment: str | None = None
+
+
+class StockTransferIn(BaseModel):
+    to_shop_id: int
+    to_item_id: int
+    quantity: Decimal
+    quantity_to: Decimal | None = None
+    comment: str | None = None
+
+
 class StockMovementOut(ORMModel):
     id: int
     shop_id: int

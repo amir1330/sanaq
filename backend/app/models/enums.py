@@ -28,6 +28,10 @@ class StockMovementType(str, enum.Enum):
     correction = "correction"
     sale = "sale"
     refund = "refund"
+    transfer_out = "transfer_out"
+    transfer_in = "transfer_in"
+    regrade_out = "regrade_out"
+    regrade_in = "regrade_in"
 
 
 class StockLogAction(str, enum.Enum):

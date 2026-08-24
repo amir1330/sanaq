@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { Brand } from "../components/Mark";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { Button, Field, Input } from "../components/ui";
 import { homePath, useAuth } from "../store/auth";
 
@@ -73,7 +72,6 @@ export function LandingPage() {
           <a href="#features" className="px-1 py-2 text-ink-soft hover:text-ink">
             Возможности
           </a>
-          <ThemeToggle label="Тема" />
           {user ? (
             <Link to={homePath(user.role)}>
               <Button variant="foam" size="lg">

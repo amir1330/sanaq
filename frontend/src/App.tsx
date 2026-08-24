@@ -3,6 +3,7 @@ import { OrnamentSprite } from "./components/Glyph";
 import { Guard } from "./components/Guard";
 import { Shell } from "./components/Shell";
 import { AdminPage } from "./pages/admin/AdminPage";
+import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
 import { LeadsPage } from "./pages/admin/LeadsPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -12,6 +13,7 @@ import { ProductsPage } from "./pages/owner/ProductsPage";
 import { ShiftsPage } from "./pages/owner/ShiftsPage";
 import { SettingsPage } from "./pages/owner/SettingsPage";
 import { StaffPage } from "./pages/owner/StaffPage";
+import { StockItemPage } from "./pages/owner/StockItemPage";
 import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
 import { StockRevisionsPage } from "./pages/owner/StockRevisionsPage";
@@ -35,6 +37,7 @@ export function App() {
             <Route path="/owner" element={<DashboardPage />} />
             <Route path="/owner/products" element={<ProductsPage />} />
             <Route path="/owner/stock" element={<StockPage />} />
+            <Route path="/owner/stock/item/:itemId" element={<StockItemPage />} />
             <Route path="/owner/stock/moves" element={<StockMovesPage />} />
             <Route path="/owner/stock/revisions" element={<StockRevisionsPage />} />
             <Route path="/owner/staff" element={<StaffPage />} />
@@ -47,6 +50,7 @@ export function App() {
           <Route element={<Shell kind="admin" />}>
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/leads" element={<LeadsPage />} />
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

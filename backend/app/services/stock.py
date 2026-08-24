@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     Product,
     ProductIngredient,
+    Shop,
     StockItem,
     StockLog,
     StockLogAction,
@@ -31,6 +32,26 @@ def to_base(purchase_qty: Decimal, purchase_to_base: Decimal) -> Decimal:
     if purchase_to_base <= 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "purchase_to_base must be positive")
     return (purchase_qty * purchase_to_base).quantize(Decimal("0.001"))
+
+
+def pair_quantity(
+    from_unit: str,
+    to_unit: str,
+    quantity_from: Decimal,
+    quantity_to: Decimal | None,
+) -> Decimal:
+    if quantity_from <= 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Количество должно быть больше нуля")
+    if quantity_to is not None:
+        if quantity_to <= 0:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сколько получается — больше нуля")
+        return quantity_to.quantize(Decimal("0.001"))
+    if from_unit != to_unit:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Единицы разные ({from_unit} и {to_unit}) — укажи сколько получается",
+        )
+    return quantity_from.quantize(Decimal("0.001"))
 
 
 def to_purchase(base_qty: Decimal, purchase_to_base: Decimal) -> Decimal:
@@ -247,6 +268,103 @@ def item_update_detail(item: StockItem, changes: dict) -> str | None:
             continue
         bits.append(f"{_UPDATE_LABELS.get(key, key)} → {value}")
     return ", ".join(bits) or None
+
+
+async def regrade_stock(
+    session: AsyncSession,
+    *,
+    shop_id: int,
+    from_item: StockItem,
+    to_item: StockItem,
+    quantity_from: Decimal,
+    quantity_to: Decimal | None,
+    user: User,
+    comment: str | None,
+) -> tuple[StockMovement, StockMovement]:
+    if from_item.shop_id != shop_id or to_item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    if from_item.id == to_item.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пересорт — в другую позицию")
+    qty_from = quantity_from.quantize(Decimal("0.001"))
+    qty_to = pair_quantity(from_item.base_unit, to_item.base_unit, qty_from, quantity_to)
+    cogs = await consume_fifo(session, from_item, qty_from)
+    unit = (cogs / qty_to).quantize(Decimal("0.0001")) if qty_to else from_item.cost_per_base_unit
+    note = comment.strip() if comment else None
+    out_comment = f"пересорт → {to_item.name}" + (f" · {note}" if note else "")
+    in_comment = f"пересорт ← {from_item.name}" + (f" · {note}" if note else "")
+    outgoing = record_stock_movement(
+        session,
+        shop_id=shop_id,
+        item=from_item,
+        movement_type=StockMovementType.regrade_out,
+        quantity_base=qty_from,
+        price_total=cogs,
+        user=user,
+        comment=out_comment,
+    )
+    await session.flush()
+    await add_lot(session, to_item, qty_to, unit, movement_id=outgoing.id)
+    incoming = record_stock_movement(
+        session,
+        shop_id=shop_id,
+        item=to_item,
+        movement_type=StockMovementType.regrade_in,
+        quantity_base=qty_to,
+        price_total=cogs,
+        user=user,
+        comment=in_comment,
+    )
+    await session.flush()
+    return outgoing, incoming
+
+
+async def transfer_stock(
+    session: AsyncSession,
+    *,
+    from_shop: Shop,
+    to_shop: Shop,
+    from_item: StockItem,
+    to_item: StockItem,
+    quantity: Decimal,
+    quantity_to: Decimal | None,
+    user: User,
+    comment: str | None,
+) -> tuple[StockMovement, StockMovement]:
+    if from_shop.id == to_shop.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Перемещение — на другую точку. На этой — пересорт.")
+    if from_item.shop_id != from_shop.id or to_item.shop_id != to_shop.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    qty_from = quantity.quantize(Decimal("0.001"))
+    qty_to = pair_quantity(from_item.base_unit, to_item.base_unit, qty_from, quantity_to)
+    cogs = await consume_fifo(session, from_item, qty_from)
+    unit = (cogs / qty_to).quantize(Decimal("0.0001")) if qty_to else from_item.cost_per_base_unit
+    note = comment.strip() if comment else None
+    out_comment = f"в {to_shop.name} · {to_item.name}" + (f" · {note}" if note else "")
+    in_comment = f"из {from_shop.name} · {from_item.name}" + (f" · {note}" if note else "")
+    outgoing = record_stock_movement(
+        session,
+        shop_id=from_shop.id,
+        item=from_item,
+        movement_type=StockMovementType.transfer_out,
+        quantity_base=qty_from,
+        price_total=cogs,
+        user=user,
+        comment=out_comment,
+    )
+    await session.flush()
+    await add_lot(session, to_item, qty_to, unit, movement_id=outgoing.id)
+    incoming = record_stock_movement(
+        session,
+        shop_id=to_shop.id,
+        item=to_item,
+        movement_type=StockMovementType.transfer_in,
+        quantity_base=qty_to,
+        price_total=cogs,
+        user=user,
+        comment=in_comment,
+    )
+    await session.flush()
+    return outgoing, incoming
 
 
 async def remove_stock_item(session: AsyncSession, item: StockItem, user: User) -> None:

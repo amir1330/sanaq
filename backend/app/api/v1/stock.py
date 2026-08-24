@@ -12,6 +12,8 @@ from app.schemas.stock import (
     StockJournalEntry,
     StockMovementCreate,
     StockMovementOut,
+    StockRegradeIn,
+    StockTransferIn,
 )
 from app.services.access import assert_shop_access, can_receive_stock
 from app.services.stock import (
@@ -19,8 +21,10 @@ from app.services.stock import (
     item_create_detail,
     item_update_detail,
     list_stock_journal,
+    regrade_stock,
     remove_stock_item,
     to_purchase,
+    transfer_stock,
     write_stock_log,
 )
 from app.services.uploads import delete_upload, replace_upload
@@ -59,6 +63,20 @@ async def list_stock(
     )
     hide = user.role == UserRole.barista
     return [_item_out(i, hide_cost=hide) for i in result.scalars().all()]
+
+
+@router.get("/shops/{shop_id}/stock-items/{item_id}", response_model=StockItemOut)
+async def get_stock_item(
+    shop_id: int,
+    item_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    item = await session.get(StockItem, item_id)
+    if item is None or item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    return _item_out(item, hide_cost=user.role == UserRole.barista)
 
 
 @router.post("/shops/{shop_id}/stock-items", response_model=StockItemOut, status_code=201)
@@ -183,6 +201,8 @@ async def create_movement(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет права на склад")
     if user.role == UserRole.barista and body.type != StockMovementType.income:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Кассир может только принять товар")
+    if body.type not in (StockMovementType.income, StockMovementType.writeoff):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Так двигают только приход и списание")
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Stock item not found")
@@ -199,6 +219,78 @@ async def create_movement(
     await session.commit()
     await session.refresh(movement)
     return movement
+
+
+@router.post(
+    "/shops/{shop_id}/stock-items/{item_id}/regrade",
+    response_model=list[StockMovementOut],
+    status_code=201,
+)
+async def regrade_item(
+    shop_id: int,
+    item_id: int,
+    body: StockRegradeIn,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    from_item = await session.get(StockItem, item_id)
+    to_item = await session.get(StockItem, body.to_item_id)
+    if from_item is None or from_item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    if to_item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Куда переложить — не найдено")
+    outgoing, incoming = await regrade_stock(
+        session,
+        shop_id=shop_id,
+        from_item=from_item,
+        to_item=to_item,
+        quantity_from=body.quantity_from,
+        quantity_to=body.quantity_to,
+        user=user,
+        comment=body.comment,
+    )
+    await session.commit()
+    await session.refresh(outgoing)
+    await session.refresh(incoming)
+    return [outgoing, incoming]
+
+
+@router.post(
+    "/shops/{shop_id}/stock-items/{item_id}/transfer",
+    response_model=list[StockMovementOut],
+    status_code=201,
+)
+async def transfer_item(
+    shop_id: int,
+    item_id: int,
+    body: StockTransferIn,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    from_shop = await assert_shop_access(session, user, shop_id, write=True)
+    to_shop = await assert_shop_access(session, user, body.to_shop_id, write=True)
+    from_item = await session.get(StockItem, item_id)
+    to_item = await session.get(StockItem, body.to_item_id)
+    if from_item is None or from_item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    if to_item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "На той точке нет такой позиции")
+    outgoing, incoming = await transfer_stock(
+        session,
+        from_shop=from_shop,
+        to_shop=to_shop,
+        from_item=from_item,
+        to_item=to_item,
+        quantity=body.quantity,
+        quantity_to=body.quantity_to,
+        user=user,
+        comment=body.comment,
+    )
+    await session.commit()
+    await session.refresh(outgoing)
+    await session.refresh(incoming)
+    return [outgoing, incoming]
 
 
 @router.get("/shops/{shop_id}/stock-journal", response_model=list[StockJournalEntry])

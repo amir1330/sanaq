@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useAuth } from "../store/auth";
@@ -20,11 +20,13 @@ const ownerLinks = [
 const adminLinks = [
   { to: "/admin", label: "Точки" },
   { to: "/admin/leads", label: "Заявки" },
+  { to: "/admin/settings", label: "Настройки" },
 ];
 
 export function Shell({ kind }: { kind: "owner" | "admin" }) {
-  const { user, shopId, setShopId, logout } = useAuth();
+  const { shopId, setShopId } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const currentShop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
   const links = kind === "owner" ? ownerLinks : adminLinks;
@@ -46,11 +48,13 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                 key={l.to}
                 to={l.to}
                 end={l.to === "/owner" || l.to === "/admin" || l.to === "/owner/stock"}
-                className={({ isActive }) =>
-                  isActive
+                className={({ isActive }) => {
+                  const onStockCard = l.to === "/owner/stock" && location.pathname.startsWith("/owner/stock/item/");
+                  const on = isActive || onStockCard;
+                  return on
                     ? "rounded-full bg-ink px-[15px] py-[9px] text-[12.5px] text-paper"
-                    : "rounded-full px-[15px] py-[9px] text-[12.5px] text-faint hover:text-ink"
-                }
+                    : "rounded-full px-[15px] py-[9px] text-[12.5px] text-faint hover:text-ink";
+                }}
               >
                 {l.label}
               </NavLink>
@@ -73,25 +77,6 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                   ))}
                 </select>
               </label>
-            )}
-            {kind === "owner" && (
-              <button type="button" className="hover:text-ink" onClick={() => navigate("/owner/settings")}>
-                {user?.full_name}
-              </button>
-            )}
-            {kind === "admin" && (
-              <>
-                <span>{user?.full_name}</span>
-                <button
-                  className="hover:text-ink"
-                  onClick={() => {
-                    logout();
-                    navigate("/login");
-                  }}
-                >
-                  Выйти
-                </button>
-              </>
             )}
           </div>
         </header>

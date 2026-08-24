@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { Brand } from "../../components/Mark";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { useAuth } from "../../store/auth";
 
 export function PosClockIn({ shopId }: { shopId: number | null }) {
@@ -33,7 +32,6 @@ export function PosClockIn({ shopId }: { shopId: number | null }) {
           <Brand />
         </Link>
         <div className="flex items-center gap-6">
-          <ThemeToggle />
           <Link to="/login" className="text-[13.5px] text-ink-soft hover:text-ink">
             Вход владельца
           </Link>

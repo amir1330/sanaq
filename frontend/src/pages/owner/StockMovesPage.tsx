@@ -3,51 +3,20 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Empty, PageTitle, Select, pill } from "../../components/ui";
+import { MOVE_KINDS, deltaBase, formatDelta, kindTitle } from "../../lib/stock";
 import { money, qty, stockBalance } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockJournalEntry, StockJournalKind } from "../../types";
 
-const MOVE_KINDS: StockJournalKind[] = ["income", "writeoff", "correction", "sale", "refund"];
 const CARD_KINDS: StockJournalKind[] = ["created", "updated", "deleted"];
 
 const MOVE_TABS: { id: string; label: string; kinds: StockJournalKind[] }[] = [
   { id: "moves", label: "Всё по остатку", kinds: MOVE_KINDS },
-  { id: "in", label: "Пришло", kinds: ["income", "refund"] },
-  { id: "out", label: "Ушло", kinds: ["writeoff", "sale"] },
+  { id: "in", label: "Пришло", kinds: ["income", "refund", "transfer_in", "regrade_in"] },
+  { id: "out", label: "Ушло", kinds: ["writeoff", "sale", "transfer_out", "regrade_out"] },
   { id: "revision", label: "Ревизии", kinds: ["correction"] },
   { id: "cards", label: "Карточки", kinds: CARD_KINDS },
 ];
-
-function kindTitle(kind: StockJournalKind, delta: number | null): string {
-  if (kind === "income") return "Пришло на склад";
-  if (kind === "writeoff") return "Списали";
-  if (kind === "sale") return "Ушло в чек";
-  if (kind === "refund") return "Вернули на полку";
-  if (kind === "correction") return delta != null && delta < 0 ? "Ревизия · недостача" : "Ревизия · излишек";
-  if (kind === "created") return "Добавили карточку";
-  if (kind === "updated") return "Изменили карточку";
-  return "Удалили карточку";
-}
-
-function deltaBase(row: StockJournalEntry): number | null {
-  if (row.quantity_base == null) return null;
-  const n = Number(row.quantity_base);
-  if (row.kind === "correction") return n;
-  if (row.kind === "writeoff" || row.kind === "sale") return -Math.abs(n);
-  if (row.kind === "income" || row.kind === "refund") return Math.abs(n);
-  return null;
-}
-
-function formatDelta(row: StockJournalEntry): string | null {
-  const d = deltaBase(row);
-  if (d == null) return null;
-  const sign = d < 0 ? "−" : "+";
-  const main = `${sign}${qty(Math.abs(d), row.base_unit ?? undefined)}`;
-  if (row.kind === "income" && row.quantity_purchase != null && row.purchase_unit) {
-    return `+${qty(row.quantity_purchase, row.purchase_unit)} → ${main}`;
-  }
-  return main;
-}
 
 function clock(iso: string): string {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -116,7 +85,7 @@ export function StockMovesPage() {
       <PageTitle
         kicker="Движения"
         title="Почему менялся остаток"
-        hint="Отдельный журнал: приход, чек, списание, ревизия. Остатки — в разделе Склад."
+        hint="Приход, чек, списание, пересорт, перемещение, ревизия. Карточка позиции — на складе."
         action={
           <Link to="/owner/stock">
             <Button variant="quiet">К остаткам</Button>
@@ -150,6 +119,9 @@ export function StockMovesPage() {
         <p className="mb-4 rounded-md bg-cream px-5 py-3 text-sm shadow-soft">
           <span className="font-medium">{selectedItem.name}</span>
           <span className="text-mute"> · сейчас {stockBalance(selectedItem)}</span>
+          <Link className="ml-3 underline" to={`/owner/stock/item/${selectedItem.id}`}>
+            карточка
+          </Link>
           <button className="ml-3 underline" onClick={() => setItem("")}>
             показать все
           </button>
@@ -179,7 +151,7 @@ export function StockMovesPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-[13.5px] font-medium text-ink">
                           {kindTitle(line.row.kind, d)}
-                          {kindFilter.id !== "cards" && logItem === "" ? (
+                      {kindFilter.id !== "cards" && logItem === "" ? (
                             <span className="font-normal text-ink-soft"> · {line.row.item_name}</span>
                           ) : null}
                         </p>

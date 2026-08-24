@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { SessionCard } from "../../components/SessionCard";
 import { Button, Card, Check, Field, Input, PageTitle, Select } from "../../components/ui";
 import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
-import { useTheme } from "../../store/theme";
 import type { Shop } from "../../types";
 
 export function SettingsPage() {
   const shopId = useAuth((s) => s.shopId)!;
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const theme = useTheme((s) => s.theme);
-  const setTheme = useTheme((s) => s.setTheme);
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
@@ -71,30 +67,10 @@ export function SettingsPage() {
       <PageTitle
         kicker="Точка"
         title="Настройки"
-        hint="Название и логотип видны в шапке кабинета и на кассе. Тема и выход — здесь."
+        hint="Имя, тема и выход — сверху. Ниже — точка, логотип и касса ОФД."
       />
 
-      <Card className="mb-4">
-        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Сессия</p>
-        <p className="mt-1 font-display text-2xl font-normal">{user?.full_name}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant={theme === "light" ? "primary" : "quiet"} onClick={() => setTheme("light")}>
-            Светлая
-          </Button>
-          <Button variant={theme === "dark" ? "primary" : "quiet"} onClick={() => setTheme("dark")}>
-            Тёмная
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-          >
-            Выйти
-          </Button>
-        </div>
-      </Card>
+      <SessionCard />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="grid gap-4 md:grid-cols-2">

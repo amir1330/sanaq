@@ -42,6 +42,7 @@ export function ReceivePanel({
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-item", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
       onClose();
     },

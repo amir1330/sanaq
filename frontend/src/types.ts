@@ -89,6 +89,10 @@ export type StockJournalKind =
   | "correction"
   | "sale"
   | "refund"
+  | "transfer_out"
+  | "transfer_in"
+  | "regrade_out"
+  | "regrade_in"
   | "created"
   | "updated"
   | "deleted";
