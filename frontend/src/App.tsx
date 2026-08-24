@@ -12,6 +12,7 @@ import { ProductsPage } from "./pages/owner/ProductsPage";
 import { ShiftsPage } from "./pages/owner/ShiftsPage";
 import { SettingsPage } from "./pages/owner/SettingsPage";
 import { StaffPage } from "./pages/owner/StaffPage";
+import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
 import { PinLoginPage } from "./pages/PinLoginPage";
 import { PosPage } from "./pages/pos/PosPage";
@@ -32,6 +33,7 @@ export function App() {
             <Route path="/owner" element={<DashboardPage />} />
             <Route path="/owner/products" element={<ProductsPage />} />
             <Route path="/owner/stock" element={<StockPage />} />
+            <Route path="/owner/stock/moves" element={<StockMovesPage />} />
             <Route path="/owner/staff" element={<StaffPage />} />
             <Route path="/owner/expenses" element={<ExpensesPage />} />
             <Route path="/owner/shifts" element={<ShiftsPage />} />

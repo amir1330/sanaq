@@ -10,6 +10,7 @@ const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
   { to: "/owner/products", label: "Товары" },
   { to: "/owner/stock", label: "Склад" },
+  { to: "/owner/stock/moves", label: "Движения" },
   { to: "/owner/staff", label: "Сотрудники" },
   { to: "/owner/expenses", label: "Расходы" },
   { to: "/owner/shifts", label: "Смены" },
@@ -45,7 +46,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
               <NavLink
                 key={l.to}
                 to={l.to}
-                end={l.to === "/owner" || l.to === "/admin"}
+                end={l.to === "/owner" || l.to === "/admin" || l.to === "/owner/stock"}
                 className={({ isActive }) =>
                   isActive
                     ? "rounded-full bg-ink px-[15px] py-[9px] text-[12.5px] text-paper"
