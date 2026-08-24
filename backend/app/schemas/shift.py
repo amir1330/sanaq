@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import CashMovementType, PaymentType, ShiftStatus
+from app.models.enums import CashMovementType, FiscalStatus, PaymentType, ShiftStatus
 from app.schemas.common import ORMModel
 
 
@@ -24,6 +24,7 @@ class SellerTotal(BaseModel):
 
 class ShiftCloseRequest(BaseModel):
     closing_cash: Decimal = Field(ge=0)
+    force: bool = False
 
 
 class CashMovementCreate(BaseModel):
@@ -39,6 +40,15 @@ class CashMovementOut(ORMModel):
     amount: Decimal
     comment: str | None
     created_at: datetime
+
+
+class ShiftSaleOut(ORMModel):
+    id: int
+    total_amount: Decimal
+    payment_type: PaymentType
+    is_refunded: bool
+    created_at: datetime
+    barista_name: str | None = None
 
 
 class ShiftOut(ORMModel):
@@ -59,6 +69,10 @@ class ShiftOut(ORMModel):
     expected_cash: Decimal = Decimal("0")
     cash_difference: Decimal | None = None
     sellers: list[SellerTotal] = Field(default_factory=list)
+    fiscal_pending_count: int = 0
+    z_report_number: str | None = None
+    z_report_sent_at: datetime | None = None
+    sales: list[ShiftSaleOut] = Field(default_factory=list)
 
 
 class SaleItemIn(BaseModel):
@@ -71,6 +85,11 @@ class SaleCreate(BaseModel):
     items: list[SaleItemIn] = Field(min_length=1)
     payment_type: PaymentType
     barista_id: int | None = None
+
+
+class SaleRefundIn(BaseModel):
+    shop_id: int
+    restore_stock: bool = False
 
 
 class SaleItemOut(ORMModel):
@@ -98,5 +117,9 @@ class SaleOut(ORMModel):
     total_amount: Decimal
     is_refunded: bool
     created_at: datetime
+    fiscal_status: FiscalStatus = FiscalStatus.skipped
+    fiscal_receipt_number: str | None = None
+    fiscal_receipt_url: str | None = None
+    fiscal_error: str | None = None
     items: list[SaleItemOut] = Field(default_factory=list)
     alerts: list[StockAlert] = Field(default_factory=list)

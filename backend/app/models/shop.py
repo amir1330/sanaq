@@ -14,6 +14,11 @@ class Shop(Base):
     address: Mapped[str | None] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Europe/Helsinki")
     logo_url: Mapped[str | None] = mapped_column(Text)
+    webkassa_login: Mapped[str | None] = mapped_column(Text)
+    webkassa_password_encrypted: Mapped[str | None] = mapped_column(Text)
+    webkassa_cashbox_number: Mapped[str | None] = mapped_column(Text)
+    webkassa_api_key_encrypted: Mapped[str | None] = mapped_column(Text)
+    webkassa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

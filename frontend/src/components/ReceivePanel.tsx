@@ -24,6 +24,7 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
       setAmount("");
       setPrice("");
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
 

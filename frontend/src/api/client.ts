@@ -6,6 +6,7 @@ import type {
   CrewMember,
   DailyPoint,
   Expense,
+  FiscalReceipt,
   Lead,
   LeadStatus,
   Product,
@@ -15,6 +16,8 @@ import type {
   Shift,
   Shop,
   StockItem,
+  StockJournalEntry,
+  StockRevision,
   TokenPair,
   TopProduct,
   User,
@@ -87,6 +90,15 @@ export const api = {
     request<Lead>(`/admin/leads/${id}`, { method: "PATCH", body: json({ status }) }),
 
   shops: () => request<Shop[]>("/shops"),
+  createBranch: (
+    body: {
+      name: string;
+      address?: string;
+      timezone?: string;
+      copy_from_shop_id?: number | null;
+      copy_catalog?: boolean;
+    },
+  ) => request<Shop>("/shops", { method: "POST", body: json(body) }),
   updateShopSettings: (shopId: number, body: { name?: string; address?: string; timezone?: string }) =>
     request<Shop>(`/shops/${shopId}`, { method: "PATCH", body: json(body) }),
   uploadLogo: (shopId: number, file: File) => {
@@ -95,6 +107,18 @@ export const api = {
     return request<Shop>(`/shops/${shopId}/logo`, { method: "POST", body });
   },
   deleteLogo: (shopId: number) => request<Shop>(`/shops/${shopId}/logo`, { method: "DELETE" }),
+  updateWebkassa: (
+    shopId: number,
+    body: {
+      login?: string;
+      password?: string;
+      cashbox_number?: string;
+      api_key?: string;
+      enabled?: boolean;
+    },
+  ) => request<Shop>(`/shops/${shopId}/webkassa`, { method: "PATCH", body: json(body) }),
+  testWebkassa: (shopId: number) =>
+    request<{ ok: boolean; message: string }>(`/shops/${shopId}/webkassa/test`, { method: "POST" }),
 
   adminShops: () => request<Shop[]>("/admin/shops"),
   createShop: (body: {
@@ -102,6 +126,7 @@ export const api = {
     address?: string;
     timezone?: string;
     owner?: { full_name: string; email: string; password: string; phone?: string };
+    existing_owner_email?: string;
   }) => request<Shop>("/admin/shops", { method: "POST", body: json(body) }),
   patchShop: (id: number, body: Partial<Shop>) =>
     request<Shop>(`/admin/shops/${id}`, { method: "PATCH", body: json(body) }),
@@ -137,6 +162,28 @@ export const api = {
     request<void>(`/shops/${shopId}/stock-items/${id}`, { method: "DELETE" }),
   stockMove: (shopId: number, id: number, body: object) =>
     request(`/shops/${shopId}/stock-items/${id}/movements`, { method: "POST", body: json(body) }),
+  stockJournal: (shopId: number, itemId?: number) =>
+    request<StockJournalEntry[]>(
+      `/shops/${shopId}/stock-journal${itemId ? `?item_id=${itemId}` : ""}`,
+    ),
+  stockRevisions: (shopId: number) => request<StockRevision[]>(`/shops/${shopId}/stock-revisions`),
+  createStockRevision: (shopId: number, comment?: string) =>
+    request<StockRevision>(`/shops/${shopId}/stock-revisions`, {
+      method: "POST",
+      body: json({ comment: comment || null }),
+    }),
+  patchStockRevision: (
+    shopId: number,
+    id: number,
+    body: {
+      comment?: string | null;
+      lines: { stock_item_id: number; counted_quantity: string | null; comment?: string | null }[];
+    },
+  ) => request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}`, { method: "PATCH", body: json(body) }),
+  postStockRevision: (shopId: number, id: number) =>
+    request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}/post`, { method: "POST" }),
+  cancelStockRevision: (shopId: number, id: number) =>
+    request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}/cancel`, { method: "POST" }),
 
   crew: (shopId: number) => request<CrewMember[]>(`/shops/${shopId}/crew`),
   staff: (shopId: number) => request<User[]>(`/shops/${shopId}/staff`),
@@ -149,8 +196,8 @@ export const api = {
     request<Shift | null>(`/shifts/current?shop_id=${shopId}`),
   openShift: (shopId: number, opening_cash: number, barista_id?: number) =>
     request<Shift>("/shifts/open", { method: "POST", body: json({ shop_id: shopId, opening_cash, barista_id }) }),
-  closeShift: (id: number, closing_cash: number) =>
-    request<Shift>(`/shifts/${id}/close`, { method: "POST", body: json({ closing_cash }) }),
+  closeShift: (id: number, closing_cash: number, force = false) =>
+    request<Shift>(`/shifts/${id}/close`, { method: "POST", body: json({ closing_cash, force }) }),
   cashMove: (id: number, body: object) =>
     request(`/shifts/${id}/cash-movements`, { method: "POST", body: json(body) }),
   shifts: (shopId: number) => request<Shift[]>(`/shops/${shopId}/shifts`),
@@ -161,6 +208,13 @@ export const api = {
     payment_type: "cash" | "card",
     barista_id?: number,
   ) => request<Sale>("/sales", { method: "POST", body: json({ shop_id: shopId, items, payment_type, barista_id }) }),
+  refundSale: (shopId: number, saleId: number, restore_stock = false) =>
+    request<Sale>(`/sales/${saleId}/refund`, {
+      method: "POST",
+      body: json({ shop_id: shopId, restore_stock }),
+    }),
+  retryFiscal: (shopId: number, saleId: number) =>
+    request<Sale>(`/shops/${shopId}/sales/${saleId}/fiscalize`, { method: "POST" }),
 
   expenses: (shopId: number) => request<Expense[]>(`/shops/${shopId}/expenses`),
   createExpense: (shopId: number, body: object) =>
@@ -174,6 +228,8 @@ export const api = {
     request<DailyPoint[]>(`/shops/${shopId}/reports/daily?from=${from}&to=${to}`),
   sellers: (shopId: number, from: string, to: string) =>
     request<SellerPoint[]>(`/shops/${shopId}/reports/sellers?from=${from}&to=${to}`),
+  fiscalReceipts: (shopId: number, from: string, to: string) =>
+    request<FiscalReceipt[]>(`/shops/${shopId}/reports/fiscal?from=${from}&to=${to}`),
   exportReport: async (shopId: number, from: string, to: string) => {
     const { accessToken, refreshToken, setSession, logout } = useAuth.getState();
     const headers = new Headers();
@@ -196,7 +252,7 @@ export const api = {
     }
     if (!res.ok) throw new ApiError(res.status, "Не удалось скачать отчёт");
     const blob = await res.blob();
-    downloadBlob(blob, `coffeeos-${from}-${to}.xlsx`);
+    downloadBlob(blob, `sanaq-${from}-${to}.xlsx`);
   },
 };
 

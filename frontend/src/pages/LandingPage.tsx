@@ -87,14 +87,13 @@ export function LandingPage() {
 
       <section className="mx-auto max-w-[720px] px-8 pb-10 pt-16 text-center">
         <p className="mb-5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-          Учёт для кофейни
+          Санақ · учёт точки
         </p>
         <h1 className="font-display text-[36px] font-normal leading-[1.22] text-ink md:text-[44px]">
-          Полная аналитика кофейни: от чека до чистой прибыли
+          Касса, склад и прибыль — для любой точки
         </h1>
         <p className="mx-auto mt-6 max-w-[520px] text-base leading-[1.65] text-ink-soft">
-          Избавьтесь от ручного сведения смен. Точный учёт молока и зерна, контроль выручки и прозрачные отчёты без
-          путаницы.
+          Кафе, магазин, пекарня. Чек, смена, остатки и чистыми в одном месте — без сведения таблиц в конце месяца.
         </p>
         <div className="mt-9 flex justify-center gap-4">
           <a href="#request" className="border border-ink bg-ink px-6 py-3 text-[13.5px] font-semibold text-paper hover:bg-mute">
@@ -148,13 +147,13 @@ export function LandingPage() {
               </p>
               <h3 className="mb-8 font-display text-[26px] font-normal text-cream">Оставить заявку</h3>
               <div className="space-y-[22px]">
-                <Field label="Название кофейни" tone="dark">
+                <Field label="Название точки" tone="dark">
                   <Input
                     tone="dark"
                     required
                     value={form.shop_name}
                     onChange={(e) => setForm({ ...form, shop_name: e.target.value })}
-                    placeholder="Дастархан кофе"
+                    placeholder="Дастархан"
                   />
                 </Field>
                 <Field label="Город" tone="dark">

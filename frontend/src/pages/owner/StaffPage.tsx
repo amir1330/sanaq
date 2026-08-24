@@ -32,7 +32,7 @@ export function StaffPage() {
     <div>
       <PageTitle
         kicker="Люди"
-        title="Бариста"
+        title="Кассиры"
         hint="PIN — кто сейчас на кассе. Если человек один — включи «Приёмка», чтобы сам ставил закупки."
       />
       <Card className="mb-4 grid gap-3 md:grid-cols-6">

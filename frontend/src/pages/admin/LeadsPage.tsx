@@ -25,7 +25,7 @@ export function LeadsPage() {
       <PageTitle
         kicker="Продажи"
         title="Заявки"
-        hint="С лендинга. Пока без оплаты — человек просит завести кофейню. Потом создаёшь точку во вкладке «Кофейни»."
+        hint="С лендинга. Пока без оплаты — человек просит завести точку. Потом создаёшь её во вкладке «Точки»."
       />
       <Card className="mb-4">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Новых</p>
@@ -38,7 +38,7 @@ export function LeadsPage() {
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">Кофейня</th>
+                <th className="px-4 py-3">Точка</th>
                 <th>Контакт</th>
                 <th>Комментарий</th>
                 <th>Статус</th>

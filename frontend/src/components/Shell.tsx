@@ -10,7 +10,7 @@ const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
   { to: "/owner/products", label: "Меню" },
   { to: "/owner/stock", label: "Склад" },
-  { to: "/owner/staff", label: "Бариста" },
+  { to: "/owner/staff", label: "Люди" },
   { to: "/owner/expenses", label: "Расходы" },
   { to: "/owner/shifts", label: "Смены" },
   { to: "/pos", label: "Касса" },
@@ -18,7 +18,7 @@ const ownerLinks = [
 ];
 
 const adminLinks = [
-  { to: "/admin", label: "Кофейни" },
+  { to: "/admin", label: "Точки" },
   { to: "/admin/leads", label: "Заявки" },
 ];
 
@@ -37,7 +37,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
             {kind === "admin" ? (
               <Brand className="text-[15.5px]" markClass="h-[17px] w-[17px]" />
             ) : (
-              <ShopBrand shop={currentShop} fallback="Кофейня" />
+              <ShopBrand shop={currentShop} fallback="Точка" />
             )}
           </button>
           <nav className="flex flex-1 flex-wrap justify-center gap-6 text-[13px]">
@@ -58,17 +58,21 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
           </nav>
           <div className="flex items-center gap-4 text-[12.5px] text-faint">
             {kind === "owner" && (shops.data?.length ?? 0) > 1 && (
-              <select
-                className="border-0 border-b border-line-2 bg-transparent py-1 text-ink outline-none"
-                value={shopId ?? ""}
-                onChange={(e) => setShopId(Number(e.target.value))}
-              >
-                {shops.data?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <label className="flex items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em]">Филиал</span>
+                <select
+                  className="max-w-48 border-0 border-b border-line-2 bg-transparent py-1 text-ink outline-none"
+                  value={shopId ?? ""}
+                  onChange={(e) => setShopId(Number(e.target.value))}
+                >
+                  {shops.data?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.address ? ` · ${s.address}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
             <ThemeToggle />
             <span>{user?.full_name}</span>

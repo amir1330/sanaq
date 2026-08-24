@@ -38,12 +38,38 @@ class ShopOut(ORMModel):
     logo_url: str | None = None
     is_active: bool
     created_at: datetime
+    webkassa_enabled: bool = False
+    webkassa_login: str | None = None
+    webkassa_cashbox_number: str | None = None
+    webkassa_has_password: bool = False
+    webkassa_has_api_key: bool = False
+
+
+class BranchCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    address: str | None = None
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    copy_from_shop_id: int | None = None
+    copy_catalog: bool = True
 
 
 class ShopSettingsUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     address: str | None = None
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class WebkassaSettingsUpdate(BaseModel):
+    login: str | None = None
+    password: str | None = None
+    cashbox_number: str | None = None
+    api_key: str | None = None
+    enabled: bool | None = None
+
+
+class WebkassaTestOut(BaseModel):
+    ok: bool
+    message: str
 
 
 class Money(BaseModel):

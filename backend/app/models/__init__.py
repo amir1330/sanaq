@@ -1,9 +1,12 @@
 from app.models.catalog import Category, Product, ProductIngredient
 from app.models.enums import (
     CashMovementType,
+    FiscalStatus,
     PaymentType,
     ShiftStatus,
+    StockLogAction,
     StockMovementType,
+    StockRevisionStatus,
     UserRole,
 )
 from app.models.finance import Expense
@@ -11,13 +14,14 @@ from app.models.lead import Lead
 from app.models.sale import Sale, SaleItem
 from app.models.shift import Shift, ShiftCashMovement
 from app.models.shop import Shop
-from app.models.stock import StockItem, StockMovement
+from app.models.stock import StockItem, StockLog, StockMovement, StockRevision, StockRevisionLine
 from app.models.user import OwnerShop, User
 
 __all__ = [
     "CashMovementType",
     "Category",
     "Expense",
+    "FiscalStatus",
     "Lead",
     "OwnerShop",
     "PaymentType",
@@ -30,8 +34,13 @@ __all__ = [
     "ShiftStatus",
     "Shop",
     "StockItem",
+    "StockLog",
+    "StockLogAction",
     "StockMovement",
     "StockMovementType",
+    "StockRevision",
+    "StockRevisionLine",
+    "StockRevisionStatus",
     "User",
     "UserRole",
 ]

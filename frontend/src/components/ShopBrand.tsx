@@ -4,7 +4,7 @@ import { Brand, Mark } from "./Mark";
 
 export function ShopBrand({
   shop,
-  fallback = "CoffeeOS",
+  fallback = "Sanaq",
   size = "sm",
   showName = true,
 }: {

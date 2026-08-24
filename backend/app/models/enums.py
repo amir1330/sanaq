@@ -26,3 +26,24 @@ class StockMovementType(str, enum.Enum):
     income = "income"
     writeoff = "writeoff"
     correction = "correction"
+    sale = "sale"
+    refund = "refund"
+
+
+class StockLogAction(str, enum.Enum):
+    created = "created"
+    updated = "updated"
+    deleted = "deleted"
+
+
+class StockRevisionStatus(str, enum.Enum):
+    draft = "draft"
+    posted = "posted"
+    cancelled = "cancelled"
+
+
+class FiscalStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
+    skipped = "skipped"

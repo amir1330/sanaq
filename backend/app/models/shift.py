@@ -29,6 +29,8 @@ class Shift(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    z_report_number: Mapped[str | None] = mapped_column(Text)
+    z_report_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     barista: Mapped["User"] = relationship()  # noqa: F821
     cash_movements: Mapped[list["ShiftCashMovement"]] = relationship(

@@ -8,7 +8,7 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { Banner, Button } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
-import type { CrewMember, Product } from "../../types";
+import type { CrewMember, Product, ShiftSale } from "../../types";
 
 type Line = { product: Product; quantity: number };
 
@@ -24,7 +24,9 @@ export function PosPage() {
   const [cashClose, setCashClose] = useState("");
   const [moveAmount, setMoveAmount] = useState("");
   const [moveType, setMoveType] = useState<"deposit" | "withdrawal">("withdrawal");
-  const [panel, setPanel] = useState<"none" | "open" | "close" | "move" | "seller">("none");
+  const [panel, setPanel] = useState<"none" | "open" | "close" | "move" | "seller" | "receipts">("none");
+  const [refundTarget, setRefundTarget] = useState<ShiftSale | null>(null);
+  const [restoreStock, setRestoreStock] = useState(false);
   const [seller, setSeller] = useState<{ id: number; name: string } | null>(null);
   const [sellerPin, setSellerPin] = useState("");
   const [sellerError, setSellerError] = useState("");
@@ -149,9 +151,19 @@ export function PosPage() {
         ? ` На складе мало: ${sale.alerts.map((a) => a.name).join(", ")}.`
         : "";
       setCart([]);
+      const fiscal =
+        sale.fiscal_status === "skipped"
+          ? " Фискальный чек не отправляется — Webkassa выключена."
+          : sale.fiscal_status === "failed"
+            ? ` ОФД: ${sale.fiscal_error || "ошибка"}`
+            : sale.fiscal_status === "sent" && sale.fiscal_receipt_url
+              ? " Чек ушёл в ОФД."
+              : sale.fiscal_status === "pending"
+                ? " Фискальный чек уходит в фоне."
+                : "";
       setNotice({
-        tone: sale.alerts.length ? "warn" : "ok",
-        text: `Чек пробит · ${money(sale.total_amount)} · ${payLabel(sale.payment_type)}.${extra}`,
+        tone: sale.alerts.length || sale.fiscal_status === "failed" ? "warn" : "ok",
+        text: `Чек пробит · ${money(sale.total_amount)} · ${payLabel(sale.payment_type)}.${extra}${fiscal}`,
       });
       void qc.invalidateQueries({ queryKey: ["shift", sid] });
     },
@@ -167,20 +179,39 @@ export function PosPage() {
     },
   });
   const closeShift = useMutation({
-    mutationFn: () => api.closeShift(shift.data!.id, Number(cashClose || 0)),
+    mutationFn: (force: boolean) => api.closeShift(shift.data!.id, Number(cashClose || 0), force),
     onSuccess: (s) => {
       setPanel("none");
+      const z = s.z_report_number ? ` Z-отчёт ${s.z_report_number} ушёл в ОФД.` : "";
       const diff = Number(s.cash_difference ?? 0);
       setNotice({
         tone: diff === 0 ? "ok" : "warn",
         text:
           diff === 0
-            ? `Смена закрыта. Касса сошлась: ${money(s.closing_cash)}.`
-            : `Смена закрыта. В ящике должно быть ${money(s.expected_cash)}, пересчитали ${money(s.closing_cash)}. Расхождение ${money(s.cash_difference)}.`,
+            ? `Смена закрыта. Касса сошлась: ${money(s.closing_cash)}.${z}`
+            : `Смена закрыта. В ящике должно быть ${money(s.expected_cash)}, пересчитали ${money(s.closing_cash)}. Расхождение ${money(s.cash_difference)}.${z}`,
       });
       void qc.invalidateQueries({ queryKey: ["shift", sid] });
     },
   });
+  const refund = useMutation({
+    mutationFn: (restore: boolean) => api.refundSale(sid, refundTarget!.id, restore),
+    onSuccess: (sale, restore) => {
+      setRefundTarget(null);
+      setRestoreStock(false);
+      setPanel("none");
+      setNotice({
+        tone: "ok",
+        text: restore
+          ? `Чек ${sale.id} возвращён, сырьё вернулось на склад.`
+          : `Чек ${sale.id} возвращён. Сырьё на складе не трогали — напиток уже сделан.`,
+      });
+      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["stock", sid] });
+    },
+    onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
+  });
+
   const cashMove = useMutation({
     mutationFn: () =>
       api.cashMove(shift.data!.id, {
@@ -206,6 +237,14 @@ export function PosPage() {
           <ShopBrand shop={currentShop} fallback="Касса" size="md" />
           {currentShop?.address && (
             <p className="mt-1 pl-8 text-[11px] text-ink-soft">{currentShop.address}</p>
+          )}
+          {currentShop && !currentShop.webkassa_enabled && (
+            <p className="mt-2 pl-8 text-[11px] text-alert">ОФД выключен — чеки не фискализируются</p>
+          )}
+          {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
+            <p className="mt-2 pl-8 text-[11px] text-alert">
+              Не ушло в Webkassa: {shift.data?.fiscal_pending_count}
+            </p>
           )}
         </div>
         <div className="flex items-center justify-between border-b border-line pb-3.5 text-[12.5px]">
@@ -255,6 +294,12 @@ export function PosPage() {
                   <span className="font-mono font-semibold">{shift.data.sales_count}</span>
                 </div>
               </div>
+              <button
+                className="w-full border border-line py-2.5 text-[12.5px] text-ink-soft hover:bg-ink hover:text-paper"
+                onClick={() => setPanel("receipts")}
+              >
+                Чеки смены
+              </button>
               <button
                 className="w-full border border-line py-2.5 text-[12.5px] text-ink-soft hover:bg-ink hover:text-paper"
                 onClick={() => setPanel("move")}
@@ -428,13 +473,24 @@ export function PosPage() {
                     autoFocus
                   />
                 </label>
-                <div className="mt-6 flex gap-3">
-                  <Button className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper" onClick={() => closeShift.mutate()}>
+                {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
+                  <p className="mt-3 text-sm text-alert">
+                    {shift.data?.fiscal_pending_count} чеков ещё не в ОФД. Закрытие без этого — риск штрафа.
+                  </p>
+                )}
+                {closeShift.isError && <p className="mt-3 text-sm text-alert">{(closeShift.error as Error).message}</p>}
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper" onClick={() => closeShift.mutate(false)}>
                     Закрыть смену
                   </Button>
                   <Button variant="ghost" className="text-ink-soft" onClick={() => setPanel("none")}>
                     Назад
                   </Button>
+                  {closeShift.isError && (
+                    <Button variant="danger" onClick={() => closeShift.mutate(true)}>
+                      Закрыть всё равно
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -480,6 +536,85 @@ export function PosPage() {
                 <Button variant="ghost" className="mt-4 text-ink-soft" onClick={() => setPanel("none")}>
                   Назад
                 </Button>
+              </>
+            )}
+            {panel === "receipts" && !refundTarget && (
+              <>
+                <h2 className="font-display text-2xl font-normal">Чеки смены</h2>
+                <p className="mt-2 text-sm text-ink-soft">
+                  Возврат по умолчанию только деньги. Сырьё на склад — только если напиток ещё не делали.
+                </p>
+                <div className="mt-4 max-h-72 overflow-auto">
+                  {(shift.data?.sales ?? []).length === 0 && (
+                    <p className="py-4 text-sm text-ink-soft">Пока нет чеков.</p>
+                  )}
+                  {(shift.data?.sales ?? []).map((sale) => (
+                    <div key={sale.id} className="flex items-center justify-between border-b border-line py-2.5 text-sm">
+                      <div>
+                        <p className={sale.is_refunded ? "text-ink-soft line-through" : ""}>
+                          №{sale.id} · {money(sale.total_amount)} · {payLabel(sale.payment_type)}
+                        </p>
+                        <p className="font-mono text-[10px] text-faint">
+                          {new Date(sale.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                          {sale.barista_name ? ` · ${sale.barista_name}` : ""}
+                        </p>
+                      </div>
+                      {!sale.is_refunded && (
+                        <button
+                          className="underline"
+                          onClick={() => {
+                            setRestoreStock(false);
+                            setRefundTarget(sale);
+                          }}
+                        >
+                          Вернуть
+                        </button>
+                      )}
+                      {sale.is_refunded && <span className="text-ink-soft">возврат</span>}
+                    </div>
+                  ))}
+                </div>
+                <Button variant="ghost" className="mt-4 text-ink-soft" onClick={() => setPanel("none")}>
+                  Назад
+                </Button>
+              </>
+            )}
+            {panel === "receipts" && refundTarget && (
+              <>
+                <h2 className="font-display text-2xl font-normal">Вернуть чек №{refundTarget.id}</h2>
+                <p className="mt-2 text-sm text-ink-soft">
+                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. Если напиток уже сделали —
+                  сырьё не возвращаем, иначе на бумаге появится молоко, которого нет.
+                </p>
+                <label className="mt-5 flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={restoreStock}
+                    onChange={(e) => setRestoreStock(e.target.checked)}
+                  />
+                  <span>Ингредиенты не использованы, вернуть на склад</span>
+                </label>
+                {refund.isError && <p className="mt-3 text-sm text-alert">{(refund.error as Error).message}</p>}
+                <div className="mt-6 flex gap-3">
+                  <Button
+                    className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
+                    disabled={refund.isPending}
+                    onClick={() => refund.mutate(restoreStock)}
+                  >
+                    Вернуть
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="text-ink-soft"
+                    onClick={() => {
+                      setRefundTarget(null);
+                      setRestoreStock(false);
+                    }}
+                  >
+                    Назад
+                  </Button>
+                </div>
               </>
             )}
             {panel === "move" && (

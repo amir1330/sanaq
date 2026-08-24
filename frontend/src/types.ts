@@ -50,6 +50,11 @@ export type Shop = {
   logo_url: string | null;
   is_active: boolean;
   created_at: string;
+  webkassa_enabled?: boolean;
+  webkassa_login?: string | null;
+  webkassa_cashbox_number?: string | null;
+  webkassa_has_password?: boolean;
+  webkassa_has_api_key?: boolean;
 };
 
 export type Category = { id: number; shop_id: number; name: string };
@@ -72,7 +77,70 @@ export type Product = {
   created_at: string;
   category_name?: string | null;
   cost_price?: string | null;
+  fiscal_position_code?: string | null;
+  tax_percent?: string;
+  tax_type?: number;
   ingredients: Ingredient[];
+};
+
+export type StockJournalKind =
+  | "income"
+  | "writeoff"
+  | "correction"
+  | "sale"
+  | "refund"
+  | "created"
+  | "updated"
+  | "deleted";
+
+export type StockJournalEntry = {
+  id: string;
+  kind: StockJournalKind;
+  stock_item_id: number | null;
+  item_name: string;
+  base_unit: string | null;
+  purchase_unit: string | null;
+  quantity_base: string | null;
+  quantity_purchase: string | null;
+  price_total: string | null;
+  actor_name: string | null;
+  comment: string | null;
+  created_at: string;
+};
+
+export type StockRevisionStatus = "draft" | "posted" | "cancelled";
+
+export type StockRevisionLine = {
+  id: number;
+  stock_item_id: number | null;
+  stock_item_name: string;
+  base_unit: string;
+  expected_quantity: string;
+  counted_quantity: string | null;
+  difference_quantity: string | null;
+  cost_per_base_unit: string;
+  value: string | null;
+  comment: string | null;
+};
+
+export type StockRevision = {
+  id: number;
+  shop_id: number;
+  status: StockRevisionStatus;
+  comment: string | null;
+  created_by: number | null;
+  created_by_name: string | null;
+  posted_by: number | null;
+  posted_by_name: string | null;
+  created_at: string;
+  posted_at: string | null;
+  cancelled_at: string | null;
+  line_count: number;
+  counted_count: number;
+  shortage_count: number;
+  surplus_count: number;
+  difference_value: string;
+  lines: StockRevisionLine[];
 };
 
 export type StockItem = {
@@ -108,6 +176,19 @@ export type Shift = {
   expected_cash: string;
   cash_difference: string | null;
   sellers?: SellerPoint[];
+  fiscal_pending_count?: number;
+  z_report_number?: string | null;
+  z_report_sent_at?: string | null;
+  sales?: ShiftSale[];
+};
+
+export type ShiftSale = {
+  id: number;
+  total_amount: string;
+  payment_type: "cash" | "card";
+  is_refunded: boolean;
+  created_at: string;
+  barista_name?: string | null;
 };
 
 export type SellerPoint = {
@@ -126,13 +207,32 @@ export type StockAlert = {
   min_quantity: string;
 };
 
+export type FiscalStatus = "pending" | "sent" | "failed" | "skipped";
+
 export type Sale = {
   id: number;
   total_amount: string;
   payment_type: "cash" | "card";
   is_refunded: boolean;
   created_at: string;
+  fiscal_status?: FiscalStatus;
+  fiscal_receipt_number?: string | null;
+  fiscal_receipt_url?: string | null;
+  fiscal_error?: string | null;
   alerts: StockAlert[];
+};
+
+export type FiscalReceipt = {
+  id: number;
+  created_at: string;
+  total_amount: string;
+  payment_type: string;
+  fiscal_status: FiscalStatus;
+  fiscal_receipt_number: string | null;
+  fiscal_receipt_url: string | null;
+  fiscal_error: string | null;
+  fiscal_attempts: number;
+  barista_name: string | null;
 };
 
 export type Expense = {
@@ -153,7 +253,12 @@ export type ReportSummary = {
   profit: string;
   sales_count: number;
   expenses: string;
+  revision_shortage?: string;
   net_profit: string;
+  fiscal_sent_count?: number;
+  fiscal_failed_count?: number;
+  fiscal_pending_count?: number;
+  fiscal_skipped_count?: number;
 };
 
 export type TopProduct = {
@@ -172,6 +277,7 @@ export type DailyPoint = {
   cost: string;
   profit: string;
   sales_count: number;
+  unfiscalized_count?: number;
 };
 
 export type AdminStats = {

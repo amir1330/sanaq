@@ -14,6 +14,8 @@ type Draft = {
   sale_price: string;
   category_id: number | null;
   is_active: boolean;
+  tax_percent: string;
+  tax_type: string;
   ingredients: IngRow[];
 };
 
@@ -37,6 +39,8 @@ export function ProductsPage() {
           sale_price: editing.sale_price,
           category_id: editing.category_id,
           is_active: editing.is_active,
+          tax_percent: editing.tax_percent || "0",
+          tax_type: Number(editing.tax_type || 0),
         });
         await api.setIngredients(shopId, editing.id, ingredients);
       } else {
@@ -44,6 +48,8 @@ export function ProductsPage() {
           name: editing?.name,
           sale_price: editing?.sale_price,
           category_id: editing?.category_id || null,
+          tax_percent: editing?.tax_percent || "0",
+          tax_type: Number(editing?.tax_type || 0),
           ingredients,
         });
       }
@@ -69,6 +75,8 @@ export function ProductsPage() {
       sale_price: p?.sale_price ?? "",
       category_id: p?.category_id ?? null,
       is_active: p?.is_active ?? true,
+      tax_percent: p?.tax_percent ?? "0",
+      tax_type: String(p?.tax_type ?? 0),
       ingredients:
         p?.ingredients.map((i) => ({ stock_item_id: i.stock_item_id, quantity: String(i.quantity) })) ?? [],
     });
@@ -186,6 +194,23 @@ export function ProductsPage() {
               />
               Показывать на кассе
             </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="НДС %, для чека ОФД">
+                <Input
+                  value={editing.tax_percent}
+                  onChange={(e) => setEditing({ ...editing, tax_percent: e.target.value })}
+                  inputMode="decimal"
+                />
+              </Field>
+              <Field label="Код налога TaxType">
+                <Input
+                  value={editing.tax_type}
+                  onChange={(e) => setEditing({ ...editing, tax_type: e.target.value })}
+                  inputMode="numeric"
+                />
+              </Field>
+            </div>
+            <p className="text-xs text-mute">На упрощёнке обычно 0 и 0. Точные коды — в кабинете Webkassa.</p>
             <div>
               <p className="text-[11px] uppercase tracking-wider text-mute">Рецепт — списание со склада</p>
               <p className="mt-1 mb-2 text-xs text-mute">

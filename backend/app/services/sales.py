@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models import (
     CashMovementType,
+    FiscalStatus,
     PaymentType,
     Product,
     Sale,
@@ -16,11 +17,14 @@ from app.models import (
     Shift,
     ShiftCashMovement,
     ShiftStatus,
+    Shop,
     StockItem,
+    StockMovementType,
     User,
 )
 from app.schemas.shift import SaleItemIn, SellerTotal, StockAlert
 from app.services.access import shop_crew
+from app.services.stock import record_stock_movement
 
 
 async def get_open_shift(session: AsyncSession, shop_id: int) -> Shift | None:
@@ -112,6 +116,16 @@ async def create_sale(
             )
         )
 
+    shop = await session.get(Shop, shop_id)
+    fiscal = (
+        FiscalStatus.pending
+        if shop
+        and shop.webkassa_enabled
+        and shop.webkassa_login
+        and shop.webkassa_password_encrypted
+        and shop.webkassa_cashbox_number
+        else FiscalStatus.skipped
+    )
     sale = Sale(
         shop_id=shop_id,
         shift_id=shift.id,
@@ -119,6 +133,7 @@ async def create_sale(
         payment_type=payment_type,
         total_amount=total,
         created_at=datetime.now(timezone.utc),
+        fiscal_status=fiscal,
     )
     session.add(sale)
     await session.flush()
@@ -135,6 +150,15 @@ async def create_sale(
         if item is None:
             continue
         item.quantity = item.quantity - need
+        record_stock_movement(
+            session,
+            shop_id=shop_id,
+            item=item,
+            movement_type=StockMovementType.sale,
+            quantity_base=need,
+            user=seller,
+            comment=f"чек #{sale.id}",
+        )
         if item.quantity <= item.min_quantity:
             alerts.append(
                 StockAlert(
@@ -149,28 +173,35 @@ async def create_sale(
     return sale, alerts
 
 
-async def refund_sale(session: AsyncSession, sale: Sale, shop_id: int) -> Sale:
+async def refund_sale(
+    session: AsyncSession,
+    sale: Sale,
+    shop_id: int,
+    user: User,
+    *,
+    restore_stock: bool = False,
+) -> Sale:
     if sale.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Sale not found")
     if sale.is_refunded:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Sale already refunded")
 
     await session.refresh(sale, attribute_names=["items"])
-    product_ids = [i.product_id for i in sale.items]
-    result = await session.execute(
-        select(Product)
-        .options(selectinload(Product.ingredients))
-        .where(Product.id.in_(product_ids))
-    )
-    products = {p.id: p for p in result.scalars().unique().all()}
-
     restore: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
-    for line in sale.items:
-        product = products.get(line.product_id)
-        if not product:
-            continue
-        for ing in product.ingredients:
-            restore[ing.stock_item_id] += ing.quantity * line.quantity
+    if restore_stock:
+        product_ids = [i.product_id for i in sale.items]
+        result = await session.execute(
+            select(Product)
+            .options(selectinload(Product.ingredients))
+            .where(Product.id.in_(product_ids))
+        )
+        products = {p.id: p for p in result.scalars().unique().all()}
+        for line in sale.items:
+            product = products.get(line.product_id)
+            if not product:
+                continue
+            for ing in product.ingredients:
+                restore[ing.stock_item_id] += ing.quantity * line.quantity
 
     if restore:
         locked_rows = await session.execute(
@@ -183,6 +214,15 @@ async def refund_sale(session: AsyncSession, sale: Sale, shop_id: int) -> Sale:
             item = locked.get(stock_id)
             if item:
                 item.quantity = item.quantity + qty
+                record_stock_movement(
+                    session,
+                    shop_id=shop_id,
+                    item=item,
+                    movement_type=StockMovementType.refund,
+                    quantity_base=qty,
+                    user=user,
+                    comment=f"возврат чека #{sale.id}",
+                )
 
     sale.is_refunded = True
     await session.flush()
@@ -237,7 +277,7 @@ def seller_totals(sales: list[Sale]) -> list[SellerTotal]:
             sale.barista_id,
             {
                 "barista_id": sale.barista_id,
-                "barista_name": getattr(getattr(sale, "barista", None), "full_name", None) or "Бариста",
+                "barista_name": getattr(getattr(sale, "barista", None), "full_name", None) or "Кассир",
                 "cash": Decimal("0"),
                 "card": Decimal("0"),
                 "count": 0,

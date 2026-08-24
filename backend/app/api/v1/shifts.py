@@ -7,16 +7,18 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, roles
 from app.database import get_session
-from app.models import Sale, Shift, ShiftCashMovement, ShiftStatus, User, UserRole
+from app.models import FiscalStatus, Sale, Shift, ShiftCashMovement, ShiftStatus, Shop, User, UserRole
 from app.schemas.shift import (
     CashMovementCreate,
     CashMovementOut,
     ShiftCloseRequest,
     ShiftOpenRequest,
     ShiftOut,
+    ShiftSaleOut,
 )
 from app.services.access import assert_shop_access, shop_crew
 from app.services.sales import get_open_shift, seller_totals, shift_totals
+from app.services.webkassa import send_z_report, shop_ready
 
 router = APIRouter(tags=["shifts"])
 pos_roles = roles(UserRole.super_admin, UserRole.owner, UserRole.barista)
@@ -25,6 +27,11 @@ manage = roles(UserRole.super_admin, UserRole.owner)
 
 def _shift_out(shift: Shift, sales: list[Sale], movements: list[ShiftCashMovement]) -> ShiftOut:
     totals = shift_totals(shift, sales, movements)
+    pending = sum(
+        1
+        for s in sales
+        if not s.is_refunded and s.fiscal_status in (FiscalStatus.pending, FiscalStatus.failed)
+    )
     return ShiftOut(
         id=shift.id,
         shop_id=shift.shop_id,
@@ -36,6 +43,20 @@ def _shift_out(shift: Shift, sales: list[Sale], movements: list[ShiftCashMovemen
         opened_at=shift.opened_at,
         closed_at=shift.closed_at,
         sellers=seller_totals(sales),
+        fiscal_pending_count=pending,
+        z_report_number=shift.z_report_number,
+        z_report_sent_at=shift.z_report_sent_at,
+        sales=[
+            ShiftSaleOut(
+                id=sale.id,
+                total_amount=sale.total_amount,
+                payment_type=sale.payment_type,
+                is_refunded=sale.is_refunded,
+                created_at=sale.created_at,
+                barista_name=sale.barista.full_name if sale.barista else None,
+            )
+            for sale in sorted(sales, key=lambda row: row.created_at, reverse=True)[:40]
+        ],
         **totals,
     )
 
@@ -143,6 +164,27 @@ async def close_shift(
     await assert_shop_access(session, user, shift.shop_id, write=True)
     if shift.status != ShiftStatus.open:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Shift already closed")
+    shop = await session.get(Shop, shift.shop_id)
+    pending = [
+        s
+        for s in shift.sales
+        if not s.is_refunded and s.fiscal_status in (FiscalStatus.pending, FiscalStatus.failed)
+    ]
+    if shop and shop_ready(shop) and pending and not body.force:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Нельзя закрыть смену: {len(pending)} чеков не ушли в Webkassa. "
+            "Подожди повтор или закрой принудительно.",
+        )
+    if shop and shop_ready(shop):
+        try:
+            await send_z_report(session, shift)
+        except Exception as exc:
+            if not body.force:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    f"Z-отчёт не ушёл в ОФД: {exc}. Смену можно закрыть принудительно.",
+                ) from exc
     shift.status = ShiftStatus.closed
     shift.closing_cash = body.closing_cash
     shift.closed_at = datetime.now(timezone.utc)

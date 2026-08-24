@@ -32,11 +32,25 @@ async def create_shop(
     _: User = Depends(admin_only),
     session: AsyncSession = Depends(get_session),
 ):
-    data = body.model_dump(exclude={"owner"})
+    if body.owner and body.existing_owner_email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Укажи нового владельца или почту существующего, не обоих")
+    data = body.model_dump(exclude={"owner", "existing_owner_email"})
     shop = Shop(**data)
     session.add(shop)
     await session.flush()
-    if body.owner:
+    if body.existing_owner_email:
+        owner = (
+            await session.execute(
+                select(User).where(
+                    User.email == str(body.existing_owner_email),
+                    User.role == UserRole.owner,
+                )
+            )
+        ).scalar_one_or_none()
+        if owner is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Владелец с такой почтой не найден")
+        session.add(OwnerShop(owner_id=owner.id, shop_id=shop.id))
+    elif body.owner:
         owner = User(
             shop_id=shop.id,
             role=UserRole.owner,

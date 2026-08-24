@@ -9,6 +9,8 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from app.config import settings
+
 
 INK = "1B1811"
 LINE = "DDD5C1"
@@ -117,7 +119,7 @@ def build_report_xlsx(
     cover = wb.active
     cover.title = "Сводка"
     cover.sheet_view.showGridLines = False
-    cover["A1"] = "CoffeeOS"
+    cover["A1"] = settings.app_name
     cover["A1"].font = title_font
     cover["A2"] = shop_name
     cover["A2"].font = meta_font
@@ -134,6 +136,7 @@ def build_report_xlsx(
         ("Себестоимость", _num(summary.get("cost"))),
         ("Прибыль", _num(summary.get("profit"))),
         ("Расходы", _num(summary.get("expenses"))),
+        ("Недостачи по ревизиям", _num(summary.get("revision_shortage"))),
         ("Чистыми", _num(summary.get("net_profit"))),
         ("Чеков", int(summary.get("sales_count") or 0)),
     ]
@@ -145,7 +148,7 @@ def build_report_xlsx(
             cell.number_format = '#,##0.00'
             if label in {"Прибыль", "Чистыми"}:
                 cell.font = Font(name="Calibri", bold=True, color=GOLD)
-    cover.column_dimensions["A"].width = 22
+    cover.column_dimensions["A"].width = 26
     cover.column_dimensions["B"].width = 16
     cover.freeze_panes = "A6"
 
@@ -216,7 +219,7 @@ def build_report_xlsx(
     _write_sheet(
         wb,
         "Чеки",
-        ["Дата", "Номер", "Продавец", "Оплата", "Сумма", "Возврат"],
+        ["Дата", "Номер", "Продавец", "Оплата", "Сумма", "Возврат", "Фискализация"],
         [
             [
                 _when(row.get("created_at")),
@@ -225,6 +228,7 @@ def build_report_xlsx(
                 "Наличными" if row.get("payment_type") == "cash" else "Безналично",
                 _num(row.get("total_amount")),
                 "да" if row.get("is_refunded") else "",
+                row.get("fiscal_status") or "",
             ]
             for row in sales
         ],

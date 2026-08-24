@@ -1,10 +1,54 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
-import { BASE_UNITS, PURCHASE_UNITS, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { RevisionsPanel } from "../../components/RevisionsPanel";
+import { Button, Card, Empty, Field, Input, PageTitle, Select } from "../../components/ui";
+import { BASE_UNITS, PURCHASE_UNITS, money, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
-import type { StockItem } from "../../types";
+import type { StockItem, StockJournalEntry, StockJournalKind } from "../../types";
+
+const JOURNAL_LABELS: Record<StockJournalKind, string> = {
+  income: "Приход",
+  writeoff: "Списание",
+  correction: "Корректировка",
+  sale: "Продажа",
+  refund: "Возврат",
+  created: "Добавили",
+  updated: "Изменили",
+  deleted: "Удалили",
+};
+
+const JOURNAL_FILTERS: { id: string; label: string; kinds?: StockJournalKind[] }[] = [
+  { id: "all", label: "Все события" },
+  { id: "moves", label: "Движения", kinds: ["income", "writeoff", "correction", "sale", "refund"] },
+  { id: "logs", label: "Изменения", kinds: ["created", "updated", "deleted"] },
+  { id: "income", label: "Приходы", kinds: ["income"] },
+  { id: "writeoff", label: "Списания", kinds: ["writeoff"] },
+  { id: "correction", label: "Ревизии", kinds: ["correction"] },
+  { id: "sale", label: "Продажи", kinds: ["sale", "refund"] },
+];
+
+function journalWhen(iso: string): string {
+  return new Date(iso).toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function journalQty(row: StockJournalEntry): string {
+  if (row.quantity_base == null) return "—";
+  const n = Number(row.quantity_base);
+  const minus = row.kind === "writeoff" || row.kind === "sale" || n < 0;
+  const sign = minus ? "−" : "+";
+  const abs = Math.abs(n);
+  if (row.kind === "income" && row.quantity_purchase != null && row.purchase_unit) {
+    return `${sign}${qty(row.quantity_purchase, row.purchase_unit)} → ${qty(abs, row.base_unit ?? undefined)}`;
+  }
+  return `${sign}${qty(abs, row.base_unit ?? undefined)}`;
+}
 
 const emptyCreate = {
   name: "",
@@ -18,12 +62,22 @@ const emptyCreate = {
 export function StockPage() {
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [creating, setCreating] = useState(false);
   const [create, setCreate] = useState(emptyCreate);
-  const [move, setMove] = useState<{ item: StockItem; type: "income" | "writeoff"; qty: string; price: string } | null>(
-    null,
-  );
+  const [logItem, setLogItem] = useState("");
+  const [logKind, setLogKind] = useState("all");
+  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const journal = useQuery({
+    queryKey: ["stock-journal", shopId, logItem],
+    queryFn: () => api.stockJournal(shopId, logItem ? Number(logItem) : undefined),
+  });
+  const [move, setMove] = useState<{
+    item: StockItem;
+    type: "income" | "writeoff";
+    qty: string;
+    price: string;
+    comment: string;
+  } | null>(null);
   const [edit, setEdit] = useState<{
     id: number;
     name: string;
@@ -41,6 +95,7 @@ export function StockPage() {
       setCreate(emptyCreate);
       setCreating(false);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
   const saveEdit = useMutation({
@@ -55,6 +110,7 @@ export function StockPage() {
     onSuccess: () => {
       setEdit(null);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
   const drop = useMutation({
@@ -63,6 +119,7 @@ export function StockPage() {
       setRemove(null);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
       void qc.invalidateQueries({ queryKey: ["products", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
   const apply = useMutation({
@@ -71,10 +128,12 @@ export function StockPage() {
         type: move!.type,
         quantity: move!.qty,
         price_total: move!.type === "income" ? move!.price || null : null,
+        comment: move!.comment || null,
       }),
     onSuccess: () => {
       setMove(null);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
 
@@ -101,6 +160,11 @@ export function StockPage() {
       ? Number(move.qty) * Number(move.item.purchase_to_base)
       : null;
 
+  const kindFilter = JOURNAL_FILTERS.find((f) => f.id === logKind);
+  const journalRows = (journal.data ?? []).filter((row) =>
+    kindFilter?.kinds ? kindFilter.kinds.includes(row.kind) : true,
+  );
+
   return (
     <div>
       <PageTitle
@@ -113,6 +177,7 @@ export function StockPage() {
           </Button>
         }
       />
+      <RevisionsPanel shopId={shopId} />
       {(stock.data ?? []).some((i) => i.is_low) && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
           <p className="font-semibold text-alert">Заканчивается</p>
@@ -226,12 +291,15 @@ export function StockPage() {
                     >
                       Изменить
                     </button>
-                    <button className="underline" onClick={() => setMove({ item: i, type: "income", qty: "", price: "" })}>
+                    <button
+                      className="underline"
+                      onClick={() => setMove({ item: i, type: "income", qty: "", price: "", comment: "" })}
+                    >
                       Приход
                     </button>
                     <button
                       className="underline"
-                      onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "" })}
+                      onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "", comment: "" })}
                     >
                       Списать
                     </button>
@@ -251,6 +319,64 @@ export function StockPage() {
           </tbody>
         </table>
       </div>
+      <div className="mt-10 mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Журнал</p>
+          <h2 className="mt-1 font-display text-2xl font-normal text-ink">Движения и логи</h2>
+          <p className="mt-1 text-sm text-mute">
+            Приход, списание, продажи с кассы и кто менял карточки сырья. Старые продажи без записи не подтянутся.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Select value={logItem} onChange={(e) => setLogItem(e.target.value)} className="min-w-40">
+            <option value="">Все позиции</option>
+            {(stock.data ?? []).map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
+            ))}
+          </Select>
+          <Select value={logKind} onChange={(e) => setLogKind(e.target.value)} className="min-w-40">
+            {JOURNAL_FILTERS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+      {journalRows.length === 0 ? (
+        <Empty>Пока пусто. Приход, списание и новые продажи появятся здесь.</Empty>
+      ) : (
+        <div className="border border-line">
+          <table className="w-full text-sm">
+            <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
+              <tr className="border-b border-ink/10 text-left">
+                <th className="px-4 py-3">Когда</th>
+                <th>Событие</th>
+                <th>Сырьё</th>
+                <th>Сколько</th>
+                <th>Сумма</th>
+                <th>Кто</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journalRows.map((row) => (
+                <tr key={row.id} className="border-b border-ink/5">
+                  <td className="px-4 py-3 font-mono text-xs">{journalWhen(row.created_at)}</td>
+                  <td>{JOURNAL_LABELS[row.kind]}</td>
+                  <td>{row.item_name}</td>
+                  <td className="font-mono">{journalQty(row)}</td>
+                  <td className="font-mono">{row.price_total != null ? money(row.price_total) : "—"}</td>
+                  <td className="text-mute">{row.actor_name || "—"}</td>
+                  <td className="text-mute">{row.comment || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {edit && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
           <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
@@ -386,6 +512,13 @@ export function StockPage() {
                 />
               </Field>
             )}
+            <Field label="Комментарий">
+              <Input
+                value={move.comment}
+                onChange={(e) => setMove({ ...move, comment: e.target.value })}
+                placeholder="по желанию — поставщик, причина списания"
+              />
+            </Field>
             {apply.isError && <p className="text-sm text-alert">{(apply.error as Error).message}</p>}
             <div className="flex gap-2">
               <Button onClick={() => apply.mutate()} disabled={!move.qty || apply.isPending}>

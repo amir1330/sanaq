@@ -14,7 +14,7 @@ export function Mark({ className }: { className?: string }) {
 }
 
 export function Brand({
-  name = "CoffeeOS",
+  name = "Sanaq",
   className,
   markClass,
 }: {

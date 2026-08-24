@@ -49,6 +49,9 @@ def _product_out(product: Product) -> ProductOut:
         created_at=product.created_at,
         category_name=product.category.name if product.category else None,
         cost_price=cost.quantize(Decimal("0.01")),
+        fiscal_position_code=product.fiscal_position_code,
+        tax_percent=product.tax_percent,
+        tax_type=product.tax_type,
         ingredients=ingredients,
     )
 
@@ -154,6 +157,9 @@ async def create_product(
         category_id=body.category_id,
         is_active=body.is_active,
         image_url=body.image_url,
+        fiscal_position_code=body.fiscal_position_code,
+        tax_percent=body.tax_percent,
+        tax_type=body.tax_type,
     )
     session.add(product)
     await session.flush()

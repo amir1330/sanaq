@@ -38,6 +38,9 @@ class ProductCreate(BaseModel):
     category_id: int | None = None
     is_active: bool = True
     image_url: str | None = None
+    fiscal_position_code: str | None = None
+    tax_percent: Decimal = Decimal("0")
+    tax_type: int = 0
     ingredients: list[IngredientIn] = Field(default_factory=list)
 
 
@@ -47,6 +50,9 @@ class ProductUpdate(BaseModel):
     category_id: int | None = None
     is_active: bool | None = None
     image_url: str | None = None
+    fiscal_position_code: str | None = None
+    tax_percent: Decimal | None = None
+    tax_type: int | None = None
 
 
 class ProductOut(ORMModel):
@@ -60,4 +66,7 @@ class ProductOut(ORMModel):
     created_at: datetime
     category_name: str | None = None
     cost_price: Decimal | None = None
+    fiscal_position_code: str | None = None
+    tax_percent: Decimal = Decimal("0")
+    tax_type: int = 0
     ingredients: list[IngredientOut] = Field(default_factory=list)

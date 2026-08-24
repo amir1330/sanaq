@@ -8,6 +8,7 @@ type ShopForm = {
   name: string;
   address: string;
   timezone: string;
+  existing_owner_email: string;
   owner_name: string;
   owner_email: string;
   owner_phone: string;
@@ -18,6 +19,7 @@ const emptyShop = (): ShopForm => ({
   name: "",
   address: "",
   timezone: "Asia/Almaty",
+  existing_owner_email: "",
   owner_name: "",
   owner_email: "",
   owner_phone: "",
@@ -53,16 +55,22 @@ export function AdminPage() {
         name: shopForm.name.trim(),
         address: shopForm.address.trim() || undefined,
         timezone: shopForm.timezone,
-        owner: {
-          full_name: shopForm.owner_name.trim(),
-          email: shopForm.owner_email.trim(),
-          phone: shopForm.owner_phone.trim() || undefined,
-          password: shopForm.owner_password,
-        },
+        ...(shopForm.existing_owner_email.trim()
+          ? { existing_owner_email: shopForm.existing_owner_email.trim() }
+          : {
+              owner: {
+                full_name: shopForm.owner_name.trim(),
+                email: shopForm.owner_email.trim(),
+                phone: shopForm.owner_phone.trim() || undefined,
+                password: shopForm.owner_password,
+              },
+            }),
       }),
     onSuccess: (shop) => {
       setCreatedNote(
-        `Точка «${shop.name}» готова. Владелец входит как ${shopForm.owner_email.trim()}`,
+        shopForm.existing_owner_email.trim()
+          ? `Филиал «${shop.name}» привязан к ${shopForm.existing_owner_email.trim()}`
+          : `Точка «${shop.name}» готова. Владелец входит как ${shopForm.owner_email.trim()}`,
       );
       setShopForm(emptyShop());
       setCreateOpen(false);
@@ -93,11 +101,11 @@ export function AdminPage() {
     },
   });
 
+  const attachExisting = Boolean(shopForm.existing_owner_email.trim());
   const canCreate =
     shopForm.name.trim() &&
-    shopForm.owner_name.trim() &&
-    shopForm.owner_email.trim() &&
-    shopForm.owner_password.length >= 6;
+    (attachExisting ||
+      (shopForm.owner_name.trim() && shopForm.owner_email.trim() && shopForm.owner_password.length >= 6));
 
   const rows = stats.data?.shops ?? [];
 
@@ -105,7 +113,7 @@ export function AdminPage() {
     <div>
       <PageTitle
         kicker="Система"
-        title="Кофейни"
+        title="Точки"
         hint="Точка и владелец создаются вместе. Ему сразу можно отдать почту и пароль."
         action={
           <Button
@@ -140,7 +148,7 @@ export function AdminPage() {
 
       {rows.length === 0 ? (
         <Card>
-          <p className="text-sm text-mute">Пока нет точек. Нажми «Новая точка» — заведём кофейню и вход для владельца.</p>
+          <p className="text-sm text-mute">Пока нет точек. Нажми «Новая точка» — заведём заведение и вход для владельца.</p>
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -204,12 +212,12 @@ export function AdminPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Новая точка"
-        hint="Сразу заведи владельца — без него точка пустая."
+        hint="Новый владелец — отдельная точка. Почта существующего — филиал в его кабинете."
         wide
       >
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-wider text-mute">Кофейня</p>
+            <p className="text-[11px] uppercase tracking-wider text-mute">Точка</p>
             <Field label="Название">
               <Input
                 value={shopForm.name}
@@ -239,6 +247,14 @@ export function AdminPage() {
           </div>
           <div className="space-y-3">
             <p className="text-[11px] uppercase tracking-wider text-mute">Владелец</p>
+            <Field label="Почта существующего — если это филиал">
+              <Input
+                type="email"
+                value={shopForm.existing_owner_email}
+                onChange={(e) => setShopForm({ ...shopForm, existing_owner_email: e.target.value })}
+                placeholder="owner@… — тогда поля ниже не нужны"
+              />
+            </Field>
             <Field label="Имя">
               <Input
                 value={shopForm.owner_name}

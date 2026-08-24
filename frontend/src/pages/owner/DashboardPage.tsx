@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Empty, Field, Input } from "../../components/ui";
 import { money, startOfPeriod, type Period } from "../../lib/utils";
@@ -22,9 +22,16 @@ export function DashboardPage() {
   }, [period]);
 
   const rangeOk = from <= to;
+  const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
+  const shop = shops.data?.find((s) => s.id === shopId);
   const summary = useQuery({
     queryKey: ["summary", shopId, from, to],
     queryFn: () => api.summary(shopId!, from, to),
+    enabled: !!shopId && rangeOk,
+  });
+  const fiscal = useQuery({
+    queryKey: ["fiscal", shopId, from, to],
+    queryFn: () => api.fiscalReceipts(shopId!, from, to),
     enabled: !!shopId && rangeOk,
   });
   const top = useQuery({
@@ -95,6 +102,16 @@ export function DashboardPage() {
           {exporting ? "Собираем…" : "Скачать таблицу"}
         </Button>
       </div>
+      {shop && !shop.webkassa_enabled && (
+        <p className="mb-4 border border-alert/40 bg-alert/10 px-4 py-3 text-sm text-alert">
+          Продажи не фискализируются. Касса Webkassa выключена в настройках.
+        </p>
+      )}
+      {s && (s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0) > 0 && (
+        <p className="mb-4 border border-alert/40 bg-alert/10 px-4 py-3 text-sm text-alert">
+          Не фискализировано: {(s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0)} чеков за период.
+        </p>
+      )}
       {!rangeOk && <p className="mb-4 text-sm text-alert">Дата «с» должна быть раньше «по».</p>}
       {exportError && <p className="mb-4 text-sm text-alert">{exportError}</p>}
 
@@ -104,6 +121,11 @@ export function DashboardPage() {
         <Tile label="Расходы" value={money(s?.expenses)} />
         <Tile label="Чистыми" value={money(s?.net_profit)} last />
       </div>
+      {s && (
+        <p className={`border border-t-0 border-line px-6 py-3 text-sm ${Number(s.revision_shortage || 0) > 0 ? "text-alert" : "text-mute"}`}>
+          Недостачи по ревизиям: −{money(s.revision_shortage || 0)}. Уже вычтены из «Чистыми».
+        </p>
+      )}
 
       <div className="border border-t-0 border-line px-6 py-8">
         <h4 className="font-display text-[17px] font-normal">Наличные и безналичные</h4>
@@ -174,7 +196,64 @@ export function DashboardPage() {
           </tbody>
         </table>
       </div>
+
+      {(fiscal.data ?? []).length > 0 && (
+        <div className="mt-8 border border-line">
+          <div className="border-b border-line px-6 py-3">
+            <h4 className="font-display text-[17px] font-normal">Чеки без ОФД</h4>
+            <p className="text-sm text-mute">Ошибка Webkassa или ещё не ушло. Можно отправить снова.</p>
+          </div>
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="border-b border-line text-left font-mono text-[10px] uppercase tracking-[0.06em] text-faint">
+                <th className="px-6 py-3">Когда</th>
+                <th>Чек</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Ошибка</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(fiscal.data ?? []).map((row) => (
+                <FiscalRow key={row.id} shopId={shopId!} row={row} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
+  );
+}
+
+function FiscalRow({
+  shopId,
+  row,
+}: {
+  shopId: number;
+  row: { id: number; created_at: string; total_amount: string; fiscal_status: string; fiscal_error: string | null };
+}) {
+  const qc = useQueryClient();
+  const retry = useMutation({
+    mutationFn: () => api.retryFiscal(shopId, row.id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["fiscal", shopId] });
+      void qc.invalidateQueries({ queryKey: ["summary", shopId] });
+    },
+  });
+  return (
+    <tr className="border-b border-line last:border-0">
+      <td className="px-6 py-3 font-mono text-xs">{new Date(row.created_at).toLocaleString("ru-RU")}</td>
+      <td className="px-6 py-3 font-mono">#{row.id}</td>
+      <td className="px-6 py-3 font-mono">{money(row.total_amount)}</td>
+      <td className="px-6 py-3">{row.fiscal_status === "failed" ? "ошибка" : "ждёт"}</td>
+      <td className="px-6 py-3 text-mute">{row.fiscal_error || "—"}</td>
+      <td className="px-6 py-3 text-right">
+        <button className="underline" disabled={retry.isPending} onClick={() => retry.mutate()}>
+          Повторить
+        </button>
+      </td>
+    </tr>
   );
 }
 

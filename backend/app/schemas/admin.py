@@ -16,6 +16,7 @@ class ShopCreate(BaseModel):
     timezone: str = "Asia/Almaty"
     is_active: bool = True
     owner: OwnerCreate | None = None
+    existing_owner_email: EmailStr | None = None
 
 
 class ShopUpdate(BaseModel):

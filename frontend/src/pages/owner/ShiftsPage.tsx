@@ -13,7 +13,7 @@ export function ShiftsPage() {
   const [cashClose, setCashClose] = useState("");
 
   const closeShift = useMutation({
-    mutationFn: () => api.closeShift(closeId!, Number(cashClose || 0)),
+    mutationFn: (force: boolean) => api.closeShift(closeId!, Number(cashClose || 0), force),
     onSuccess: () => {
       setCloseId(null);
       setCashClose("");
@@ -98,13 +98,18 @@ export function ShiftsPage() {
             {closeShift.isError && (
               <p className="mt-2 text-sm text-rust">{(closeShift.error as Error).message}</p>
             )}
-            <div className="mt-4 flex gap-2">
-              <Button className="flex-1" onClick={() => closeShift.mutate()}>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button className="flex-1" onClick={() => closeShift.mutate(false)}>
                 Закрыть
               </Button>
               <Button variant="ghost" onClick={() => setCloseId(null)}>
                 Назад
               </Button>
+              {closeShift.isError && (
+                <Button variant="danger" onClick={() => closeShift.mutate(true)}>
+                  Закрыть всё равно
+                </Button>
+              )}
             </div>
           </div>
         </div>
