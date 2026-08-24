@@ -13,13 +13,12 @@ const emptyForm = () => ({
   email: "",
   phone: "",
   password: "",
-  pin_code: "",
   can_receive_stock: false,
 });
 
 const roleLabel: Record<string, string> = {
   owner: "владелец",
-  barista: "кассир",
+  barista: "сотрудник",
   super_admin: "админ",
 };
 
@@ -40,15 +39,14 @@ export function AdminUsersPage() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         password: form.password || undefined,
-        pin_code: form.pin_code || undefined,
         can_receive_stock: form.can_receive_stock,
       }),
     onSuccess: (user) => {
       const shop = shops.data?.find((s) => s.id === user.shop_id);
       setNote(
         user.role === "owner"
-          ? `Владелец ${user.email} добавлен в «${shop?.name ?? user.shop_name}». Можно отдавать почту и пароль.`
-          : `Кассир ${user.full_name} добавлен в «${shop?.name ?? user.shop_name}». PIN: ${form.pin_code}`,
+          ? `Владелец ${user.email} добавлен в «${shop?.name ?? user.shop_name}».`
+          : `Сотрудник ${user.email} добавлен в «${shop?.name ?? user.shop_name}». Вход — почта и пароль, только касса.`,
       );
       setForm(emptyForm());
       setOpen(false);
@@ -59,10 +57,7 @@ export function AdminUsersPage() {
 
   const canSave = useMemo(() => {
     if (!form.shop_id || !form.full_name.trim()) return false;
-    if (form.role === "owner") {
-      return Boolean(form.email.trim()) && form.password.length >= 6;
-    }
-    return /^\d{4,8}$/.test(form.pin_code);
+    return Boolean(form.email.trim()) && form.password.length >= 6;
   }, [form]);
 
   const list = users.data ?? [];
@@ -72,7 +67,7 @@ export function AdminUsersPage() {
       <PageTitle
         kicker="Система"
         title="Пользователи"
-        hint="Создавай владельца или кассира сразу, без заявки с лендинга."
+        hint="Владелец или сотрудник — с почтой и паролем. Сотрудник после входа видит только кассу."
         action={<Button onClick={() => setOpen(true)}>Добавить</Button>}
       />
 
@@ -106,7 +101,12 @@ export function AdminUsersPage() {
                   <td>{roleLabel[u.role] ?? u.role}</td>
                   <td className="text-mute">{u.shop_name || "—"}</td>
                   <td className="font-mono text-xs">
-                    {u.role === "owner" ? u.email || "—" : u.has_pin ? "PIN на кассе" : "—"}
+                    {u.email || "—"}
+                    {u.role === "barista" && (
+                      <span className="block font-sans text-[11px] text-mute">
+                        {u.can_receive_stock ? "касса + приёмка" : "только касса"}
+                      </span>
+                    )}
                   </td>
                   <td>{u.is_active ? "активен" : "выкл"}</td>
                 </tr>
@@ -135,12 +135,9 @@ export function AdminUsersPage() {
             </Select>
           </Field>
           <Field label="Роль">
-            <Select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as RolePick })}
-            >
+            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as RolePick })}>
               <option value="owner">Владелец — кабинет по почте</option>
-              <option value="barista">Кассир — только касса по PIN</option>
+              <option value="barista">Сотрудник — касса по почте</option>
             </Select>
           </Field>
           <Field label="Имя">
@@ -150,63 +147,37 @@ export function AdminUsersPage() {
               placeholder="Айгерим"
             />
           </Field>
-          {form.role === "owner" ? (
-            <>
-              <Field label="Почта для входа">
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  autoComplete="off"
-                />
-              </Field>
-              <Field label="Телефон">
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="+7…"
-                />
-              </Field>
-              <Field label="Пароль, от 6 символов">
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    autoComplete="new-password"
-                  />
-                  <Button
-                    type="button"
-                    variant="foam"
-                    onClick={() => setForm({ ...form, password: generatePassword() })}
-                  >
-                    Сгенерировать
-                  </Button>
-                </div>
-              </Field>
-            </>
-          ) : (
-            <>
-              <Field label="PIN кассы, 4 цифры">
-                <Input
-                  value={form.pin_code}
-                  onChange={(e) =>
-                    setForm({ ...form, pin_code: e.target.value.replace(/\D/g, "").slice(0, 8) })
-                  }
-                  inputMode="numeric"
-                  placeholder="4821"
-                />
-              </Field>
-              <Field label="Телефон, по желанию">
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </Field>
-              <Check
-                checked={form.can_receive_stock}
-                onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
-              >
-                Можно делать приёмку на кассе
-              </Check>
-            </>
+          <Field label="Почта для входа">
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              autoComplete="off"
+            />
+          </Field>
+          <Field label="Телефон">
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+7…" />
+          </Field>
+          <Field label="Пароль, от 6 символов">
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                autoComplete="new-password"
+              />
+              <Button type="button" variant="foam" onClick={() => setForm({ ...form, password: generatePassword() })}>
+                Сгенерировать
+              </Button>
+            </div>
+          </Field>
+          {form.role === "barista" && (
+            <Check
+              checked={form.can_receive_stock}
+              onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
+            >
+              Можно делать приёмку на кассе
+            </Check>
           )}
           {create.isError && <p className="text-sm text-alert">{(create.error as Error).message}</p>}
           <div className="flex justify-end gap-2 pt-2">

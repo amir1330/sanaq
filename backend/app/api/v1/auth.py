@@ -37,8 +37,6 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)
     user = result.scalar_one_or_none()
     if user is None or not user.is_active or not verify_secret(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-    if user.role == UserRole.barista:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Кассир входит PIN-кодом на кассе")
     return await _tokens(session, user)
 
 

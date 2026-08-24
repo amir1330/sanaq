@@ -23,11 +23,8 @@ export function LoginPage() {
       const pair = await api.login(login, password);
       setSession(pair.access_token, pair.refresh_token, pair.user);
       navigate(homePath(pair.user.role));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      setError(
-        /касс|PIN/i.test(msg) ? "Кассир входит PIN-кодом на кассе, не сюда." : "Неверный логин или пароль",
-      );
+    } catch {
+      setError("Неверный логин или пароль");
     } finally {
       setPending(false);
     }
@@ -41,10 +38,10 @@ export function LoginPage() {
         </Link>
       </header>
       <div className="mx-auto max-w-[420px] px-6 pt-16">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Кабинет</p>
-        <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Вход</p>
+        <h1 className="mt-3 font-display text-[40px] font-normal">Почта и пароль</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-          Кабинет владельца: почта и пароль. Кассир входит PIN-ом на кассе, не отсюда.
+          Владелец — в кабинет. Сотрудник — сразу на кассу. Один вход для всех, без PIN и без «сначала владелец».
         </p>
         <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
           <Field label="Почта или телефон">
@@ -63,12 +60,6 @@ export function LoginPage() {
             {pending ? "Входим…" : "Войти"}
           </Button>
         </form>
-        <p className="mt-6 text-sm text-mute">
-          Касса на планшете —{" "}
-          <Link to="/pos" className="text-ink underline">
-            открыть кассу
-          </Link>
-        </p>
       </div>
     </div>
   );

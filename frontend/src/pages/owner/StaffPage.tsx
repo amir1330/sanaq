@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Check, Empty, Field, Input, PageTitle } from "../../components/ui";
+import { generatePassword } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
 const emptyForm = {
   full_name: "",
-  pin_code: "",
+  email: "",
+  password: "",
   phone: "",
   can_receive_stock: false,
 };
@@ -16,13 +18,14 @@ export function StaffPage() {
   const qc = useQueryClient();
   const staff = useQuery({ queryKey: ["staff", shopId], queryFn: () => api.staff(shopId) });
   const [form, setForm] = useState(emptyForm);
-  const [pinEdit, setPinEdit] = useState<{ id: number; pin: string } | null>(null);
+  const [passwordEdit, setPasswordEdit] = useState<{ id: number; password: string } | null>(null);
 
   const create = useMutation({
     mutationFn: () =>
       api.createStaff(shopId, {
         full_name: form.full_name.trim(),
-        pin_code: form.pin_code,
+        email: form.email.trim(),
+        password: form.password,
         phone: form.phone.trim() || null,
         can_receive_stock: form.can_receive_stock,
       }),
@@ -34,22 +37,23 @@ export function StaffPage() {
   const patch = useMutation({
     mutationFn: ({ id, body }: { id: number; body: object }) => api.patchStaff(shopId, id, body),
     onSuccess: () => {
-      setPinEdit(null);
+      setPasswordEdit(null);
       void qc.invalidateQueries({ queryKey: ["staff", shopId] });
     },
   });
 
   const people = staff.data ?? [];
-  const canAdd = form.full_name.trim().length > 0 && /^\d{4,8}$/.test(form.pin_code);
+  const canAdd =
+    form.full_name.trim().length > 0 && form.email.trim().includes("@") && form.password.length >= 6;
 
   return (
     <div>
       <PageTitle
         kicker="Люди"
-        title="Кассиры"
-        hint="Как в Poster: имя и PIN на кассу. Пароля нет — кассир не заходит в кабинет, только на планшет."
+        title="Сотрудники"
+        hint="Почта и пароль — человек сам входит на сайте и попадает на кассу. Права: только касса или ещё приёмка."
       />
-      <Card className="mb-4 grid gap-3 md:grid-cols-5">
+      <Card className="mb-4 grid gap-3 md:grid-cols-2 lg:grid-cols-6">
         <Field label="Имя">
           <Input
             value={form.full_name}
@@ -57,23 +61,37 @@ export function StaffPage() {
             placeholder="Амина"
           />
         </Field>
-        <Field label="PIN кассы, 4 цифры">
+        <Field label="Почта для входа">
           <Input
-            placeholder="4821"
-            value={form.pin_code}
-            onChange={(e) => setForm({ ...form, pin_code: e.target.value.replace(/\D/g, "").slice(0, 8) })}
-            inputMode="numeric"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            autoComplete="off"
+            placeholder="amina@…"
           />
         </Field>
-        <Field label="Телефон, по желанию">
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <Field label="Пароль, от 6 символов">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="new-password"
+            />
+            <Button type="button" variant="foam" onClick={() => setForm({ ...form, password: generatePassword() })}>
+              Сгенерировать
+            </Button>
+          </div>
+        </Field>
+        <Field label="Телефон">
+          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+7…" />
         </Field>
         <div className="flex items-end pb-1">
           <Check
             checked={form.can_receive_stock}
             onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
           >
-            Приёмка
+            Приёмка на кассе
           </Check>
         </div>
         <div className="flex items-end">
@@ -85,16 +103,16 @@ export function StaffPage() {
       {create.isError && <p className="mb-3 text-sm text-rust">{(create.error as Error).message}</p>}
       {patch.isError && <p className="mb-3 text-sm text-rust">{(patch.error as Error).message}</p>}
       {people.length === 0 ? (
-        <Empty>Пока никого. Добавь кассира сверху — он войдёт на кассе своим PIN.</Empty>
+        <Empty>Добавь сотрудника сверху — отдай почту и пароль, он войдёт через «Войти» и увидит только кассу.</Empty>
       ) : (
         <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
                 <th className="px-4 py-3">Имя</th>
-                <th>Контакт</th>
-                <th>PIN</th>
-                <th>Приёмка товара</th>
+                <th>Почта</th>
+                <th>Права</th>
+                <th>Пароль</th>
                 <th>Статус</th>
               </tr>
             </thead>
@@ -102,36 +120,7 @@ export function StaffPage() {
               {people.map((u) => (
                 <tr key={u.id} className="border-b border-ink/5">
                   <td className="px-4 py-3">{u.full_name}</td>
-                  <td>{u.phone || u.email || "—"}</td>
-                  <td>
-                    {pinEdit?.id === u.id ? (
-                      <span className="flex items-center gap-2">
-                        <Input
-                          className="w-24"
-                          value={pinEdit.pin}
-                          onChange={(e) =>
-                            setPinEdit({ id: u.id, pin: e.target.value.replace(/\D/g, "").slice(0, 8) })
-                          }
-                          inputMode="numeric"
-                          placeholder="новый PIN"
-                        />
-                        <button
-                          className="underline"
-                          disabled={!/^\d{4,8}$/.test(pinEdit.pin) || patch.isPending}
-                          onClick={() => patch.mutate({ id: u.id, body: { pin_code: pinEdit.pin } })}
-                        >
-                          Сохранить
-                        </button>
-                        <button className="text-mute underline" onClick={() => setPinEdit(null)}>
-                          Отмена
-                        </button>
-                      </span>
-                    ) : (
-                      <button className="underline" onClick={() => setPinEdit({ id: u.id, pin: "" })}>
-                        {u.has_pin ? "сменить" : "задать"}
-                      </button>
-                    )}
-                  </td>
+                  <td className="font-mono text-xs">{u.email || "—"}</td>
                   <td>
                     <button
                       className="underline"
@@ -139,8 +128,36 @@ export function StaffPage() {
                         patch.mutate({ id: u.id, body: { can_receive_stock: !u.can_receive_stock } })
                       }
                     >
-                      {u.can_receive_stock ? "можно принимать" : "только касса"}
+                      {u.can_receive_stock ? "касса + приёмка" : "только касса"}
                     </button>
+                  </td>
+                  <td>
+                    {passwordEdit?.id === u.id ? (
+                      <span className="flex items-center gap-2">
+                        <Input
+                          className="w-36"
+                          value={passwordEdit.password}
+                          onChange={(e) => setPasswordEdit({ id: u.id, password: e.target.value })}
+                          placeholder="новый пароль"
+                        />
+                        <button
+                          className="underline"
+                          disabled={passwordEdit.password.length < 6 || patch.isPending}
+                          onClick={() =>
+                            patch.mutate({ id: u.id, body: { password: passwordEdit.password } })
+                          }
+                        >
+                          Сохранить
+                        </button>
+                        <button className="text-mute underline" onClick={() => setPasswordEdit(null)}>
+                          Отмена
+                        </button>
+                      </span>
+                    ) : (
+                      <button className="underline" onClick={() => setPasswordEdit({ id: u.id, password: "" })}>
+                        сменить
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 text-right">
                     <button

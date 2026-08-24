@@ -142,7 +142,6 @@ export const api = {
     email?: string;
     phone?: string;
     password?: string;
-    pin_code?: string;
     can_receive_stock?: boolean;
   }) => request<AdminUser>("/admin/users", { method: "POST", body: json(body) }),
   adminStats: () => request<AdminStats>("/admin/stats"),

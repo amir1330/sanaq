@@ -1,21 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button } from "../../components/ui";
-import { rememberPosShop, rememberedPosShop } from "../../lib/posShop";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { CrewMember, Product, ShiftSale } from "../../types";
-import { PosClockIn } from "./PosClockIn";
 
 type Line = { product: Product; quantity: number };
 
 export function PosPage() {
   const { user, shopId } = useAuth();
-  const remembered = rememberedPosShop();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sid = shopId ?? user?.shop_id ?? 0;
@@ -30,9 +27,6 @@ export function PosPage() {
   const [refundTarget, setRefundTarget] = useState<ShiftSale | null>(null);
   const [restoreStock, setRestoreStock] = useState(false);
   const [seller, setSeller] = useState<{ id: number; name: string } | null>(null);
-  const [sellerPin, setSellerPin] = useState("");
-  const [sellerError, setSellerError] = useState("");
-  const [pendingSeller, setPendingSeller] = useState<CrewMember | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
 
   const shops = useQuery({
@@ -65,6 +59,10 @@ export function PosPage() {
 
   useEffect(() => {
     if (!user || sid <= 0) return;
+    if (user.role === "barista") {
+      setSeller({ id: user.id, name: user.full_name });
+      return;
+    }
     const raw = localStorage.getItem(`coffeeos-seller-${sid}`);
     if (raw) {
       try {
@@ -77,42 +75,16 @@ export function PosPage() {
     setSeller({ id: user.id, name: user.full_name });
   }, [user, sid]);
 
-  useEffect(() => {
-    if (sid > 0) rememberPosShop(sid);
-  }, [sid]);
-
   function pickSeller(next: { id: number; name: string }) {
     setSeller(next);
-    localStorage.setItem(`coffeeos-seller-${sid}`, JSON.stringify(next));
+    if (user?.role !== "barista") {
+      localStorage.setItem(`coffeeos-seller-${sid}`, JSON.stringify(next));
+    }
     setPanel("none");
-    setSellerPin("");
-    setSellerError("");
-    setPendingSeller(null);
   }
 
-  async function chooseSeller(member: CrewMember) {
-    setSellerError("");
-    if (user?.role !== "barista" || member.id === user.id) {
-      pickSeller({ id: member.id, name: member.full_name });
-      return;
-    }
-    setPendingSeller(member);
-  }
-
-  async function confirmSellerPin() {
-    if (!pendingSeller) return;
-    setSellerError("");
-    try {
-      const found = await api.identifyPin(sid, sellerPin);
-      if (found.id !== pendingSeller.id) {
-        setSellerError("Этот PIN от другого человека.");
-        return;
-      }
-      setPendingSeller(null);
-      pickSeller({ id: found.id, name: found.full_name });
-    } catch {
-      setSellerError("Неверный PIN.");
-    }
+  function chooseSeller(member: CrewMember) {
+    pickSeller({ id: member.id, name: member.full_name });
   }
 
   const visible = useMemo(() => {
@@ -246,7 +218,9 @@ export function PosPage() {
     },
   });
 
-  if (!user) return <PosClockIn shopId={remembered} />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  const isBarista = user.role === "barista";
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-paper text-ink lg:grid-cols-[224px_1fr_340px] lg:gap-px">
@@ -266,13 +240,15 @@ export function PosPage() {
           </p>
         )}
         <div className="flex items-center justify-between rounded-full bg-paper-2 py-2 pl-4 pr-2 text-[12.5px]">
-          <span>{seller?.name ?? user?.full_name}</span>
-          <button
-            className="rounded-full bg-gold px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-roast"
-            onClick={() => setPanel("seller")}
-          >
-            Сменить
-          </button>
+          <span>{seller?.name ?? user.full_name}</span>
+          {!isBarista && (
+            <button
+              className="rounded-full bg-gold px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-roast"
+              onClick={() => setPanel("seller")}
+            >
+              Сменить
+            </button>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-1">
           <button
@@ -339,7 +315,7 @@ export function PosPage() {
               Открыть смену
             </button>
           )}
-          {(user?.role !== "barista" || user?.can_receive_stock) && (
+          {(user.role !== "barista" || user.can_receive_stock) && (
             <button
               className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper disabled:opacity-40"
               onClick={() => {
@@ -357,7 +333,7 @@ export function PosPage() {
               Приёмка
             </button>
           )}
-          {user?.role !== "barista" && (
+          {user.role !== "barista" && (
             <button
               className="pt-1 text-left text-[12.5px] text-ink-soft hover:text-ink"
               onClick={() => navigate("/owner")}
@@ -528,9 +504,7 @@ export function PosPage() {
             {panel === "seller" && (
               <>
                 <h2 className="font-display text-2xl font-normal">Кто на кассе</h2>
-                <p className="mt-2 text-sm text-ink-soft">
-                  Ящик общий. Чеки пишутся на того, кого выберешь.
-                </p>
+                <p className="mt-2 text-sm text-ink-soft">Ящик общий. Чеки пишутся на выбранного сотрудника.</p>
                 <div className="mt-4">
                   {(crew.data ?? []).map((member) => (
                     <button
@@ -538,32 +512,12 @@ export function PosPage() {
                       className={`block w-full border-b border-line py-2.5 text-left text-sm ${
                         seller?.id === member.id ? "text-ink" : "text-ink-soft"
                       }`}
-                      onClick={() => void chooseSeller(member)}
+                      onClick={() => chooseSeller(member)}
                     >
                       {member.full_name}
                     </button>
                   ))}
                 </div>
-                {pendingSeller && (
-                  <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-                    PIN · {pendingSeller.full_name}
-                    <input
-                      className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
-                      value={sellerPin}
-                      onChange={(e) => setSellerPin(e.target.value)}
-                      inputMode="numeric"
-                      autoFocus
-                    />
-                    <Button
-                      className="mt-4 w-full border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
-                      disabled={sellerPin.length < 4}
-                      onClick={() => void confirmSellerPin()}
-                    >
-                      Это я
-                    </Button>
-                  </label>
-                )}
-                {sellerError && <p className="mt-2 text-sm text-alert">{sellerError}</p>}
                 <Button variant="ghost" className="mt-4 text-ink-soft" onClick={() => setPanel("none")}>
                   Назад
                 </Button>

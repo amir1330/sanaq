@@ -10,7 +10,7 @@ const features = [
   {
     glyph: "kassa" as const,
     title: "Касса",
-    note: "Нал и безнал, PIN кассира на кассе, чек за два касания.",
+    note: "Нал и безнал, вход сотрудника по почте, чек за два касания.",
   },
   {
     glyph: "sklad" as const,

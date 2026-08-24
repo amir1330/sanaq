@@ -20,7 +20,6 @@ class AdminUserCreate(BaseModel):
     email: EmailStr | None = None
     phone: str | None = None
     password: str | None = Field(default=None, min_length=6)
-    pin_code: str | None = Field(default=None, min_length=4, max_length=8, pattern=r"^\d{4,8}$")
     can_receive_stock: bool = False
 
 

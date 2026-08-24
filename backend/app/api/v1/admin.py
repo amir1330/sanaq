@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -220,18 +219,17 @@ async def create_user(
         await session.flush()
         session.add(OwnerShop(owner_id=user.id, shop_id=shop.id))
     else:
-        if not body.pin_code:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Кассиру нужен PIN")
-        await _assert_pin_free(session, shop.id, body.pin_code)
-        password = body.password or secrets.token_urlsafe(32)
+        if not email:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Кассиру нужна почта")
+        if not body.password or len(body.password) < 6:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пароль от 6 символов")
         user = User(
             shop_id=shop.id,
             role=UserRole.barista,
             full_name=full_name,
             email=email,
             phone=phone,
-            password_hash=hash_secret(password),
-            pin_code=hash_secret(body.pin_code),
+            password_hash=hash_secret(body.password),
             can_receive_stock=body.can_receive_stock,
         )
         session.add(user)
