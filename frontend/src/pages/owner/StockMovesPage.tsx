@@ -116,7 +116,7 @@ export function StockMovesPage() {
       <PageTitle
         kicker="Движения"
         title="Почему менялся остаток"
-        hint="Отдельный журнал: приход, чек, списание, ревизия. Остатки сырья — в разделе Склад."
+        hint="Отдельный журнал: приход, чек, списание, ревизия. Остатки — в разделе Склад."
         action={
           <Link to="/owner/stock">
             <Button variant="quiet">К остаткам</Button>

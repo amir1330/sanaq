@@ -87,7 +87,7 @@ export function ProductsPage() {
       <PageTitle
         kicker="Меню"
         title="Товары"
-        hint="Цена — сколько платит гость. Рецепт — что списать со склада при продаже. Без рецепта себестоимость будет 0."
+        hint="Цена — сколько платит гость. Состав — что снять со склада. Капучино: молоко и зерно. Печенье: одна штука, или пусто, если остаток не ведёте."
         action={<Button onClick={() => open()}>Добавить в меню</Button>}
       />
       <Card className="mb-4">
@@ -212,9 +212,10 @@ export function ProductsPage() {
             </div>
             <p className="text-xs text-mute">На упрощёнке обычно 0 и 0. Точные коды — в кабинете Webkassa.</p>
             <div>
-              <p className="text-[11px] uppercase tracking-wider text-mute">Рецепт — списание со склада</p>
+              <p className="text-[11px] uppercase tracking-wider text-mute">Состав — списание со склада</p>
               <p className="mt-1 mb-2 text-xs text-mute">
-                Количество — в базовой единице склада. Пример: капучино = зёрна 18 г + молоко 180 мл.
+                Можно оставить пустым: продажа только в кассе, склад не двигается. Готовое печенье — одна позиция, 1 шт.
+                Капучино — зёрна 18 г и молоко 180 мл.
               </p>
               <div className="space-y-2">
                 {editing.ingredients.map((row, idx) => {
@@ -230,7 +231,7 @@ export function ProductsPage() {
                           setEditing({ ...editing, ingredients: next });
                         }}
                       >
-                        <option value="">Сырьё…</option>
+                        <option value="">Со склада…</option>
                         {stock.data?.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name} · {s.base_unit}
@@ -273,7 +274,7 @@ export function ProductsPage() {
                   })
                 }
               >
-                + сырьё в рецепт
+                + позиция со склада
               </Button>
               <p className="mt-3 text-sm">
                 Себестоимость порции:{" "}

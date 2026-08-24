@@ -18,9 +18,10 @@ export function ShopBrand({
   const src = publicUrl(shop?.logo_url);
   const name = shop?.name ?? fallback;
   const box = size === "md" ? "h-5 w-5" : "h-[17px] w-[17px]";
+  const markBox = size === "md" ? "h-5 w-7" : "h-[17px] w-[24px]";
 
   if (!showName) {
-    return src ? <img src={src} alt="" className={`${box} object-contain`} /> : <Mark className={box} />;
+    return src ? <img src={src} alt="" className={`${box} object-contain`} /> : <Mark className={markBox} />;
   }
 
   if (src) {
@@ -38,7 +39,7 @@ export function ShopBrand({
     <Brand
       name={name}
       className={size === "md" ? "text-[14px] font-semibold" : "text-[17px]"}
-      markClass={markClass ?? box}
+      markClass={markClass ?? markBox}
     />
   );
 }

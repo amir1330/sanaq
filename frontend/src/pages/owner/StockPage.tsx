@@ -117,15 +117,15 @@ export function StockPage() {
     <div>
       <PageTitle
         kicker="Склад"
-        title="Сырьё"
-        hint="Что лежит на точке прямо сейчас: остаток, минимум, себестоимость. История приходов и списаний — в разделе Движения."
+        title="Остатки"
+        hint="Молоко, стаканы, печенье — всё, что лежит на точке. Готовый товар тоже сюда, не только то, из чего готовят. История — в разделе Движения."
         action={
           <div className="flex flex-wrap gap-2">
             <Link to="/owner/stock/moves">
               <Button variant="quiet">Движения</Button>
             </Link>
             <Button variant={creating ? "ghost" : "primary"} onClick={toggleCreate}>
-              {creating ? "Свернуть" : "Добавить сырьё"}
+              {creating ? "Свернуть" : "Добавить позицию"}
             </Button>
           </div>
         }
@@ -146,12 +146,12 @@ export function StockPage() {
       <Card className="mb-4 grid gap-3 md:grid-cols-3">
         <Field label="Название">
           <Input
-            placeholder="Молоко 3.2%"
+            placeholder="Молоко, печенье, стаканы…"
             value={create.name}
             onChange={(e) => setCreate({ ...create, name: e.target.value })}
           />
         </Field>
-        <Field label="Базовая единица — остаток и рецепт">
+        <Field label="Базовая единица — в ней остаток">
           <Select value={create.base_unit} onChange={(e) => setUnits({ base_unit: e.target.value })}>
             {BASE_UNITS.map((u) => (
               <option key={u} value={u}>
@@ -210,7 +210,7 @@ export function StockPage() {
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-line text-left">
-              <th className="px-5 py-3.5">Сырьё</th>
+              <th className="px-5 py-3.5">Позиция</th>
               <th>Сейчас</th>
               <th>Минимум</th>
               <th>Себест.</th>
@@ -285,7 +285,7 @@ export function StockPage() {
           <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">Изменить · {edit.name}</h2>
             <p className="text-sm text-mute">
-              Базовая единица «{edit.base_unit}» не меняется — в ней уже стоят остаток и рецепты.
+              Базовая единица «{edit.base_unit}» не меняется — в ней уже стоят остаток и составы.
             </p>
             <Field label="Название">
               <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
@@ -348,7 +348,7 @@ export function StockPage() {
           <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">Удалить · {remove.name}</h2>
             <p className="text-sm text-mute">
-              Позиция пропадёт со склада вместе с историей приходов. Если сырьё стоит в рецепте — сначала уберите его
+              Позиция пропадёт со склада вместе с историей приходов. Если она стоит в составе товара — сначала уберите её
               из меню.
             </p>
             {Number(remove.quantity) > 0 && (

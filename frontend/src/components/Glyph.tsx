@@ -32,16 +32,17 @@ export function Glyph({
   name: keyof typeof boxes;
   className?: string;
 }) {
-  if (name === "ornament") {
-    const { x, y, width, height } = parseBox(boxes.ornament);
+  if (name === "ornament" || name === "muiz") {
+    const box = boxes[name];
+    const { x, y, width, height } = parseBox(box);
     return (
       <svg
         className={cn("shrink-0", className)}
-        viewBox={boxes.ornament}
+        viewBox={box}
         preserveAspectRatio="xMidYMid meet"
         aria-hidden
       >
-        <use href="#g-ornament" x={x} y={y} width={width} height={height} />
+        <use href={`#g-${name}`} x={x} y={y} width={width} height={height} />
       </svg>
     );
   }

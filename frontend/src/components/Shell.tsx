@@ -36,7 +36,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
         <header className="mb-7 flex flex-wrap items-center justify-between gap-4 py-[22px]">
           <button onClick={() => navigate(kind === "admin" ? "/admin" : "/owner")} className="min-w-0">
             {kind === "admin" ? (
-              <Brand className="text-[17px]" markClass="h-[19px] w-[19px]" />
+              <Brand className="text-[17px]" markClass="h-[18px] w-[25px]" />
             ) : (
               <ShopBrand shop={currentShop} fallback="Точка" />
             )}

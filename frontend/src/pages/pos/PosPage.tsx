@@ -203,8 +203,8 @@ export function PosPage() {
       setNotice({
         tone: "ok",
         text: restore
-          ? `Чек ${sale.id} возвращён, сырьё вернулось на склад.`
-          : `Чек ${sale.id} возвращён. Сырьё на складе не трогали — напиток уже сделан.`,
+          ? `Чек ${sale.id} возвращён, остаток вернулся на склад.`
+          : `Чек ${sale.id} возвращён. Склад не трогали — товар уже отдали.`,
       });
       void qc.invalidateQueries({ queryKey: ["shift", sid] });
       void qc.invalidateQueries({ queryKey: ["stock", sid] });
@@ -234,7 +234,7 @@ export function PosPage() {
     <div className="grid min-h-screen grid-cols-1 bg-roast text-cream lg:grid-cols-[224px_1fr_340px] lg:gap-px">
       <aside className="flex flex-col gap-5 px-[18px] py-6">
         <div className="flex items-center gap-2.5 rounded-md bg-roast-2 px-3.5 py-3">
-          <ShopBrand shop={currentShop} fallback="Касса" size="md" markClass="h-5 w-5 text-gold" />
+          <ShopBrand shop={currentShop} fallback="Касса" size="md" markClass="h-5 w-7 text-gold" />
         </div>
         {currentShop?.address && (
           <p className="-mt-3 px-3.5 text-[11px] text-cream-soft">{currentShop.address}</p>
@@ -542,7 +542,7 @@ export function PosPage() {
               <>
                 <h2 className="font-display text-2xl font-normal">Чеки смены</h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  Возврат по умолчанию только деньги. Сырьё на склад — только если напиток ещё не делали.
+                  Возврат по умолчанию только деньги. На склад — только если товар ещё не отдали.
                 </p>
                 <div className="mt-4 max-h-72 overflow-auto">
                   {(shift.data?.sales ?? []).length === 0 && (
@@ -583,8 +583,8 @@ export function PosPage() {
               <>
                 <h2 className="font-display text-2xl font-normal">Вернуть чек №{refundTarget.id}</h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. Если напиток уже сделали —
-                  сырьё не возвращаем, иначе на бумаге появится молоко, которого нет.
+                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. Если уже отдали —
+                  склад не трогаем, иначе на бумаге появится то, чего нет.
                 </p>
                 <label className="mt-5 flex items-start gap-2 text-sm">
                   <input
@@ -593,7 +593,7 @@ export function PosPage() {
                     checked={restoreStock}
                     onChange={(e) => setRestoreStock(e.target.checked)}
                   />
-                  <span>Ингредиенты не использованы, вернуть на склад</span>
+                  <span>Товар не отдали, вернуть на склад</span>
                 </label>
                 {refund.isError && <p className="mt-3 text-sm text-alert">{(refund.error as Error).message}</p>}
                 <div className="mt-6 flex gap-3">

@@ -178,7 +178,7 @@ async def remove_stock_item(session: AsyncSession, item: StockItem, user: User) 
     if used:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Сначала уберите из рецептов: {', '.join(used)}",
+            f"Сначала уберите из состава: {', '.join(used)}",
         )
     write_stock_log(session, item=item, action=StockLogAction.deleted, user=user)
     await session.delete(item)

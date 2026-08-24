@@ -115,7 +115,7 @@ async def delete_stock_item(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Сырьё не найдено")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
     await remove_stock_item(session, item, user)
     await session.commit()
 

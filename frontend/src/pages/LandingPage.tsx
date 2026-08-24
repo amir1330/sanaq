@@ -16,7 +16,7 @@ const features = [
   {
     glyph: "sklad" as const,
     title: "Склад",
-    note: "Списывается сам по рецепту или составу, точно.",
+    note: "Капучино — по составу. Печенье — готовой штукой. Без состава склад не трогает.",
   },
   {
     glyph: "smeny" as const,
@@ -187,6 +187,38 @@ export function LandingPage() {
           )}
         </div>
       </section>
+
+      <footer className="bg-roast px-8 py-12">
+        <div className="mx-auto flex max-w-[960px] flex-col gap-10 md:flex-row md:items-start md:justify-between">
+          <div>
+            <Brand className="text-cream" markClass="text-gold" />
+            <p className="mt-3 max-w-[260px] text-[13px] leading-relaxed text-cream-soft">
+              Касса и учёт для точки. Код открытый, лицензия MIT.
+            </p>
+          </div>
+          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-[13.5px] text-cream-soft">
+            <a href="#features" className="hover:text-cream">
+              Возможности
+            </a>
+            <a href="#request" className="hover:text-cream">
+              Заявка
+            </a>
+            <Link to="/login" className="hover:text-cream">
+              Войти
+            </Link>
+            <a href="https://github.com/amir1330/sanaq" className="hover:text-cream">
+              GitHub
+            </a>
+            <a href="https://github.com/amir1330/sanaq/blob/main/LICENSE" className="hover:text-cream">
+              Лицензия
+            </a>
+          </nav>
+        </div>
+        <div className="mx-auto mt-10 flex max-w-[960px] flex-wrap items-center justify-between gap-3 border-t border-line-dark pt-6 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">
+          <span>© 2026 Sanaq</span>
+          <span>MIT License</span>
+        </div>
+      </footer>
     </div>
   );
 }

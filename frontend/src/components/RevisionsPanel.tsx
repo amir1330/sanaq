@@ -221,7 +221,7 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="px-3 py-2">Сырьё</th>
+              <th className="px-3 py-2">Позиция</th>
               <th>Система</th>
               <th>Факт</th>
               <th>Δ</th>
@@ -368,7 +368,7 @@ function RevisionLinesDialog({
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="py-2">Сырьё</th>
+              <th className="py-2">Позиция</th>
               <th>Система</th>
               <th>Факт</th>
               <th>Δ</th>

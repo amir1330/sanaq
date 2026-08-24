@@ -119,7 +119,7 @@ async def create_revision(
         )
     ).scalars().all()
     if not items:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала добавьте сырьё")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала добавьте позиции на склад")
 
     revision = StockRevision(
         shop_id=shop_id,

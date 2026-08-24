@@ -264,7 +264,7 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
               checked={form.copy_catalog}
               onChange={(e) => setForm({ ...form, copy_catalog: e.target.checked })}
             />
-            Скопировать меню и сырьё с текущей точки. Остатки — ноль.
+            Скопировать меню и склад с текущей точки. Остатки — ноль.
           </label>
           {add.isError && <p className="text-sm text-alert md:col-span-2">{(add.error as Error).message}</p>}
           <div className="md:col-span-2">
