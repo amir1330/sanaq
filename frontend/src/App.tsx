@@ -4,6 +4,7 @@ import { Guard } from "./components/Guard";
 import { Shell } from "./components/Shell";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { LeadsPage } from "./pages/admin/LeadsPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -51,6 +52,7 @@ export function App() {
         <Route element={<Guard roles={["super_admin"]} />}>
           <Route element={<Shell kind="admin" />}>
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/leads" element={<LeadsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
           </Route>

@@ -60,6 +60,16 @@ html.dark {
   color-scheme: dark;
 }
 
+/* Brand panels stay roast + light cream even when the app theme is dark. */
+.surface-roast {
+  --cream: 239 233 218;
+  --cream-soft: 167 157 133;
+  --roast: 32 27 20;
+  --roast-2: 44 39 30;
+  --line-dark: 69 62 48;
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {

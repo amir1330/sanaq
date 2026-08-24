@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -7,14 +8,53 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import roles
-from app.core.security import hash_secret
+from app.core.security import hash_secret, verify_secret
 from app.database import get_session
 from app.models import Expense, OwnerShop, Sale, SaleItem, Shop, User, UserRole
-from app.schemas.admin import AdminShopStats, AdminStatsOut, OwnerCreate, ShopCreate, ShopUpdate
+from app.schemas.admin import (
+    AdminShopStats,
+    AdminStatsOut,
+    AdminUserCreate,
+    AdminUserOut,
+    ShopCreate,
+    ShopUpdate,
+)
 from app.schemas.common import ShopOut, UserOut
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 admin_only = roles(UserRole.super_admin)
+
+
+async def _assert_pin_free(
+    session: AsyncSession, shop_id: int, pin_code: str, exclude_id: int | None = None
+) -> None:
+    query = select(User).where(
+        User.shop_id == shop_id,
+        User.role == UserRole.barista,
+        User.pin_code.is_not(None),
+    )
+    if exclude_id is not None:
+        query = query.where(User.id != exclude_id)
+    result = await session.execute(query)
+    for other in result.scalars().all():
+        if other.pin_code and verify_secret(pin_code, other.pin_code):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Этот PIN уже занят")
+
+
+def _admin_user_out(user: User, shop_name: str | None = None) -> AdminUserOut:
+    return AdminUserOut(
+        id=user.id,
+        shop_id=user.shop_id,
+        shop_name=shop_name,
+        role=user.role.value,
+        full_name=user.full_name,
+        phone=user.phone,
+        email=user.email,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        can_receive_stock=bool(user.can_receive_stock),
+        has_pin=bool(user.pin_code),
+    )
 
 
 @router.get("/shops", response_model=list[ShopOut])
@@ -131,6 +171,78 @@ async def create_owner(
         created_at=owner.created_at,
         owned_shop_ids=[shop_id],
     )
+
+
+@router.get("/users", response_model=list[AdminUserOut])
+async def list_users(
+    _: User = Depends(admin_only),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (
+        await session.execute(
+            select(User, Shop.name)
+            .outerjoin(Shop, Shop.id == User.shop_id)
+            .where(User.role != UserRole.super_admin)
+            .order_by(User.created_at.desc())
+        )
+    ).all()
+    return [_admin_user_out(user, shop_name) for user, shop_name in rows]
+
+
+@router.post("/users", response_model=AdminUserOut, status_code=201)
+async def create_user(
+    body: AdminUserCreate,
+    _: User = Depends(admin_only),
+    session: AsyncSession = Depends(get_session),
+):
+    shop = await session.get(Shop, body.shop_id)
+    if shop is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Точка не найдена")
+
+    full_name = body.full_name.strip()
+    email = str(body.email).strip().lower() if body.email else None
+    phone = body.phone.strip() if body.phone else None
+
+    if body.role == "owner":
+        if not email:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Владельцу нужна почта")
+        if not body.password or len(body.password) < 6:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пароль от 6 символов")
+        user = User(
+            shop_id=shop.id,
+            role=UserRole.owner,
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password_hash=hash_secret(body.password),
+        )
+        session.add(user)
+        await session.flush()
+        session.add(OwnerShop(owner_id=user.id, shop_id=shop.id))
+    else:
+        if not body.pin_code:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Кассиру нужен PIN")
+        await _assert_pin_free(session, shop.id, body.pin_code)
+        password = body.password or secrets.token_urlsafe(32)
+        user = User(
+            shop_id=shop.id,
+            role=UserRole.barista,
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password_hash=hash_secret(password),
+            pin_code=hash_secret(body.pin_code),
+            can_receive_stock=body.can_receive_stock,
+        )
+        session.add(user)
+
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Такая почта или телефон уже есть") from exc
+    await session.refresh(user)
+    return _admin_user_out(user, shop.name)
 
 
 @router.get("/stats", response_model=AdminStatsOut)

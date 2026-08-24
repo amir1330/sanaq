@@ -98,7 +98,7 @@ export function Input({
       className={cn(
         fieldControl,
         tone === "dark"
-          ? "border-line-dark bg-roast-2 text-cream placeholder:text-[#736b58] focus:border-gold"
+          ? "border-[#453e30] bg-[#2c271e] text-[#efe9da] caret-[#efe9da] placeholder:text-[#736b58] focus:border-gold [color-scheme:dark] [&:-webkit-autofill]:[-webkit-text-fill-color:#efe9da] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_#2c271e_inset]"
           : "border-line-2 bg-cream text-ink placeholder:text-faint focus:border-ink",
         className,
       )}
@@ -117,7 +117,7 @@ export function Select({
       className={cn(
         fieldControl,
         tone === "dark"
-          ? "border-line-dark bg-roast-2 text-cream focus:border-gold"
+          ? "border-[#453e30] bg-[#2c271e] text-[#efe9da] focus:border-gold [color-scheme:dark]"
           : "border-line-2 bg-cream text-ink focus:border-ink",
         className,
       )}

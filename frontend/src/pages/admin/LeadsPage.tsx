@@ -25,7 +25,7 @@ export function LeadsPage() {
       <PageTitle
         kicker="Продажи"
         title="Заявки"
-        hint="С лендинга. Пока без оплаты — человек просит завести точку. Потом создаёшь её во вкладке «Точки»."
+        hint="С лендинга. Это очередь на связь. Точку и человека заводишь сам: «Точки» или «Пользователи»."
       />
       <Card className="mb-4">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Новых</p>

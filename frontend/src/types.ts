@@ -301,3 +301,17 @@ export type AdminStats = {
     profit: number;
   }[];
 };
+
+export type AdminUser = {
+  id: number;
+  shop_id: number | null;
+  shop_name: string | null;
+  role: Role;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  created_at: string;
+  can_receive_stock: boolean;
+  has_pin: boolean;
+};

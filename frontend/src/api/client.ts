@@ -3,6 +3,7 @@ import { downloadBlob } from "../lib/utils";
 import { useAuth } from "../store/auth";
 import type {
   AdminStats,
+  AdminUser,
   Category,
   CrewMember,
   DailyPoint,
@@ -133,6 +134,17 @@ export const api = {
     request<Shop>(`/admin/shops/${id}`, { method: "PATCH", body: json(body) }),
   createOwner: (shopId: number, body: { full_name: string; email: string; password: string; phone?: string }) =>
     request<User>(`/admin/shops/${shopId}/owners`, { method: "POST", body: json(body) }),
+  adminUsers: () => request<AdminUser[]>("/admin/users"),
+  createAdminUser: (body: {
+    shop_id: number;
+    role: "owner" | "barista";
+    full_name: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    pin_code?: string;
+    can_receive_stock?: boolean;
+  }) => request<AdminUser>("/admin/users", { method: "POST", body: json(body) }),
   adminStats: () => request<AdminStats>("/admin/stats"),
 
   categories: (shopId: number) => request<Category[]>(`/shops/${shopId}/categories`),

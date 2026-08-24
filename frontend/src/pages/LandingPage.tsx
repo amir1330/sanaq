@@ -128,7 +128,7 @@ export function LandingPage() {
         ))}
       </section>
 
-      <section id="request" className="bg-roast-2 px-8 py-16">
+      <section id="request" className="surface-roast bg-roast-2 px-8 py-16">
         <div className="mx-auto max-w-[440px] rounded-lg bg-roast p-10">
           {done ? (
             <>
@@ -192,7 +192,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="bg-roast px-8 py-12">
+      <footer className="surface-roast bg-roast px-8 py-12">
         <div className="mx-auto flex max-w-[960px] flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <Brand className="text-cream" markClass="text-gold" />

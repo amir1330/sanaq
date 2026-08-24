@@ -19,6 +19,7 @@ const ownerLinks = [
 
 const adminLinks = [
   { to: "/admin", label: "Точки" },
+  { to: "/admin/users", label: "Пользователи" },
   { to: "/admin/leads", label: "Заявки" },
   { to: "/admin/settings", label: "Настройки" },
 ];
