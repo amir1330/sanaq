@@ -1,16 +1,45 @@
-# Sanaq
+# Санақ
 
 Касса, склад и прибыль для точки: кафе, магазин, пекарня.
 
+Чек, смена, остатки и чистыми в одном месте — без сведения таблиц в конце месяца.
+
+[Живой стенд](https://coffee.abuyunus.cc) · [Actions](https://github.com/amir1330/sanaq/actions)
+
+[![CI](https://github.com/amir1330/sanaq/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1330/sanaq/actions/workflows/ci.yml)
+
+## Что умеет
+
+| | |
+|---|---|
+| **Касса** | PIN-вход, нал и безнал, чек за два касания. Смена кассира без переоткрытия смены. |
+| **Склад** | Рецепт товара — остатки уходят сами при продаже. Журнал, приход, ревизия. |
+| **Смены** | Открытие, инкассация, закрытие. Расхождение видно сразу. |
+| **Деньги** | Себестоимость и чистыми на дашборде. Выгрузка в Excel. |
+| **Филиалы** | Несколько точек у одного владельца, переключение в шапке. |
+| **Фискализация** | Webkassa по желанию, по умолчанию выключена. |
+
+Роли: суперадмин, владелец, кассир. Данные жёстко режутся по точке (`shop_id`).
+
+## Стек
+
+- Backend: Python 3.12, FastAPI, SQLAlchemy 2 (async), Alembic, PostgreSQL 16
+- Frontend: React 19, Vite, TypeScript, Tailwind, TanStack Query, Zustand
+- Прод: Docker-образы в GHCR, Traefik, GitHub Actions по SSH
+
 ## Запуск локально
 
+Нужны Docker и Docker Compose v2.
+
 ```bash
+git clone https://github.com/amir1330/sanaq.git
+cd sanaq
 docker compose up --build
 ```
 
 Открыть [http://localhost:8080](http://localhost:8080).
 
-Только если `SEED_DEMO=1` (так в локальном `docker-compose.yml`):
+Локальный compose поднимает демо-данные (`SEED_DEMO=1`). На проде сид выключен.
 
 | Роль | Логин | Пароль |
 |---|---|---|
@@ -20,24 +49,33 @@ docker compose up --build
 
 Касса: `/pin`, точка `1`, PIN `1234`.
 
-## CI/CD
+Только локальная демка. На живом стенде эти пароли не работают.
 
-GitHub Actions собирает образы в GHCR и по SSH обновляет VPS. На сервере нет git и нет вебхука.
+## Структура
 
-1. Push в `main` → тесты → образы `ghcr.io/amir1330/sanaq/backend` и `.../nginx` (`:latest` и `:<sha>`).
-2. Тот же job по SSH копирует `docker-compose.prod.yml` и делает `pull` + recreate только `backend` и `nginx`. Postgres не трогаем. На VPS нужен Docker Compose v2 (`docker compose`) — v1.29 падает на образах из GHCR.
-3. Логин в GHCR на сервере — короткоживущий `GITHUB_TOKEN` этого прогона. Вечный PAT на VPS не нужен.
+```
+backend/    FastAPI, миграции, тесты
+frontend/   React-кабинет и касса
+nginx/      статика + прокси /api
+deploy/     скрипт, который гоняет Actions на VPS
+```
+
+## Деплой
+
+Push в `main`:
+
+1. Тесты бэкенда.
+2. Сборка и пуш `ghcr.io/amir1330/sanaq/backend` и `.../nginx` (`:latest` и `:<sha>`).
+3. SSH на VPS: `pull` и recreate только `backend` и `nginx`. Postgres не трогаем.
+
+На сервере нет git и нет вебхука. Логин в GHCR — на время джоба, через `GITHUB_TOKEN`. Нужен Docker Compose v2: v1.29 падает на образах из GHCR.
 
 Секреты репозитория (Settings → Secrets → Actions):
 
 | Secret | Зачем |
 |---|---|
 | `HOST` | IP VPS |
-| `USERNAME` | пользователь SSH, обычно `root` |
-| `SSH_KEY` | отдельный deploy-ключ, не личный ноутбук |
+| `USERNAME` | пользователь SSH |
+| `SSH_KEY` | отдельный deploy-ключ, не ключ с ноутбука |
 
-`POSTGRES_PASSWORD` и `SECRET_KEY` живут только в `/root/coffeeos/.env` на сервере.
-
-## Стек
-
-FastAPI + PostgreSQL 16 + React/Vite. Прод: Traefik на `coffee.abuyunus.cc`.
+Пароли базы и `SECRET_KEY` живут только в `.env` на сервере, в git их нет.
