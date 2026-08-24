@@ -20,11 +20,11 @@ export function LoginPage() {
     setPending(true);
     setError("");
     try {
-      const pair = await api.login(login, password);
+      const pair = await api.login(login.trim(), password);
       setSession(pair.access_token, pair.refresh_token, pair.user);
       navigate(homePath(pair.user.role));
-    } catch {
-      setError("Неверный логин или пароль");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Неверный логин или пароль");
     } finally {
       setPending(false);
     }
@@ -39,10 +39,7 @@ export function LoginPage() {
       </header>
       <div className="mx-auto max-w-[420px] px-6 pt-16">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Вход</p>
-        <h1 className="mt-3 font-display text-[40px] font-normal">Почта и пароль</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-          Владелец — в кабинет. Сотрудник — сразу на кассу. Один вход для всех, без PIN и без «сначала владелец».
-        </p>
+        <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
         <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
           <Field label="Почта или телефон">
             <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />

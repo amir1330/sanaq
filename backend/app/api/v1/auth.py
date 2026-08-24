@@ -20,6 +20,13 @@ from app.services.access import assert_shop_access
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _normalize_login(raw: str) -> str:
+    login = raw.strip()
+    if "@" in login:
+        return login.lower()
+    return login
+
+
 async def _tokens(session: AsyncSession, user: User) -> TokenPair:
     payload = await user_out_payload(session, user)
     return TokenPair(
@@ -31,12 +38,13 @@ async def _tokens(session: AsyncSession, user: User) -> TokenPair:
 
 @router.post("/login", response_model=TokenPair)
 async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)):
+    login_id = _normalize_login(body.login)
     result = await session.execute(
-        select(User).where(or_(User.email == body.login, User.phone == body.login))
+        select(User).where(or_(User.email == login_id, User.phone == login_id))
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active or not verify_secret(body.password, user.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный логин или пароль")
     return await _tokens(session, user)
 
 

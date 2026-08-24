@@ -15,6 +15,7 @@ from app.schemas.admin import (
     AdminStatsOut,
     AdminUserCreate,
     AdminUserOut,
+    OwnerCreate,
     ShopCreate,
     ShopUpdate,
 )
