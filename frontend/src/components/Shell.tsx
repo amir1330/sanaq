@@ -8,7 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
-  { to: "/owner/products", label: "Витрина" },
+  { to: "/owner/products", label: "Товары" },
   { to: "/owner/stock", label: "Склад" },
   { to: "/owner/stock/moves", label: "Движения" },
   { to: "/owner/staff", label: "Сотрудники" },

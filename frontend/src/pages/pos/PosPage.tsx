@@ -6,7 +6,7 @@ import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Banner, Button } from "../../components/ui";
-import { money, payAction, payLabel, publicUrl } from "../../lib/utils";
+import { money, payAction, payLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { CrewMember, Product, ShiftSale } from "../../types";
 
@@ -231,13 +231,13 @@ export function PosPage() {
   });
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-roast text-cream lg:grid-cols-[224px_1fr_340px] lg:gap-px">
+    <div className="grid min-h-screen grid-cols-1 bg-paper text-ink lg:grid-cols-[224px_1fr_340px] lg:gap-px">
       <aside className="flex flex-col gap-5 px-[18px] py-6">
-        <div className="flex items-center gap-2.5 rounded-md bg-roast-2 px-3.5 py-3">
+        <div className="flex items-center gap-2.5 rounded-md bg-paper-2 px-3.5 py-3">
           <ShopBrand shop={currentShop} fallback="Касса" size="md" markClass="h-5 w-7 text-gold" />
         </div>
         {currentShop?.address && (
-          <p className="-mt-3 px-3.5 text-[11px] text-cream-soft">{currentShop.address}</p>
+          <p className="-mt-3 px-3.5 text-[11px] text-ink-soft">{currentShop.address}</p>
         )}
         {currentShop && !currentShop.webkassa_enabled && (
           <p className="px-3.5 text-[11px] text-gold">ОФД выключен — чеки не фискализируются</p>
@@ -247,7 +247,7 @@ export function PosPage() {
             Не ушло в Webkassa: {shift.data?.fiscal_pending_count}
           </p>
         )}
-        <div className="flex items-center justify-between rounded-full bg-roast-2 py-2 pl-4 pr-2 text-[12.5px]">
+        <div className="flex items-center justify-between rounded-full bg-paper-2 py-2 pl-4 pr-2 text-[12.5px]">
           <span>{seller?.name ?? user?.full_name}</span>
           <button
             className="rounded-full bg-gold px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-roast"
@@ -259,7 +259,7 @@ export function PosPage() {
         <div className="flex flex-1 flex-col gap-1">
           <button
             className={`rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
-              categoryId === "all" ? "bg-roast-2 font-semibold text-cream" : "text-cream-soft"
+              categoryId === "all" ? "bg-paper-2 font-semibold text-ink" : "text-ink-soft"
             }`}
             onClick={() => setCategoryId("all")}
           >
@@ -269,7 +269,7 @@ export function PosPage() {
             <button
               key={c.id}
               className={`rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
-                categoryId === c.id ? "bg-roast-2 font-semibold text-cream" : "text-cream-soft"
+                categoryId === c.id ? "bg-paper-2 font-semibold text-ink" : "text-ink-soft"
               }`}
               onClick={() => setCategoryId(c.id)}
             >
@@ -280,7 +280,7 @@ export function PosPage() {
         <div className="space-y-2.5 text-[12.5px]">
           {shift.data ? (
             <>
-              <div className="rounded-md bg-roast-2 px-4 py-3.5">
+              <div className="rounded-md bg-paper-2 px-4 py-3.5">
                 <div className="flex justify-between py-1">
                   <span>Наличными</span>
                   <span className="font-mono font-semibold text-gold">{money(shift.data.cash_revenue)}</span>
@@ -295,13 +295,13 @@ export function PosPage() {
                 </div>
               </div>
               <button
-                className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
+                className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
                 onClick={() => setPanel("receipts")}
               >
                 Чеки смены
               </button>
               <button
-                className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
+                className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
                 onClick={() => setPanel("move")}
               >
                 Внести / изъять
@@ -323,15 +323,15 @@ export function PosPage() {
           )}
           {(user?.role !== "barista" || user?.can_receive_stock) && (
             <button
-              className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
+              className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
               onClick={() => setReceiveOpen(true)}
             >
               Приёмка
             </button>
           )}
-          <ThemeToggle className="block pt-1 text-left text-[12.5px] text-cream-soft hover:text-cream" />
+          <ThemeToggle className="block pt-1 text-left text-[12.5px] text-ink-soft hover:text-ink" />
           <button
-            className="pt-1 text-left text-[12.5px] text-cream-soft underline hover:text-cream"
+            className="pt-1 text-left text-[12.5px] text-ink-soft underline hover:text-ink"
             onClick={() => {
               logout();
               navigate("/login");
@@ -342,7 +342,7 @@ export function PosPage() {
         </div>
       </aside>
 
-      <section className="overflow-auto bg-roast-2 p-6">
+      <section className="overflow-auto bg-paper-2 p-6">
         {notice && (
           <Banner tone={notice.tone}>
             {notice.text}{" "}
@@ -355,55 +355,38 @@ export function PosPage() {
           <Banner tone="warn">Смена закрыта. Открой смену — потом можно продавать.</Banner>
         )}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {visible.map((p) => {
-            const src = publicUrl(p.image_url);
-            return (
-              <button
-                key={p.id}
-                onClick={() => add(p)}
-                className={`overflow-hidden rounded-lg border-[1.5px] border-transparent bg-roast text-left text-cream transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
-              >
-                {src ? (
-                  <img src={src} alt="" className="h-28 w-full object-cover" />
-                ) : (
-                  <div className="grid h-20 place-items-center bg-roast-2 font-mono text-[10px] uppercase tracking-wide text-cream-soft">
-                    {p.category_name || "меню"}
-                  </div>
-                )}
-                <div className="px-4 py-3.5">
-                  {src && p.category_name && (
-                    <p className="font-mono text-[9.5px] uppercase tracking-wide text-cream-soft">{p.category_name}</p>
-                  )}
-                  <p className={`text-[14.5px] font-medium ${src && p.category_name ? "mt-1.5" : ""}`}>{p.name}</p>
-                  <p className="mt-2 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
-                </div>
-              </button>
-            );
-          })}
+          {visible.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => add(p)}
+              className={`rounded-lg border-[1.5px] border-transparent bg-paper px-4 py-[18px] text-left text-ink transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
+            >
+              <p className="font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">{p.category_name}</p>
+              <p className="mt-2 text-[14.5px] font-medium">{p.name}</p>
+              <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
+            </button>
+          ))}
         </div>
-        {products.isSuccess && visible.length === 0 && (
-          <p className="mt-8 text-center text-[13px] text-cream-soft">Витрина пустая — добавь товары с фото в меню.</p>
-        )}
       </section>
 
       <aside className="flex flex-col px-5 py-6">
         <h4 className="mb-4 font-display text-[19px] font-normal">Чек</h4>
         <div className="flex min-h-[200px] flex-1 flex-col gap-2 overflow-auto">
           {cart.length === 0 && (
-            <p className="py-5 text-center text-[13px] text-cream-soft">Чек пустой — коснитесь товара слева</p>
+            <p className="py-5 text-center text-[13px] text-ink-soft">Чек пустой — коснитесь товара слева</p>
           )}
           {cart.map((l) => (
-            <div key={l.product.id} className="flex items-center gap-2.5 rounded-md bg-roast-2 px-3.5 py-2.5 text-[13.5px]">
+            <div key={l.product.id} className="flex items-center gap-2.5 rounded-md bg-paper-2 px-3.5 py-2.5 text-[13.5px]">
               <div className="flex items-center gap-2">
                 <button
-                  className="h-[22px] w-[22px] rounded-full border border-line-dark text-xs leading-none text-cream"
+                  className="h-[22px] w-[22px] rounded-full border border-line text-xs leading-none text-ink"
                   onClick={() => changeQty(l.product.id, -1)}
                 >
                   −
                 </button>
                 <span>{l.quantity}</span>
                 <button
-                  className="h-[22px] w-[22px] rounded-full border border-line-dark text-xs leading-none text-cream"
+                  className="h-[22px] w-[22px] rounded-full border border-line text-xs leading-none text-ink"
                   onClick={() => changeQty(l.product.id, 1)}
                 >
                   +
@@ -414,10 +397,10 @@ export function PosPage() {
             </div>
           ))}
         </div>
-        <div className="mt-3.5 border-t border-line-dark pt-4">
-          <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-cream-soft">
+        <div className="mt-3.5 border-t border-line pt-4">
+          <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-ink-soft">
             <span>К оплате</span>
-            <b className="font-mono text-[25px] font-semibold text-cream">{money(total)}</b>
+            <b className="font-mono text-[25px] font-semibold text-ink">{money(total)}</b>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <button
@@ -436,7 +419,7 @@ export function PosPage() {
             </button>
           </div>
           {cart.length > 0 && (
-            <button className="mt-3 w-full text-center text-sm text-cream-soft underline" onClick={() => setCart([])}>
+            <button className="mt-3 w-full text-center text-sm text-ink-soft underline" onClick={() => setCart([])}>
               Очистить чек
             </button>
           )}

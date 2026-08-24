@@ -16,6 +16,7 @@ import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
 import { PinLoginPage } from "./pages/PinLoginPage";
 import { PosPage } from "./pages/pos/PosPage";
+import { VitrinePage } from "./pages/VitrinePage";
 
 export function App() {
   return (
@@ -27,6 +28,7 @@ export function App() {
         <Route path="/pin" element={<PinLoginPage />} />
         <Route element={<Guard roles={["barista", "owner", "super_admin"]} />}>
           <Route path="/pos" element={<PosPage />} />
+          <Route path="/vitrine" element={<VitrinePage />} />
         </Route>
         <Route element={<Guard roles={["owner", "super_admin"]} />}>
           <Route element={<Shell kind="owner" />}>

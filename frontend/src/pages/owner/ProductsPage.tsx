@@ -102,9 +102,9 @@ export function ProductsPage() {
     <div>
       <PageTitle
         kicker="Меню"
-        title="Витрина"
-        hint="Прайс на кассе: фото, название, цена. Капучино, печенье, вода — как стоит на стойке. Состав списывает склад, если заполнен."
-        action={<Button onClick={() => open()}>Добавить в витрину</Button>}
+        title="Товары"
+        hint="Фото и цена для витрины на телевизоре. Касса — отдельные кнопки, без картинок."
+        action={<Button onClick={() => open()}>Добавить товар</Button>}
       />
       <Card className="mb-4">
         <form
@@ -131,7 +131,7 @@ export function ProductsPage() {
         </form>
       </Card>
       {(products.data ?? []).length === 0 ? (
-        <Empty>Витрина пустая. Добавь первый товар с фото — он появится на кассе как прайс.</Empty>
+        <Empty>Меню пустое. Добавь товар с фото — гости увидят его на витрине.</Empty>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(products.data ?? []).map((p) => {
@@ -186,7 +186,7 @@ export function ProductsPage() {
                 setPhotoPreview(null);
                 setDropPhoto(true);
               }}
-              hint="Это фото на витрине кассы"
+              hint="Это фото на телевизоре у гостей"
             />
             <Field label="Как называется на кассе">
               <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />

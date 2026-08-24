@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
@@ -144,6 +145,18 @@ export function SettingsPage() {
         </Card>
       </div>
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}
+
+      <Card className="mt-4">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">Витрина</p>
+        <p className="mt-2 max-w-xl text-sm text-mute">
+          Меню на телевизоре у стойки: фото, название, цена. Открой на ТВ и нажми «На весь экран».
+        </p>
+        <div className="mt-4">
+          <Link to="/vitrine">
+            <Button variant="quiet">Открыть витрину</Button>
+          </Link>
+        </div>
+      </Card>
 
       <BranchesCard shopId={shopId} shops={shops.data ?? []} />
       <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />
