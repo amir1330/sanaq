@@ -20,6 +20,11 @@ export function OrnamentSprite() {
   );
 }
 
+function parseBox(box: string) {
+  const [x, y, width, height] = box.split(/\s+/).map(Number);
+  return { x, y, width, height };
+}
+
 export function Glyph({
   name,
   className,
@@ -27,9 +32,23 @@ export function Glyph({
   name: keyof typeof boxes;
   className?: string;
 }) {
+  if (name === "ornament") {
+    const { x, y, width, height } = parseBox(boxes.ornament);
+    return (
+      <svg
+        className={cn("shrink-0", className)}
+        viewBox={boxes.ornament}
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden
+      >
+        <use href="#g-ornament" x={x} y={y} width={width} height={height} />
+      </svg>
+    );
+  }
+
   return (
-    <svg className={cn("shrink-0", className)} viewBox={boxes[name]} aria-hidden>
-      <use href={`#g-${name}`} />
+    <svg className={cn("shrink-0", className)} viewBox="0 0 24 24" aria-hidden>
+      <use href={`#g-${name}`} width="24" height="24" />
     </svg>
   );
 }
