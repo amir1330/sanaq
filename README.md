@@ -80,4 +80,4 @@ Push в `main`:
 
 ## Лицензия
 
-[MIT](LICENSE).
+[AGPLv3](LICENSE).
