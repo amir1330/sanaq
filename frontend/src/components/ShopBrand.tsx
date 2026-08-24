@@ -7,11 +7,13 @@ export function ShopBrand({
   fallback = "Sanaq",
   size = "sm",
   showName = true,
+  markClass,
 }: {
   shop?: Shop | null;
   fallback?: string;
   size?: "sm" | "md";
   showName?: boolean;
+  markClass?: string;
 }) {
   const src = publicUrl(shop?.logo_url);
   const name = shop?.name ?? fallback;
@@ -25,7 +27,7 @@ export function ShopBrand({
     return (
       <span className="inline-flex min-w-0 items-center gap-3">
         <img src={src} alt="" className={`${box} shrink-0 object-contain`} />
-        <span className={size === "md" ? "truncate font-semibold" : "truncate font-display text-[15.5px]"}>
+        <span className={size === "md" ? "truncate font-semibold" : "truncate font-display text-[17px]"}>
           {name}
         </span>
       </span>
@@ -35,8 +37,8 @@ export function ShopBrand({
   return (
     <Brand
       name={name}
-      className={size === "md" ? "text-[15px] font-semibold" : "text-[15.5px]"}
-      markClass={box}
+      className={size === "md" ? "text-[14px] font-semibold" : "text-[17px]"}
+      markClass={markClass ?? box}
     />
   );
 }

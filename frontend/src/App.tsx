@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { OrnamentSprite } from "./components/Glyph";
 import { Guard } from "./components/Guard";
 import { Shell } from "./components/Shell";
 import { AdminPage } from "./pages/admin/AdminPage";
@@ -18,6 +19,7 @@ import { PosPage } from "./pages/pos/PosPage";
 export function App() {
   return (
     <BrowserRouter>
+      <OrnamentSprite />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />

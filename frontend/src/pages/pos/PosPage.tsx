@@ -231,45 +231,45 @@ export function PosPage() {
   });
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-paper text-ink lg:grid-cols-[216px_1fr_336px]">
-      <aside className="flex flex-col gap-7 border-r border-line px-[22px] py-[26px]">
-        <div>
-          <ShopBrand shop={currentShop} fallback="Касса" size="md" />
-          {currentShop?.address && (
-            <p className="mt-1 pl-8 text-[11px] text-ink-soft">{currentShop.address}</p>
-          )}
-          {currentShop && !currentShop.webkassa_enabled && (
-            <p className="mt-2 pl-8 text-[11px] text-alert">ОФД выключен — чеки не фискализируются</p>
-          )}
-          {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
-            <p className="mt-2 pl-8 text-[11px] text-alert">
-              Не ушло в Webkassa: {shift.data?.fiscal_pending_count}
-            </p>
-          )}
+    <div className="grid min-h-screen grid-cols-1 bg-roast text-cream lg:grid-cols-[224px_1fr_340px] lg:gap-px">
+      <aside className="flex flex-col gap-5 px-[18px] py-6">
+        <div className="flex items-center gap-2.5 rounded-md bg-roast-2 px-3.5 py-3">
+          <ShopBrand shop={currentShop} fallback="Касса" size="md" markClass="h-5 w-5 text-gold" />
         </div>
-        <div className="flex items-center justify-between border-b border-line pb-3.5 text-[12.5px]">
+        {currentShop?.address && (
+          <p className="-mt-3 px-3.5 text-[11px] text-cream-soft">{currentShop.address}</p>
+        )}
+        {currentShop && !currentShop.webkassa_enabled && (
+          <p className="px-3.5 text-[11px] text-gold">ОФД выключен — чеки не фискализируются</p>
+        )}
+        {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
+          <p className="px-3.5 text-[11px] text-gold">
+            Не ушло в Webkassa: {shift.data?.fiscal_pending_count}
+          </p>
+        )}
+        <div className="flex items-center justify-between rounded-full bg-roast-2 py-2 pl-4 pr-2 text-[12.5px]">
           <span>{seller?.name ?? user?.full_name}</span>
           <button
-            className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-soft underline decoration-line underline-offset-4"
+            className="rounded-full bg-gold px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-roast"
             onClick={() => setPanel("seller")}
           >
             Сменить
           </button>
         </div>
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col gap-1">
           <button
-            className={`border-b border-line py-[11px] text-left text-[13.5px] ${
-              categoryId === "all" ? "font-semibold text-ink" : "text-ink-soft"
+            className={`rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
+              categoryId === "all" ? "bg-roast-2 font-semibold text-cream" : "text-cream-soft"
             }`}
             onClick={() => setCategoryId("all")}
           >
-            Всё меню
+            Все товары
           </button>
           {categories.data?.map((c) => (
             <button
               key={c.id}
-              className={`border-b border-line py-[11px] text-left text-[13.5px] ${
-                categoryId === c.id ? "font-semibold text-ink" : "text-ink-soft"
+              className={`rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
+                categoryId === c.id ? "bg-roast-2 font-semibold text-cream" : "text-cream-soft"
               }`}
               onClick={() => setCategoryId(c.id)}
             >
@@ -277,37 +277,37 @@ export function PosPage() {
             </button>
           ))}
         </div>
-        <div className="space-y-2 text-[12.5px]">
+        <div className="space-y-2.5 text-[12.5px]">
           {shift.data ? (
             <>
-              <div className="border-t border-line pt-3.5">
-                <div className="flex justify-between py-1.5">
+              <div className="rounded-md bg-roast-2 px-4 py-3.5">
+                <div className="flex justify-between py-1">
                   <span>Наличными</span>
                   <span className="font-mono font-semibold text-gold">{money(shift.data.cash_revenue)}</span>
                 </div>
-                <div className="flex justify-between py-1.5">
+                <div className="flex justify-between py-1">
                   <span>Безналично</span>
                   <span className="font-mono font-semibold text-turq">{money(shift.data.card_revenue)}</span>
                 </div>
-                <div className="flex justify-between py-1.5">
+                <div className="flex justify-between py-1">
                   <span>Чеков</span>
                   <span className="font-mono font-semibold">{shift.data.sales_count}</span>
                 </div>
               </div>
               <button
-                className="w-full border border-line py-2.5 text-[12.5px] text-ink-soft hover:bg-ink hover:text-paper"
+                className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
                 onClick={() => setPanel("receipts")}
               >
                 Чеки смены
               </button>
               <button
-                className="w-full border border-line py-2.5 text-[12.5px] text-ink-soft hover:bg-ink hover:text-paper"
+                className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
                 onClick={() => setPanel("move")}
               >
                 Внести / изъять
               </button>
               <button
-                className="w-full border border-ink py-2.5 text-[12.5px] text-ink hover:bg-ink hover:text-paper"
+                className="w-full rounded-full border-[1.5px] border-gold py-3 text-[12.5px] text-gold hover:bg-gold hover:text-roast"
                 onClick={() => setPanel("close")}
               >
                 Закрыть смену
@@ -315,7 +315,7 @@ export function PosPage() {
             </>
           ) : (
             <button
-              className="w-full border border-ink py-2.5 text-[12.5px] text-ink hover:bg-ink hover:text-paper"
+              className="w-full rounded-full border-[1.5px] border-gold py-3 text-[12.5px] text-gold hover:bg-gold hover:text-roast"
               onClick={() => setPanel("open")}
             >
               Открыть смену
@@ -323,15 +323,15 @@ export function PosPage() {
           )}
           {(user?.role !== "barista" || user?.can_receive_stock) && (
             <button
-              className="w-full border border-line py-2.5 text-[12.5px] text-ink-soft hover:bg-ink hover:text-paper"
+              className="w-full rounded-full border-[1.5px] border-line-dark py-3 text-[12.5px] text-cream-soft hover:border-cream hover:bg-cream hover:text-roast"
               onClick={() => setReceiveOpen(true)}
             >
               Приёмка
             </button>
           )}
-          <ThemeToggle className="block pt-2 text-left text-[12.5px]" />
+          <ThemeToggle className="block pt-1 text-left text-[12.5px] text-cream-soft hover:text-cream" />
           <button
-            className="pt-1 text-left text-[12.5px] text-ink-soft underline"
+            className="pt-1 text-left text-[12.5px] text-cream-soft underline hover:text-cream"
             onClick={() => {
               logout();
               navigate("/login");
@@ -342,7 +342,7 @@ export function PosPage() {
         </div>
       </aside>
 
-      <section className="overflow-auto p-[26px]">
+      <section className="overflow-auto bg-roast-2 p-6">
         {notice && (
           <Banner tone={notice.tone}>
             {notice.text}{" "}
@@ -354,72 +354,72 @@ export function PosPage() {
         {!shiftOpen && (
           <Banner tone="warn">Смена закрыта. Открой смену — потом можно продавать.</Banner>
         )}
-        <div className="grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {visible.map((p) => (
             <button
               key={p.id}
               onClick={() => add(p)}
-              className={`bg-paper px-4 py-5 text-left text-ink transition hover:bg-paper-2 ${!shiftOpen ? "opacity-50" : ""}`}
+              className={`rounded-lg border-[1.5px] border-transparent bg-roast px-4 py-[18px] text-left text-cream transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
             >
-              <p className="font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">{p.category_name}</p>
+              <p className="font-mono text-[9.5px] uppercase tracking-wide text-cream-soft">{p.category_name}</p>
               <p className="mt-2 text-[14.5px] font-medium">{p.name}</p>
-              <p className="mt-3 font-mono text-sm font-semibold text-ink-soft">{money(p.sale_price)}</p>
+              <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
             </button>
           ))}
         </div>
       </section>
 
-      <aside className="flex flex-col border-l border-line px-6 py-[26px]">
-        <h4 className="mb-[18px] font-display text-base font-normal tracking-wide">Чек</h4>
-        <div className="flex min-h-[200px] flex-1 flex-col overflow-auto">
+      <aside className="flex flex-col px-5 py-6">
+        <h4 className="mb-4 font-display text-[19px] font-normal">Чек</h4>
+        <div className="flex min-h-[200px] flex-1 flex-col gap-2 overflow-auto">
           {cart.length === 0 && (
-            <p className="py-5 text-center text-[13px] text-ink-soft">Чек пустой — коснитесь товара слева</p>
+            <p className="py-5 text-center text-[13px] text-cream-soft">Чек пустой — коснитесь товара слева</p>
           )}
           {cart.map((l) => (
-            <div key={l.product.id} className="flex items-center gap-2.5 border-b border-line py-3 text-[13.5px]">
+            <div key={l.product.id} className="flex items-center gap-2.5 rounded-md bg-roast-2 px-3.5 py-2.5 text-[13.5px]">
               <div className="flex items-center gap-2">
                 <button
-                  className="h-5 w-5 border border-line text-xs leading-none text-ink"
+                  className="h-[22px] w-[22px] rounded-full border border-line-dark text-xs leading-none text-cream"
                   onClick={() => changeQty(l.product.id, -1)}
                 >
                   −
                 </button>
                 <span>{l.quantity}</span>
                 <button
-                  className="h-5 w-5 border border-line text-xs leading-none text-ink"
+                  className="h-[22px] w-[22px] rounded-full border border-line-dark text-xs leading-none text-cream"
                   onClick={() => changeQty(l.product.id, 1)}
                 >
                   +
                 </button>
               </div>
               <span className="flex-1">{l.product.name}</span>
-              <span className="font-mono font-semibold">{money(Number(l.product.sale_price) * l.quantity)}</span>
+              <span className="font-mono font-semibold text-gold">{money(Number(l.product.sale_price) * l.quantity)}</span>
             </div>
           ))}
         </div>
-        <div className="mt-3.5 border-t border-line pt-4">
-          <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-ink-soft">
+        <div className="mt-3.5 border-t border-line-dark pt-4">
+          <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-cream-soft">
             <span>К оплате</span>
-            <b className="font-mono text-2xl font-semibold text-ink">{money(total)}</b>
+            <b className="font-mono text-[25px] font-semibold text-cream">{money(total)}</b>
           </div>
-          <div className="grid grid-cols-2 gap-px border border-line bg-line">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               disabled={!shiftOpen || cart.length === 0 || sell.isPending}
               onClick={() => sell.mutate("cash")}
-              className="bg-paper py-3.5 text-[12.5px] font-semibold tracking-wide text-gold hover:bg-gold hover:text-paper disabled:opacity-40"
+              className="rounded-full bg-gold py-[15px] text-[13px] font-bold text-roast hover:bg-sun-hot disabled:opacity-40"
             >
               {payAction("cash")}
             </button>
             <button
               disabled={!shiftOpen || cart.length === 0 || sell.isPending}
               onClick={() => sell.mutate("card")}
-              className="bg-paper py-3.5 text-[12.5px] font-semibold tracking-wide text-turq hover:bg-turq hover:text-paper disabled:opacity-40"
+              className="rounded-full bg-turq py-[15px] text-[13px] font-bold text-roast hover:bg-sky-deep disabled:opacity-40"
             >
               {payAction("card")}
             </button>
           </div>
           {cart.length > 0 && (
-            <button className="mt-3 w-full text-center text-sm text-ink-soft underline" onClick={() => setCart([])}>
+            <button className="mt-3 w-full text-center text-sm text-cream-soft underline" onClick={() => setCart([])}>
               Очистить чек
             </button>
           )}
@@ -427,8 +427,8 @@ export function PosPage() {
       </aside>
 
       {panel !== "none" && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
-          <div className="w-full max-w-sm border border-line bg-paper p-7 text-ink">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/70 p-4">
+          <div className="w-full max-w-sm rounded-lg bg-paper p-7 text-ink shadow-soft">
             {panel === "open" && (
               <>
                 <h2 className="font-display text-2xl font-normal">Открыть смену</h2>
@@ -438,7 +438,7 @@ export function PosPage() {
                 <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                   Наличные в ящике, ₸
                   <input
-                    className="mt-2 w-full border-0 border-b border-line bg-transparent py-2 text-[15px] text-ink outline-none focus:border-gold"
+                    className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
                     value={cashOpen}
                     onChange={(e) => setCashOpen(e.target.value)}
                     placeholder="0"
@@ -465,7 +465,7 @@ export function PosPage() {
                 <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                   Сколько наличных насчитал, ₸
                   <input
-                    className="mt-2 w-full border-0 border-b border-line bg-transparent py-2 text-[15px] text-ink outline-none focus:border-gold"
+                    className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
                     value={cashClose}
                     onChange={(e) => setCashClose(e.target.value)}
                     placeholder={String(shift.data?.expected_cash ?? "")}
@@ -517,7 +517,7 @@ export function PosPage() {
                   <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                     PIN · {pendingSeller.full_name}
                     <input
-                      className="mt-2 w-full border-0 border-b border-line bg-transparent py-2 text-[15px] text-ink outline-none focus:border-gold"
+                      className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
                       value={sellerPin}
                       onChange={(e) => setSellerPin(e.target.value)}
                       inputMode="numeric"
@@ -640,7 +640,7 @@ export function PosPage() {
                 <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                   Сумма, ₸
                   <input
-                    className="mt-2 w-full border-0 border-b border-line bg-transparent py-2 text-[15px] text-ink outline-none focus:border-gold"
+                    className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
                     value={moveAmount}
                     onChange={(e) => setMoveAmount(e.target.value)}
                     inputMode="decimal"

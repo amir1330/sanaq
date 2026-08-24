@@ -41,27 +41,27 @@ export function PinLoginPage() {
         </div>
       </header>
       <div className="mx-auto max-w-md px-6 pt-10">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Касса</p>
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Касса</p>
         <h1 className="mt-3 font-display text-[40px] font-normal">Введи PIN</h1>
         <p className="mt-3 text-sm text-ink-soft">Четыре цифры. После ввода касса откроется сама.</p>
         <label className="mt-10 block font-mono text-[10px] uppercase tracking-wider text-faint">
           Номер точки
           <input
-            className="mt-2 w-full border-0 border-b border-line-2 bg-transparent py-2 text-[15px] text-ink outline-none focus:border-ink"
+            className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
             value={shopId}
             onChange={(e) => setShopId(e.target.value)}
             inputMode="numeric"
           />
         </label>
-        <div className="mt-8 border-b border-line py-6 text-center">
+        <div className="mt-8 rounded-lg bg-cream py-6 text-center shadow-soft">
           <p className="font-mono text-3xl tracking-[0.45em]">{pin.replace(/./g, "•").padEnd(4, "·")}</p>
         </div>
         {error && <p className="mt-3 text-center text-sm text-alert">{error}</p>}
-        <div className="mt-6 grid grid-cols-3 gap-px bg-line">
+        <div className="mt-6 grid grid-cols-3 gap-2">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"].map((key) => (
             <button
               key={key}
-              className={`h-16 bg-paper text-xl ${key === "OK" ? "text-gold" : "text-ink"} hover:bg-paper-2`}
+              className={`h-16 rounded-md bg-cream text-xl shadow-soft hover:bg-paper-2 ${key === "OK" ? "text-gold" : "text-ink"}`}
               onClick={() => {
                 if (key === "C") setPin("");
                 else if (key === "OK") void submit();

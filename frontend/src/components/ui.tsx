@@ -6,23 +6,24 @@ export function Button({
   variant = "primary",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "ink" | "danger" | "foam" | "sky" | "quiet";
+  variant?: "primary" | "ghost" | "ink" | "danger" | "foam" | "sky" | "quiet" | "gold";
 }) {
   const styles = {
     primary:
-      "border border-ink bg-ink text-paper hover:bg-mute hover:border-mute",
-    ink: "border border-ink bg-ink text-paper hover:bg-mute hover:border-mute",
-    foam: "border border-ink bg-transparent text-ink hover:bg-ink hover:text-paper",
-    ghost: "border border-transparent bg-transparent text-ink hover:underline",
+      "rounded-full border-[1.5px] border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
+    ink: "rounded-full border-[1.5px] border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
+    foam: "rounded-full border-[1.5px] border-ink bg-transparent text-ink hover:bg-ink hover:text-paper",
+    ghost: "rounded-full border-[1.5px] border-transparent bg-transparent px-2 text-ink hover:text-maroon hover:underline",
     quiet:
-      "border border-line-2 bg-transparent px-4 py-2 text-ink-soft hover:border-ink hover:text-ink",
-    danger: "border border-alert bg-alert text-paper hover:bg-alert/90",
-    sky: "border border-sky bg-sky text-paper hover:bg-sky-deep",
+      "rounded-full border-[1.5px] border-line-2 bg-transparent px-4 py-2 text-ink-soft hover:border-ink hover:text-ink",
+    danger: "rounded-full border-[1.5px] border-maroon bg-maroon text-paper hover:bg-maroon-deep",
+    sky: "rounded-full border-[1.5px] border-turq bg-turq text-roast hover:bg-sky-deep",
+    gold: "rounded-full border-[1.5px] border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
   }[variant];
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 px-6 py-3 text-[13.5px] font-semibold tracking-[0.01em] transition disabled:opacity-40",
+        "inline-flex items-center justify-center gap-2 px-[26px] py-[13px] text-[13.5px] font-semibold transition disabled:opacity-40",
         styles,
         className,
       )}
@@ -55,8 +56,7 @@ export function Field({
   );
 }
 
-const fieldControl =
-  "w-full rounded-none border-0 border-b bg-transparent px-0 py-2.5 text-[15px] outline-none";
+const fieldControl = "w-full rounded-md border-[1.5px] px-4 py-[13px] text-[14.5px] outline-none transition";
 
 export function Input({
   tone = "light",
@@ -69,8 +69,8 @@ export function Input({
       className={cn(
         fieldControl,
         tone === "dark"
-          ? "border-line-dark text-cream placeholder:text-[#5c5647] focus:border-gold"
-          : "border-line-2 text-ink placeholder:text-faint focus:border-ink",
+          ? "border-line-dark bg-roast-2 text-cream placeholder:text-[#736b58] focus:border-gold"
+          : "border-line-2 bg-cream text-ink placeholder:text-faint focus:border-ink",
         className,
       )}
     />
@@ -87,7 +87,9 @@ export function Select({
       {...props}
       className={cn(
         fieldControl,
-        tone === "dark" ? "border-line-dark text-cream focus:border-gold" : "border-line-2 text-ink focus:border-ink",
+        tone === "dark"
+          ? "border-line-dark bg-roast-2 text-cream focus:border-gold"
+          : "border-line-2 bg-cream text-ink focus:border-ink",
         className,
       )}
     />
@@ -123,15 +125,15 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "max-h-[90vh] w-full overflow-auto p-7",
-          dark ? "border border-line-dark bg-roast text-cream" : "border border-line bg-paper",
+          "max-h-[90vh] w-full overflow-auto rounded-lg p-7 shadow-soft",
+          dark ? "border border-line-dark bg-roast text-cream" : "bg-paper",
           wide ? "max-w-2xl" : "max-w-lg",
         )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-xl font-normal tracking-tight">{title}</h2>
+            <h2 className="font-display text-xl font-normal">{title}</h2>
             {hint && <p className={cn("mt-1.5 text-sm", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
           </div>
           <button
@@ -155,7 +157,7 @@ export function Card({
   className?: string;
   children: ReactNode;
 }) {
-  return <section className={cn("border border-line bg-paper p-6", className)}>{children}</section>;
+  return <section className={cn("rounded-lg bg-cream p-6 shadow-soft", className)}>{children}</section>;
 }
 
 export function PageTitle({
@@ -183,7 +185,7 @@ export function PageTitle({
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="border border-dashed border-line px-5 py-12 text-center text-sm text-mute">{children}</div>
+    <div className="rounded-lg bg-cream px-5 py-12 text-center text-sm text-mute shadow-soft">{children}</div>
   );
 }
 
@@ -195,11 +197,11 @@ export function Banner({
   children: ReactNode;
 }) {
   const cls = {
-    info: "border-line text-ink",
-    warn: "border-alert/50 text-alert",
-    ok: "border-sky/40 text-sky",
+    info: "bg-cream text-ink",
+    warn: "bg-maroon/10 text-maroon",
+    ok: "bg-turq/10 text-turq",
   }[tone];
-  return <div className={`mb-4 border px-4 py-3 text-sm ${cls}`}>{children}</div>;
+  return <div className={`mb-4 rounded-md px-4 py-3 text-sm ${cls}`}>{children}</div>;
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {

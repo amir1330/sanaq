@@ -1,31 +1,32 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { Brand, Mark } from "../components/Mark";
+import { Glyph } from "../components/Glyph";
+import { Brand } from "../components/Mark";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { Button, Field, Input } from "../components/ui";
 import { homePath, useAuth } from "../store/auth";
 
 const features = [
   {
-    kicker: "Касса",
-    title: "Нал и безнал",
-    note: "PIN-вход, чек за два касания, смена людей за кассой без переоткрытия смены.",
+    glyph: "kassa" as const,
+    title: "Касса",
+    note: "Нал и безнал, PIN-вход, чек за два касания.",
   },
   {
-    kicker: "Склад",
-    title: "Списывается сам",
-    note: "Рецепт товара — и остатки уходят автоматически при каждой продаже.",
+    glyph: "sklad" as const,
+    title: "Склад",
+    note: "Списывается сам по рецепту или составу, точно.",
   },
   {
-    kicker: "Смены",
-    title: "Ящик сходится",
-    note: "Открытие, инкассация, закрытие — расхождение видно сразу, не в конце месяца.",
+    glyph: "smeny" as const,
+    title: "Смены",
+    note: "Открытие, инкассация — касса сходится каждый раз.",
   },
   {
-    kicker: "Деньги",
-    title: "Прибыль день в день",
-    note: "Себестоимость и чистыми — на дашборде, без сведения таблиц вручную.",
+    glyph: "dengi" as const,
+    title: "Деньги",
+    note: "Прибыль и себестоимость день в день, без таблиц.",
   },
 ];
 
@@ -66,94 +67,88 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="flex items-center justify-between px-6 py-7 md:px-14">
+      <header className="flex items-center justify-between px-6 py-[26px] md:px-14">
         <Brand />
-        <nav className="flex items-center gap-7 text-[13.5px]">
-          <a href="#features" className="text-ink-soft hover:text-ink">
+        <nav className="flex items-center gap-3.5 text-[13.5px]">
+          <a href="#features" className="px-1 py-2 text-ink-soft hover:text-ink">
             Возможности
           </a>
-          <ThemeToggle />
+          <ThemeToggle label="Тема" />
           {user ? (
-            <Link to={homePath(user.role)} className="border border-ink px-6 py-3 text-[13.5px] font-semibold">
-              В кабинет
+            <Link to={homePath(user.role)}>
+              <Button variant="foam">В кабинет</Button>
             </Link>
           ) : (
-            <Link to="/login" className="border border-ink px-6 py-3 text-[13.5px] font-semibold hover:bg-ink hover:text-paper">
-              Войти
+            <Link to="/login">
+              <Button variant="foam">Войти</Button>
             </Link>
           )}
         </nav>
       </header>
 
-      <section className="mx-auto max-w-[720px] px-8 pb-10 pt-16 text-center">
-        <p className="mb-5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-          Санақ · учёт точки
+      <section className="mx-auto max-w-[700px] px-8 pb-12 pt-[60px] text-center">
+        <p className="mb-5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-maroon">
+          Касса и учёт для вашей точки
         </p>
-        <h1 className="font-display text-[36px] font-normal leading-[1.22] text-ink md:text-[44px]">
-          Касса, склад и прибыль — для любой точки
+        <h1 className="font-display text-[40px] font-normal leading-[1.2] text-ink md:text-[48px]">
+          Каждая продажа посчитана — до тиына
         </h1>
-        <p className="mx-auto mt-6 max-w-[520px] text-base leading-[1.65] text-ink-soft">
-          Кафе, магазин, пекарня. Чек, смена, остатки и чистыми в одном месте — без сведения таблиц в конце месяца.
+        <p className="mx-auto mb-[34px] mt-[22px] max-w-[470px] text-base leading-[1.65] text-ink-soft">
+          Sanaq — POS для любого малого бизнеса: кофейня, магазин, сервис. Считает выручку, себестоимость и остатки сам,
+          пока продавец пробивает чек.
         </p>
-        <div className="mt-9 flex justify-center gap-4">
-          <a href="#request" className="border border-ink bg-ink px-6 py-3 text-[13.5px] font-semibold text-paper hover:bg-mute">
-            Сделать учёт прозрачным
+        <div className="flex justify-center gap-3.5">
+          <a href="#request">
+            <Button>Оставить заявку</Button>
           </a>
-          <a href="#features" className="px-1 py-3 text-[13.5px] font-semibold text-ink hover:underline">
-            Как это работает
+          <a href="#features">
+            <Button variant="ghost">Как это работает</Button>
           </a>
         </div>
       </section>
 
-      <div className="flex items-center justify-center gap-[18px] py-14 text-faint">
-        <span className="h-px w-[120px] bg-line-2" />
-        <Mark className="h-[34px] w-[34px] text-ink" />
-        <span className="h-px w-[120px] bg-line-2" />
+      <div className="mx-auto max-w-[360px] px-8">
+        <Glyph name="ornament" className="h-auto w-full text-maroon" />
       </div>
 
-      <section id="features" className="mx-auto grid max-w-[920px] grid-cols-1 gap-10 px-8 pb-[90px] md:grid-cols-4 md:gap-0">
-        {features.map((f, i) => (
-          <div key={f.kicker} className={`md:px-[22px] ${i === 0 ? "md:pl-0" : "md:border-l md:border-line"}`}>
-            <p className="mb-3.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-              {f.kicker}
-            </p>
-            <h4 className="mb-2.5 font-display text-[17px] font-normal">{f.title}</h4>
+      <section id="features" className="mx-auto grid max-w-[960px] grid-cols-1 gap-4 px-8 py-[52px] pb-[90px] md:grid-cols-4">
+        {features.map((f) => (
+          <div key={f.title} className="rounded-lg bg-cream px-[22px] py-[26px] shadow-soft">
+            <Glyph
+              name={f.glyph}
+              className="mb-4 box-content h-[26px] w-[26px] rounded-full bg-paper p-2 text-maroon"
+            />
+            <h4 className="mb-2.5 font-display text-[19px] font-normal">{f.title}</h4>
             <p className="m-0 text-[13px] leading-[1.55] text-ink-soft">{f.note}</p>
           </div>
         ))}
       </section>
 
       <section id="request" className="bg-roast-2 px-8 py-16">
-        <div className="mx-auto max-w-[420px]">
+        <div className="mx-auto max-w-[440px] rounded-lg bg-roast p-10">
           {done ? (
             <>
-              <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">Заявка</p>
-              <h3 className="mb-4 font-display text-[26px] font-normal text-cream">Приняли</h3>
+              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">Заявка</p>
+              <h3 className="mb-4 font-display text-[28px] font-normal text-cream">Приняли</h3>
               <p className="text-sm leading-relaxed text-cream-soft">
                 Напишем или позвоним. Обычно в тот же день. Оплата позже — сейчас только запрос.
               </p>
-              <Button
-                variant="foam"
-                className="mt-8 w-full border-cream text-cream hover:bg-cream hover:text-roast"
-                onClick={() => setDone(false)}
-              >
+              <Button variant="gold" className="mt-8 w-full" onClick={() => setDone(false)}>
                 Отправить ещё одну
               </Button>
             </>
           ) : (
             <form onSubmit={(e) => void submit(e)}>
-              <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">
-                Подключить точку
-              </p>
-              <h3 className="mb-8 font-display text-[26px] font-normal text-cream">Оставить заявку</h3>
-              <div className="space-y-[22px]">
+              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">Подключить точку</p>
+              <h3 className="mb-[30px] font-display text-[28px] font-normal text-cream">Оставить заявку</h3>
+              <div className="space-y-[18px]">
                 <Field label="Название точки" tone="dark">
                   <Input
                     tone="dark"
                     required
                     value={form.shop_name}
                     onChange={(e) => setForm({ ...form, shop_name: e.target.value })}
-                    placeholder="Дастархан"
+                    placeholder="Например, «Дастархан маркет»"
                   />
                 </Field>
                 <Field label="Город" tone="dark">
@@ -163,14 +158,6 @@ export function LandingPage() {
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
                     placeholder="Алматы"
-                  />
-                </Field>
-                <Field label="Как к тебе обращаться" tone="dark">
-                  <Input
-                    tone="dark"
-                    value={form.contact_name}
-                    onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-                    placeholder="Имя"
                   />
                 </Field>
                 <Field label="Телефон*" tone="dark">
@@ -191,11 +178,8 @@ export function LandingPage() {
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
                   />
                 </div>
-                {error && <p className="text-sm text-alert">{error}</p>}
-                <Button
-                  className="mt-2.5 w-full border-cream bg-transparent text-cream hover:bg-cream hover:text-roast"
-                  disabled={pending}
-                >
+                {error && <p className="text-sm text-maroon">{error}</p>}
+                <Button variant="gold" className="mt-2 w-full" disabled={pending}>
                   {pending ? "Отправляем…" : "Отправить"}
                 </Button>
               </div>

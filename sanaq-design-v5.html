@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Sanaq — макет v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --line:#E4DCC7;
+    --line-2:#D2C7A9;
+    --ink:#1B1811;
+    --ink-soft:#5B5346;
+    --ink-faint:#8B826D;
+    --roast:#201B14;
+    --roast-2:#2C271E;
+    --line-dark:#453E30;
+    --cream:#EFE9DA;
+    --cream-soft:#A79D85;
+    --maroon:#8A2C2E;
+    --maroon-deep:#5C1B1D;
+    --navy:#2C4A6E;
+    --gold:#BC943A;
+    --turq:#3F8F86;
+    --r-sm:10px; --r-md:16px; --r-lg:22px; --r-pill:999px;
+    --shadow:0 3px 16px rgba(70,45,15,.08);
+    --font-display:'DM Serif Display', serif;
+    --font-body:'Manrope', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--roast);font-family:var(--font-body);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .eyebrow{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:500;color:var(--ink-faint);}
+  .money{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;}
+  .glyph{display:block;}
+
+  .viewer-bar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;background:var(--roast);border-bottom:1px solid var(--line-dark);}
+  .viewer-bar button{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:1px solid transparent;color:var(--cream-soft);padding:8px 18px;border-radius:var(--r-pill);cursor:pointer;transition:.15s;}
+  .viewer-bar button.on{color:var(--roast);background:var(--gold);font-weight:700;}
+  .viewer-bar button:hover{color:var(--cream);}
+  .viewer-bar button.on:hover{color:var(--roast);}
+  .view{display:none;padding-top:48px;min-height:100vh;}
+  .view.on{display:block;}
+
+  /* =========================================================
+     LANDING
+  ========================================================= */
+  #landing{background:var(--paper);}
+  .l-header{display:flex;align-items:center;justify-content:space-between;padding:26px 56px;}
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--font-display);font-size:22px;color:var(--ink);}
+  .brand .glyph{width:26px;height:26px;color:var(--maroon);}
+  .l-header nav{display:flex;gap:14px;align-items:center;font-size:13.5px;}
+  .l-header nav a{color:var(--ink-soft);text-decoration:none;cursor:pointer;padding:8px 4px;}
+  .btn{font-family:var(--font-body);font-weight:600;font-size:13.5px;padding:13px 26px;border:1.5px solid var(--ink);cursor:pointer;background:transparent;color:var(--ink);transition:.15s;border-radius:var(--r-pill);}
+  .btn-fill{background:var(--ink);color:var(--paper);}
+  .btn-fill:hover{background:var(--maroon);border-color:var(--maroon);}
+  .btn:not(.btn-fill):hover{background:var(--ink);color:var(--paper);}
+  .btn-quiet{border-color:transparent;padding:13px 8px;}
+  .btn-quiet:hover{background:transparent;color:var(--maroon);text-decoration:underline;}
+
+  .l-hero{max-width:700px;margin:0 auto;padding:60px 32px 46px;text-align:center;}
+  .l-hero .eyebrow{display:block;margin-bottom:20px;color:var(--maroon);}
+  .l-hero h1{font-family:var(--font-display);font-size:48px;line-height:1.2;margin:0 0 22px;color:var(--ink);font-weight:400;}
+  .l-hero p.lead{font-size:16px;line-height:1.65;color:var(--ink-soft);max-width:470px;margin:0 auto 34px;}
+  .l-hero .actions{display:flex;gap:14px;justify-content:center;}
+
+  .ribbon-wrap{max-width:360px;margin:0 auto;padding:0 32px;}
+  .ribbon{width:100%;height:auto;aspect-ratio:676/128;display:block;}
+
+  .l-features{max-width:960px;margin:0 auto;padding:52px 32px 90px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .f{padding:26px 22px;background:var(--cream);border-radius:var(--r-lg);box-shadow:var(--shadow);}
+  .f .fglyph{width:26px;height:26px;color:var(--maroon);margin-bottom:16px;background:var(--paper);border-radius:var(--r-pill);padding:8px;box-sizing:content-box;}
+  .f h4{font-family:var(--font-display);font-weight:400;font-size:19px;margin:0 0 9px;}
+  .f p{font-size:13px;line-height:1.55;color:var(--ink-soft);margin:0;}
+
+  .l-form-wrap{background:var(--roast-2);padding:64px 32px;}
+  .l-form{max-width:440px;margin:0 auto;background:var(--roast);border-radius:var(--r-lg);padding:40px;}
+  .l-form .eyebrow{display:block;margin-bottom:10px;color:var(--gold);}
+  .l-form h3{font-family:var(--font-display);font-weight:400;font-size:28px;margin:0 0 30px;color:var(--cream);}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-soft);margin-bottom:8px;}
+  .field input{width:100%;background:var(--roast-2);border:1.5px solid var(--line-dark);border-radius:var(--r-md);padding:13px 16px;color:var(--cream);font-family:var(--font-body);font-size:14.5px;}
+  .field input::placeholder{color:#736b58;}
+  .field input:focus{outline:none;border-color:var(--gold);}
+  .l-form .btn{width:100%;margin-top:8px;background:var(--gold);color:var(--roast);border-color:var(--gold);}
+  .l-form .btn:hover{background:var(--cream);border-color:var(--cream);}
+
+  /* =========================================================
+     POS
+  ========================================================= */
+  #pos{background:var(--roast);color:var(--cream);}
+  .pos-shell{display:grid;grid-template-columns:224px 1fr 340px;height:calc(100vh - 48px);gap:1px;}
+  .pos-side{padding:24px 18px;display:flex;flex-direction:column;gap:20px;}
+  .shop-tag{display:flex;align-items:center;gap:10px;background:var(--roast-2);border-radius:var(--r-md);padding:12px 14px;}
+  .shop-tag .glyph{width:20px;height:20px;color:var(--gold);flex-shrink:0;}
+  .shop-tag div b{display:block;font-size:14px;font-weight:600;}
+  .shop-tag div span{font-size:11px;color:var(--cream-soft);}
+  .cashier-pill{display:flex;align-items:center;justify-content:space-between;background:var(--roast-2);border-radius:var(--r-pill);padding:9px 8px 9px 16px;font-size:12.5px;}
+  .cashier-pill a{color:var(--roast);background:var(--gold);padding:6px 12px;border-radius:var(--r-pill);text-decoration:none;text-transform:uppercase;letter-spacing:.04em;font-size:10px;font-weight:700;}
+  .cat-list{display:flex;flex-direction:column;gap:4px;flex:1;}
+  .cat-list .cat{padding:11px 14px;border-radius:var(--r-md);font-size:13.5px;cursor:pointer;color:var(--cream-soft);}
+  .cat-list .cat.on{background:var(--roast-2);color:var(--cream);font-weight:600;}
+  .shift-box{background:var(--roast-2);border-radius:var(--r-md);padding:14px 16px;font-size:12.5px;}
+  .shift-box .row{display:flex;justify-content:space-between;padding:5px 0;}
+  .shift-box .row.nal .money{color:var(--gold);}
+  .shift-box .row.beznal .money{color:var(--turq);}
+  .pos-side .btn{width:100%;text-align:center;border-color:var(--line-dark);color:var(--cream-soft);font-size:12.5px;padding:12px 0;}
+  .pos-side .btn:hover{background:var(--cream);color:var(--roast);border-color:var(--cream);}
+  .pos-side .btn.primary{border-color:var(--gold);color:var(--gold);}
+  .pos-side .btn.primary:hover{background:var(--gold);color:var(--roast);}
+
+  .pos-grid{padding:24px;overflow:auto;background:var(--roast-2);}
+  .pos-grid .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .pcard{background:var(--roast);color:var(--cream);border-radius:var(--r-lg);padding:18px 16px;cursor:pointer;transition:.12s;border:1.5px solid transparent;}
+  .pcard:hover{border-color:var(--gold);transform:translateY(-2px);}
+  .pcard .pc-tag{font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;color:var(--cream-soft);letter-spacing:.06em;}
+  .pcard .pc-name{font-size:14.5px;font-weight:500;margin:8px 0 12px;}
+  .pcard .pc-price{font-family:var(--font-mono);font-weight:600;font-size:14px;color:var(--gold);}
+
+  .pos-check{display:flex;flex-direction:column;padding:24px 20px;}
+  .pos-check h4{font-family:var(--font-display);font-weight:400;font-size:19px;margin:0 0 16px;}
+  .check-items{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;}
+  .citem{display:flex;align-items:center;gap:10px;background:var(--roast-2);border-radius:var(--r-md);padding:11px 14px;font-size:13.5px;}
+  .citem .qty{display:flex;align-items:center;gap:8px;}
+  .qty button{width:22px;height:22px;border-radius:var(--r-pill);border:1px solid var(--line-dark);background:transparent;color:var(--cream);cursor:pointer;font-size:12px;line-height:1;}
+  .citem .name{flex:1;}
+  .citem .money{color:var(--gold);}
+  .check-total{border-top:1px solid var(--line-dark);margin-top:14px;padding-top:16px;}
+  .check-total .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--cream-soft);margin-bottom:18px;}
+  .check-total .row b{font-family:var(--font-mono);font-size:25px;color:var(--cream);font-weight:600;}
+  .pay-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pay-row button{padding:15px 0;font-weight:700;font-size:13px;border:none;cursor:pointer;border-radius:var(--r-pill);}
+  .pay-nal{background:var(--gold);color:var(--roast);}
+  .pay-nal:hover{background:#D3AC52;}
+  .pay-beznal{background:var(--turq);color:var(--roast);}
+  .pay-beznal:hover{background:#57ABA1;}
+
+  /* =========================================================
+     OWNER CABINET
+  ========================================================= */
+  #owner{background:var(--paper);}
+  .o-shell{max-width:1100px;margin:0 auto;padding:0 32px 70px;}
+  .o-header{display:flex;align-items:center;justify-content:space-between;padding:22px 0;margin-bottom:28px;}
+  .o-header .brand{font-size:17px;}
+  .o-header .brand .glyph{width:19px;height:19px;}
+  .o-nav{display:flex;gap:4px;background:var(--cream);border-radius:var(--r-pill);padding:4px;}
+  .o-nav span{color:var(--ink-faint);cursor:pointer;padding:9px 15px;border-radius:var(--r-pill);font-size:12.5px;}
+  .o-nav span.on{color:var(--paper);background:var(--ink);}
+  .o-header .who{font-size:12.5px;color:var(--ink-faint);}
+
+  .period-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .chips{display:flex;gap:8px;}
+  .chip{font-size:12.5px;padding:9px 16px;cursor:pointer;color:var(--ink-soft);border-radius:var(--r-pill);border:1.5px solid var(--line-2);}
+  .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .period-row .btn-quiet{border:1.5px solid var(--line-2);border-radius:var(--r-pill);padding:9px 18px;font-size:12.5px;background:transparent;cursor:pointer;color:var(--ink-soft);}
+  .period-row .btn-quiet:hover{border-color:var(--ink);color:var(--ink);}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+  .tile{padding:20px 22px;background:var(--cream);border-radius:var(--r-lg);box-shadow:var(--shadow);}
+  .tile .big{font-family:var(--font-mono);font-size:24px;font-weight:600;margin-top:9px;color:var(--ink);}
+  .tile.profit .big{color:var(--maroon);}
+
+  .chart-card{background:var(--cream);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:28px 26px;margin-bottom:16px;}
+  .chart-card h4{margin:0 0 6px;font-family:var(--font-display);font-weight:400;font-size:19px;}
+  .chart-card .legend{display:flex;gap:20px;font-size:12px;margin-bottom:26px;color:var(--ink-soft);}
+  .legend .dot{width:8px;height:8px;display:inline-block;margin-right:7px;border-radius:50%;}
+  .dot.gold{background:var(--gold);} .dot.turq{background:var(--turq);}
+  .bars{display:flex;align-items:flex-end;gap:20px;height:130px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .bar-stack{width:100%;max-width:26px;display:flex;flex-direction:column-reverse;border-radius:8px;overflow:hidden;}
+  .bar-stack .seg-gold{background:var(--gold);}
+  .bar-stack .seg-turq{background:var(--turq);}
+  .bar-col .lbl{font-size:10px;color:var(--ink-faint);font-family:var(--font-mono);letter-spacing:.04em;}
+
+  .table-card{background:var(--cream);border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden;}
+  .table-card table{width:100%;border-collapse:collapse;font-size:13px;}
+  .table-card th{text-align:left;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);padding:14px 24px;border-bottom:1px solid var(--line);font-weight:500;}
+  .table-card td{padding:14px 24px;border-bottom:1px solid var(--line);color:var(--ink-soft);}
+  .table-card tr:last-child td{border-bottom:none;}
+  .table-card td.money{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<div class="viewer-bar">
+  <button data-v="landing" class="on">Лендинг</button>
+  <button data-v="pos">Касса</button>
+  <button data-v="owner">Кабинет владельца</button>
+</div>
+
+<!-- ============ LANDING ============ -->
+<div class="view on" id="landing">
+  <header class="l-header">
+    <div class="brand"><svg class="glyph" viewBox="0 0 24 24"><use href="#g-muiz"></use></svg>Sanaq</div>
+    <nav><a>Возможности</a><a>Тема</a><button class="btn">Войти</button></nav>
+  </header>
+
+  <div class="l-hero">
+    <span class="eyebrow">Касса и учёт для вашей точки</span>
+    <h1>Каждая продажа посчитана — до тиына</h1>
+    <p class="lead">Sanaq — POS для любого малого бизнеса: кофейня, магазин, сервис. Считает выручку, себестоимость и остатки сам, пока продавец пробивает чек.</p>
+    <div class="actions">
+      <button class="btn btn-fill">Оставить заявку</button>
+      <button class="btn btn-quiet">Как это работает</button>
+    </div>
+  </div>
+
+  <div class="ribbon-wrap">
+    <svg class="ribbon" viewBox="30 313 676 128" preserveAspectRatio="xMidYMid meet" style="color:var(--maroon)">
+      <use href="#g-ornament" x="30" y="313" width="676" height="128"></use>
+    </svg>
+  </div>
+
+  <div class="l-features">
+    <div class="f">
+      <svg class="fglyph" viewBox="0 0 24 24"><use href="#g-kassa"></use></svg>
+      <h4>Касса</h4>
+      <p>Нал и безнал, PIN-вход, чек за два касания.</p>
+    </div>
+    <div class="f">
+      <svg class="fglyph" viewBox="0 0 24 24"><use href="#g-sklad"></use></svg>
+      <h4>Склад</h4>
+      <p>Списывается сам по рецепту или составу, точно.</p>
+    </div>
+    <div class="f">
+      <svg class="fglyph" viewBox="0 0 24 24"><use href="#g-smeny"></use></svg>
+      <h4>Смены</h4>
+      <p>Открытие, инкассация — касса сходится каждый раз.</p>
+    </div>
+    <div class="f">
+      <svg class="fglyph" viewBox="0 0 24 24"><use href="#g-dengi"></use></svg>
+      <h4>Деньги</h4>
+      <p>Прибыль и себестоимость день в день, без таблиц.</p>
+    </div>
+  </div>
+
+  <div class="l-form-wrap">
+    <div class="l-form">
+      <span class="eyebrow">Подключить точку</span>
+      <h3>Оставить заявку</h3>
+      <div class="field"><label>Название точки</label><input placeholder="Например, «Дастархан маркет»"></div>
+      <div class="field"><label>Сфера</label><input placeholder="Кофейня, магазин, сервис..."></div>
+      <div class="field"><label>Телефон*</label><input placeholder="+7 700 000 00 00"></div>
+      <button class="btn">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ POS ============ -->
+<div class="view" id="pos">
+  <div class="pos-shell">
+    <div class="pos-side">
+      <div class="shop-tag">
+        <svg class="glyph" viewBox="0 0 24 24"><use href="#g-muiz"></use></svg>
+        <div><b>Дастархан маркет</b><span>ул. Абая, 12</span></div>
+      </div>
+      <div class="cashier-pill"><span>Айгерим Б.</span><a href="#">Сменить</a></div>
+      <div class="cat-list">
+        <div class="cat on">Все товары</div>
+        <div class="cat">Напитки</div>
+        <div class="cat">Снеки</div>
+        <div class="cat">Выпечка</div>
+        <div class="cat">Разное</div>
+      </div>
+      <div class="shift-box">
+        <div class="row nal"><span>Наличными</span><span class="money">18 400 ₸</span></div>
+        <div class="row beznal"><span>Безналично</span><span class="money">31 900 ₸</span></div>
+        <div class="row"><span>Чеков</span><span class="money">27</span></div>
+      </div>
+      <button class="btn">Внести / изъять</button>
+      <button class="btn primary">Закрыть смену</button>
+    </div>
+
+    <div class="pos-grid">
+      <div class="grid" id="posGrid">
+        <div class="pcard" data-name="Капучино 300мл" data-price="1400"><div class="pc-tag">Напитки</div><div class="pc-name">Капучино 300мл</div><div class="pc-price">1 400 ₸</div></div>
+        <div class="pcard" data-name="Вода 0.5л" data-price="400"><div class="pc-tag">Напитки</div><div class="pc-name">Вода 0.5л</div><div class="pc-price">400 ₸</div></div>
+        <div class="pcard" data-name="Энергетик" data-price="900"><div class="pc-tag">Напитки</div><div class="pc-name">Энергетик</div><div class="pc-price">900 ₸</div></div>
+        <div class="pcard" data-name="Чипсы" data-price="850"><div class="pc-tag">Снеки</div><div class="pc-name">Чипсы</div><div class="pc-price">850 ₸</div></div>
+        <div class="pcard" data-name="Батончик" data-price="600"><div class="pc-tag">Снеки</div><div class="pc-name">Батончик</div><div class="pc-price">600 ₸</div></div>
+        <div class="pcard" data-name="Орешки 100г" data-price="1100"><div class="pc-tag">Снеки</div><div class="pc-name">Орешки 100г</div><div class="pc-price">1 100 ₸</div></div>
+        <div class="pcard" data-name="Круассан" data-price="1200"><div class="pc-tag">Выпечка</div><div class="pc-name">Круассан</div><div class="pc-price">1 200 ₸</div></div>
+        <div class="pcard" data-name="Чизкейк" data-price="1900"><div class="pc-tag">Выпечка</div><div class="pc-name">Чизкейк</div><div class="pc-price">1 900 ₸</div></div>
+        <div class="pcard" data-name="Пакет" data-price="30"><div class="pc-tag">Разное</div><div class="pc-name">Пакет</div><div class="pc-price">30 ₸</div></div>
+      </div>
+    </div>
+
+    <div class="pos-check">
+      <h4>Чек</h4>
+      <div class="check-items" id="checkItems">
+        <div style="color:var(--cream-soft);font-size:13px;padding:20px 0;text-align:center;">Чек пустой — коснитесь товара слева</div>
+      </div>
+      <div class="check-total">
+        <div class="row"><span>К оплате</span><b class="money" id="checkTotal">0 ₸</b></div>
+        <div class="pay-row">
+          <button class="pay-nal">Наличными</button>
+          <button class="pay-beznal">Безналично</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OWNER ============ -->
+<div class="view" id="owner">
+  <div class="o-shell">
+    <div class="o-header">
+      <div class="brand"><svg class="glyph" viewBox="0 0 24 24"><use href="#g-muiz"></use></svg>Дастархан маркет</div>
+      <div class="o-nav">
+        <span class="on">Отчёты</span><span>Товары</span><span>Склад</span><span>Сотрудники</span><span>Расходы</span><span>Смены</span><span>Касса</span><span>Настройки</span>
+      </div>
+      <div class="who">Айдос Т. · Выйти</div>
+    </div>
+
+    <div class="period-row">
+      <div class="chips">
+        <div class="chip">Сегодня</div>
+        <div class="chip on">7 дней</div>
+        <div class="chip">Этот месяц</div>
+        <div class="chip">Свои даты</div>
+      </div>
+      <button class="btn-quiet">Скачать CSV</button>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><span class="eyebrow">Выручка</span><div class="big">312 400 ₸</div></div>
+      <div class="tile profit"><span class="eyebrow">Прибыль</span><div class="big">118 700 ₸</div></div>
+      <div class="tile"><span class="eyebrow">Расходы</span><div class="big">64 200 ₸</div></div>
+      <div class="tile"><span class="eyebrow">Чистыми</span><div class="big">54 500 ₸</div></div>
+    </div>
+
+    <div class="chart-card">
+      <h4>Наличные и безналичные</h4>
+      <div class="legend"><span><span class="dot gold"></span>Наличными</span><span><span class="dot turq"></span>Безналично</span></div>
+      <div class="bars" id="barsChart"></div>
+    </div>
+
+    <div class="table-card">
+      <table>
+        <thead><tr><th>Товар</th><th>Продано</th><th>Выручка</th><th>Себестоимость</th></tr></thead>
+        <tbody>
+          <tr><td>Капучино 300мл</td><td>142</td><td class="money">198 800 ₸</td><td class="money">41 200 ₸</td></tr>
+          <tr><td>Вода 0.5л</td><td>210</td><td class="money">84 000 ₸</td><td class="money">31 500 ₸</td></tr>
+          <tr><td>Круассан</td><td>76</td><td class="money">91 200 ₸</td><td class="money">28 500 ₸</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <!-- feature icons: real ою (Kazakh national ornament) motifs, supplied
+         directly and matched to each card — not hand-built pictograms -->
+    <symbol id="g-kassa" viewBox="144.1 137.2 67.6 67.7"><path fill="currentColor" fill-rule="evenodd" d="M 159.369 146.542 C 158.256 148.489, 155.806 150.852, 153.925 151.792 C 149.230 154.137, 149.234 155.993, 153.944 161.436 C 160.567 169.087, 160.585 172.958, 154.030 179.848 C 148.815 185.330, 148.806 187.647, 153.990 189.824 C 156.184 190.746, 157.984 192.002, 157.990 192.615 C 158.002 193.984, 161.859 199, 162.898 199 C 163.313 199, 166.317 196.987, 169.576 194.527 C 177.608 188.462, 181.636 188.757, 188.437 195.911 C 192.563 200.250, 195.420 199.987, 197.590 195.068 C 198.663 192.636, 200.191 190.918, 201.593 190.566 C 203.984 189.966, 207 187.432, 207 186.023 C 207 185.565, 205.398 183.271, 203.439 180.927 C 195.991 172.012, 195.869 169.476, 202.518 161.708 C 207.055 156.408, 207.048 153.725, 202.492 151.563 C 200.241 150.495, 198.468 148.663, 197.543 146.449 C 195.701 142.041, 192.464 141.863, 188.544 145.954 C 181.764 153.031, 176.180 153.178, 168.511 146.483 C 163.493 142.102, 161.901 142.112, 159.369 146.542 M 164.491 153.367 C 163.441 155.881, 162.287 156.893, 159.933 157.363 C 157.105 157.929, 156.850 158.268, 157.452 160.665 C 157.821 162.135, 158.816 164.274, 159.663 165.419 C 161.122 167.391, 161.169 167.304, 160.556 163.750 C 159.998 160.511, 160.167 160, 161.800 160 C 164.081 160, 167 163.009, 167 165.360 C 167 166.297, 167.787 167.314, 168.750 167.622 C 169.713 167.930, 171.553 168.688, 172.841 169.308 L 175.181 170.435 172.980 172.217 C 171.769 173.198, 169.958 174, 168.956 174 C 167.717 174, 167.032 174.870, 166.816 176.718 C 166.410 180.213, 161.480 183.348, 160.032 181.034 C 159.459 180.117, 159.504 179.098, 160.152 178.317 C 160.722 177.630, 160.994 176.490, 160.756 175.784 C 160.270 174.344, 157 180.055, 157 182.343 C 157 183.917, 159.072 185, 162.082 185 C 163.266 185, 164 185.692, 164 186.809 C 164 187.804, 164.632 189.482, 165.405 190.539 C 166.782 192.423, 166.887 192.424, 170.655 190.594 C 172.770 189.567, 173.922 188.521, 173.216 188.269 C 172.510 188.017, 171.313 188.325, 170.555 188.954 C 168.699 190.495, 167.612 188.682, 168.433 185.413 C 168.855 183.731, 169.952 182.760, 171.859 182.378 C 173.911 181.968, 174.995 180.902, 175.897 178.409 C 177.480 174.031, 179.533 174.067, 181.136 178.500 C 181.884 180.568, 183.075 182, 184.046 182 C 186.083 182, 189 185.103, 189 187.270 C 189 189.254, 187.366 190.401, 186.510 189.016 C 186.165 188.457, 185.121 188.010, 184.191 188.022 C 182.871 188.040, 183.048 188.473, 185 190 C 189.288 193.354, 191.662 192.512, 192.416 187.368 C 192.571 186.314, 193.955 185.250, 195.790 184.775 C 197.501 184.331, 199.156 183.556, 199.467 183.053 C 200.234 181.812, 196.887 174.952, 195.833 175.604 C 195.372 175.888, 195.492 177.051, 196.101 178.188 C 197.139 180.128, 196.098 181.928, 193.905 181.985 C 192.785 182.014, 189.849 178.177, 189.584 176.338 C 189.438 175.327, 188.394 174.362, 187.264 174.194 C 186.134 174.026, 184.411 173.007, 183.436 171.930 C 181.713 170.026, 181.778 169.926, 185.754 168.364 C 188.266 167.378, 189.655 166.265, 189.354 165.481 C 188.726 163.844, 192.818 160, 195.189 160 C 197.112 160, 197.682 162.460, 196 163.500 C 194.768 164.262, 194.681 166, 195.875 166 C 196.356 166, 197.453 164.549, 198.312 162.776 C 200.048 159.191, 199.130 157, 195.891 157 C 194.706 157, 193.494 155.725, 192.564 153.500 C 190.876 149.459, 188.451 148.976, 184.861 151.967 C 183.562 153.048, 182.972 153.948, 183.550 153.967 C 184.128 153.985, 185.101 153.499, 185.713 152.887 C 187.142 151.458, 189 152.598, 189 154.904 C 189 156.968, 186.001 159.990, 183.921 160.022 C 183.140 160.034, 181.825 161.473, 181 163.220 C 178.921 167.623, 177.391 167.724, 175.884 163.555 C 175.121 161.444, 173.930 160, 172.954 160 C 170.917 160, 168 156.897, 168 154.730 C 168 152.746, 169.634 151.599, 170.490 152.984 C 170.835 153.543, 171.879 153.985, 172.809 153.967 C 174.180 153.940, 174.053 153.561, 172.139 151.967 C 168.590 149.010, 166.123 149.462, 164.491 153.367"/></symbol>
+    <symbol id="g-sklad" viewBox="424.1 84.6 66.6 63.8"><path fill="currentColor" fill-rule="evenodd" d="M 456.229 90.188 C 456.847 92.042, 459 92.349, 459 90.583 C 459 89.713, 458.288 89, 457.417 89 C 456.546 89, 456.011 89.534, 456.229 90.188 M 463.745 92.626 C 458.933 95.147, 457.515 105.883, 462.154 104.670 C 464.857 103.963, 463.977 106.181, 460.951 107.702 C 459.636 108.363, 458.241 109.713, 457.850 110.702 C 457.233 112.267, 457.131 112.217, 457.070 110.320 C 457.024 108.875, 456.267 108.031, 454.828 107.820 C 453.634 107.644, 452.447 106.825, 452.191 106 C 451.936 105.175, 452.084 104.834, 452.521 105.241 C 455.230 107.768, 457.123 100.002, 454.850 95.684 C 451.317 88.972, 442.242 91.991, 443.171 99.570 C 443.465 101.968, 443.147 102.278, 440.144 102.517 C 433.786 103.023, 431.363 109.439, 436.125 113.157 C 439.335 115.662, 446.569 115.340, 446.353 112.701 C 446.148 110.191, 448.430 111.180, 448.811 113.767 C 448.993 114.997, 450.035 116.058, 451.311 116.312 L 453.500 116.746 451.250 117.490 C 450.012 117.899, 449 119.033, 449 120.010 C 449 120.987, 448.381 122.024, 447.624 122.314 C 446.803 122.629, 446.299 122.225, 446.374 121.309 C 446.698 117.359, 439.828 117.172, 435.975 121.025 C 431.802 125.198, 434.291 130.296, 440.564 130.428 C 443.821 130.496, 443.994 130.682, 443.997 134.095 C 444 137.933, 446.389 141, 449.374 141 C 454.638 141, 458.788 129.542, 453.979 128.284 C 452.391 127.869, 452.203 127.460, 453.101 126.378 C 453.730 125.620, 454.833 125, 455.553 125 C 456.272 125, 457.056 123.987, 457.294 122.750 L 457.728 120.500 457.864 122.750 C 457.956 124.274, 458.634 125, 459.965 125 C 461.045 125, 462.406 125.890, 462.988 126.977 C 463.820 128.531, 463.754 128.843, 462.683 128.432 C 460.517 127.601, 458.687 130.615, 459.462 133.737 C 460.434 137.653, 463.896 141, 466.974 141 C 470.593 141, 472 139.265, 472 134.800 C 472 131.312, 472.228 131, 474.777 131 C 483.533 131, 484.644 121.111, 476.178 118.528 C 472.432 117.385, 468.699 118.741, 469.297 121.028 C 469.726 122.668, 469.511 122.809, 467.902 121.947 C 466.856 121.388, 466 120.339, 466 119.618 C 466 118.896, 464.988 117.817, 463.750 117.220 L 461.500 116.135 463.750 116.068 C 465.205 116.024, 466 115.378, 466 114.241 C 466 113.273, 466.818 111.970, 467.818 111.346 C 469.367 110.378, 469.626 110.528, 469.568 112.355 C 469.449 116.101, 477.155 115.845, 481.025 111.975 C 485.106 107.894, 482.449 102.295, 476.206 101.819 C 473.341 101.601, 473 101.245, 473 98.478 C 473 92.847, 468.615 90.074, 463.745 92.626 M 429.500 115 C 428.684 116.320, 429.880 118.192, 431.069 117.457 C 432.284 116.707, 432.276 114, 431.059 114 C 430.541 114, 429.840 114.450, 429.500 115 M 483.409 115.376 C 482.562 117.584, 483.689 118.711, 485.217 117.183 C 486.119 116.281, 486.122 115.722, 485.233 114.833 C 484.343 113.943, 483.909 114.072, 483.409 115.376 M 456 142.500 C 456 143.325, 456.675 144, 457.500 144 C 458.325 144, 459 143.325, 459 142.500 C 459 141.675, 458.325 141, 457.500 141 C 456.675 141, 456 141.675, 456 142.500"/></symbol>
+    <symbol id="g-smeny" viewBox="370.0 139.7 52.5 42.6"><path fill="currentColor" fill-rule="evenodd" d="M 383.288 146.254 C 373.577 156.874, 377.983 172.783, 391.970 177.602 C 397.054 179.353, 402.207 178.380, 407.853 174.601 C 416.418 168.870, 418.819 157.191, 413.066 149.250 C 409.839 144.795, 407.266 142.644, 408.259 145.232 C 411.779 154.404, 411.313 161.103, 406.968 163.798 C 404.314 165.443, 401 164.440, 401 161.992 C 401 159.487, 402.743 158.541, 404.568 160.056 C 406.709 161.834, 407.208 160.742, 405.420 158.190 C 404.577 156.985, 403.067 156, 402.065 156 C 400.985 156, 399.739 154.783, 399.005 153.013 C 397.645 149.730, 396.363 149.915, 394.963 153.597 C 394.459 154.923, 393.231 156, 392.225 156 C 390.045 156, 388 157.850, 388 159.822 C 388 160.915, 388.318 160.981, 389.373 160.105 C 391.137 158.642, 394.189 159.789, 393.799 161.769 C 393.187 164.873, 390.269 165.591, 387.294 163.370 C 383.261 160.359, 382.374 156.209, 384.426 149.938 C 386.384 143.950, 386.134 143.141, 383.288 146.254"/></symbol>
+    <symbol id="g-dengi" viewBox="416.3 361.8 86.2 92.2"><path fill="currentColor" fill-rule="evenodd" d="M 461.056 369 C 460.959 369.825, 460.853 377.878, 460.822 386.895 C 460.777 399.840, 461.053 403.417, 462.133 403.895 C 462.885 404.228, 470.925 404.275, 480 404 L 496.500 403.500 489.325 402.173 L 482.150 400.845 481.508 397.047 C 481.100 394.635, 479.706 392.151, 477.683 390.238 C 475.932 388.582, 473.922 386.503, 473.217 385.620 C 472.511 384.736, 470.142 383.727, 467.953 383.377 C 463.627 382.685, 463.658 382.739, 462.109 373 C 461.628 369.975, 461.154 368.175, 461.056 369 M 456.671 373.500 C 455.172 382.549, 454.680 383.434, 450.984 383.734 C 446.269 384.116, 438.223 392.074, 437.375 397.193 C 436.798 400.673, 436.480 400.946, 431.832 401.943 C 429.120 402.524, 426.024 403, 424.951 403 C 423.878 403, 423 403.372, 423 403.826 C 423 404.638, 456.817 404.516, 457.632 403.702 C 457.861 403.472, 457.925 395.458, 457.774 385.892 C 457.565 372.617, 457.304 369.683, 456.671 373.500 M 465.636 387.277 C 463.962 388.501, 463.598 390.661, 463.874 397.750 L 464 401 469.929 401 C 475.465 401, 479 399.488, 479 397.120 C 479 395.210, 476.161 392.724, 474.645 393.306 C 472.348 394.187, 472.588 396, 475 396 C 477.404 396, 477.578 397.275, 475.419 399.067 C 474.247 400.040, 473.388 400.099, 472.104 399.297 C 470.930 398.564, 469.794 398.536, 468.588 399.211 C 466.099 400.604, 464.475 398.849, 465.861 396.261 C 466.588 394.901, 466.588 393.988, 465.861 393.261 C 465.133 392.533, 465.158 391.574, 465.943 390.107 C 467.369 387.443, 469 387.385, 469 390 C 469 391.111, 469.667 392, 470.500 392 C 472.671 392, 472.344 388.254, 470.066 387.035 C 467.653 385.744, 467.739 385.739, 465.636 387.277 M 447.667 387.667 C 446.585 388.748, 446.905 392, 448.094 392 C 448.695 392, 449.420 391.111, 449.704 390.024 C 450.117 388.446, 450.595 388.248, 452.079 389.042 C 453.592 389.852, 453.757 390.509, 452.968 392.584 C 452.326 394.272, 452.351 395.788, 453.043 397.080 C 454.255 399.346, 451.653 401.053, 449.804 399.204 C 449.056 398.456, 448.230 398.464, 447.004 399.229 C 444.835 400.584, 442 399.589, 442 397.472 C 442 396.598, 442.453 396.162, 443.007 396.504 C 444.071 397.162, 445.630 394.296, 444.709 393.376 C 443.692 392.359, 440 395.072, 440 396.835 C 440 399.946, 442.202 401, 448.700 401 L 455 401 455 395.200 C 455 392.010, 454.460 388.860, 453.800 388.200 C 452.506 386.906, 448.753 386.580, 447.667 387.667 M 458.723 404.611 C 457.594 405.739, 457.873 407, 459.250 407 C 460.214 407, 460.421 410.787, 460.154 423.527 C 459.761 442.251, 460.740 447.643, 462.419 436 L 463.500 428.500 466.899 428.176 C 470.498 427.832, 475 425.412, 475 423.820 C 475 423.298, 476.350 421.735, 478 420.347 C 480.241 418.461, 481 416.969, 481 414.450 C 481 410.796, 480.156 411.255, 492.500 408.197 C 495.644 407.419, 492.779 407.185, 479.110 407.103 C 464.611 407.017, 461.531 406.741, 460.583 405.444 C 459.957 404.588, 459.120 404.213, 458.723 404.611 M 422.770 407.138 C 422.205 407.490, 424.163 408.108, 427.121 408.513 C 435.499 409.659, 437 410.490, 437 413.985 C 437 415.865, 437.808 417.682, 439.123 418.760 C 440.290 419.717, 441.753 421.105, 442.373 421.844 C 446.072 426.256, 448.566 428, 451.171 428 C 454.379 428, 455.945 430.659, 456.070 436.315 C 456.109 438.067, 456.533 440.400, 457.013 441.500 C 457.542 442.714, 457.809 436.430, 457.692 425.500 L 457.500 407.500 440.649 407 C 431.380 406.725, 423.335 406.787, 422.770 407.138 M 441.200 411.200 C 438.771 413.629, 441.209 419.225, 443.956 417.527 C 445.756 416.415, 445.096 415, 442.778 415 L 440.556 415 442.789 412.766 C 444.597 410.959, 445.366 410.748, 446.827 411.660 C 447.964 412.370, 449.228 412.452, 450.249 411.881 C 452.383 410.686, 452.751 411.546, 452.614 417.416 C 452.497 422.441, 450.682 424.715, 449.721 421.041 C 448.982 418.217, 447 418.473, 447 421.393 C 447 424.035, 449.052 425.287, 451.750 424.292 C 454.460 423.292, 454.968 421.949, 454.985 415.750 L 455 410 448.700 410 C 445.133 410, 441.879 410.521, 441.200 411.200 M 463.667 410.667 C 462.359 411.975, 463.016 420.578, 464.597 422.834 C 466.423 425.442, 469.723 425.414, 471.375 422.778 C 472.170 421.510, 472.123 420.723, 471.195 419.795 C 470.181 418.781, 469.820 418.971, 469.351 420.767 C 469.029 421.995, 468.175 423, 467.451 423 C 465.626 423, 464.591 419.197, 465.966 417.541 C 466.744 416.604, 466.770 415.976, 466.049 415.530 C 463.675 414.063, 464.937 411.737, 467.797 412.309 C 469.335 412.617, 471.224 412.480, 471.993 412.004 C 473.713 410.942, 477 412.542, 477 414.442 C 477 415.349, 476.278 415.624, 474.866 415.255 C 473.329 414.853, 472.863 415.089, 473.199 416.098 C 473.929 418.288, 477.181 417.743, 478.093 415.279 C 479.409 411.720, 476.803 410, 470.095 410 C 466.926 410, 464.033 410.300, 463.667 410.667"/></symbol>
+
+
+    <!-- brand mark: real qos-müiz heart motif, supplied directly (not hand-built) -->
+    <symbol id="g-muiz" viewBox="0 0 1024 726">
+      <path fill="currentColor" d="M 667.500 6.615 C 606.992 13.001, 559.313 34.241, 518.752 72.881 L 511.003 80.262 499.752 68.836 C 469.378 37.989, 435.727 20.015, 394 12.348 C 382.167 10.174, 345.727 9.852, 333.500 11.814 C 291.162 18.607, 259.539 28.130, 230.201 42.922 C 221.133 47.494, 215.375 52.201, 142 115.029 C 98.825 151.997, 49.468 194.227, 32.317 208.872 C 15.167 223.517, 1.104 235.763, 1.067 236.085 C 1.030 236.406, 5.612 237.684, 11.250 238.925 C 16.888 240.165, 26 242.244, 31.500 243.545 C 56.990 249.572, 86.492 256.490, 96.500 258.787 C 124.279 265.161, 147.769 260.469, 169.648 244.176 C 179.186 237.072, 190.452 225.346, 195.080 217.704 C 198.801 211.560, 200 210.736, 200 214.324 C 200 219.410, 203.370 236.021, 206.223 245 C 215.830 275.231, 237.688 302.340, 263.029 315.452 C 324.608 347.317, 399.802 314.933, 417.463 248.943 C 420.223 238.626, 422.686 219.283, 421.401 218.010 C 420.871 217.485, 416.380 218.489, 410.500 220.448 C 390.515 227.105, 361.598 229.628, 350.329 225.696 C 343.413 223.283, 336.843 217.325, 333.889 210.788 C 330.749 203.838, 330.484 185.468, 333.365 174.500 C 340.101 148.856, 360.994 128.134, 387 121.303 C 395.870 118.973, 414.229 119.011, 423 121.378 C 450.416 128.775, 469.404 149.228, 481.007 183.861 C 492.711 218.796, 486.198 261.441, 463.956 295.500 C 450.458 316.168, 426.973 344.333, 412.010 357.796 C 387.030 380.272, 360.317 393.927, 326.568 401.472 C 284.756 410.820, 247.190 400.608, 215.965 371.407 C 207.278 363.283, 204.419 362.577, 207.001 369.194 C 214.067 387.309, 240.488 436.359, 254.836 458 C 278.682 493.966, 312.272 511.374, 358 511.465 C 380.810 511.511, 396.652 508.200, 413 499.971 C 424.914 493.974, 451.078 474.325, 475 453.410 C 488.560 441.554, 495.168 437.075, 499.173 437.022 C 502.454 436.979, 506.941 441.988, 508.536 447.474 C 512.143 459.882, 503.441 493.264, 489.240 521.500 C 466.929 565.860, 437.088 586.560, 405.562 579.546 C 401.314 578.601, 397.582 578.085, 397.268 578.398 C 396.606 579.061, 398.332 580.961, 430.520 615 C 471.314 658.140, 529.218 719.423, 530.600 720.920 C 532.082 722.525, 531.048 723.574, 564.071 686.954 C 595.858 651.705, 639.709 603.294, 650.719 591.296 C 656.373 585.134, 661 579.711, 661 579.244 C 661 578.777, 656.558 577.840, 651.130 577.163 C 600.231 570.811, 555.871 535.712, 541.081 490.088 C 536.142 474.853, 535.559 455.686, 539.825 448.784 C 542.860 443.873, 548.991 441, 556.437 441 L 562.242 441 573.871 452.309 C 620.294 497.457, 666.911 513.288, 710.987 498.876 C 736.956 490.384, 773.185 464.422, 795.873 438.046 C 817.530 412.869, 834.682 375.470, 837.666 346.917 C 838.588 338.099, 837.231 337.847, 828.641 345.240 C 807.665 363.294, 779.189 376.725, 753.573 380.648 C 740.146 382.704, 714.105 381.948, 702 379.150 C 676.394 373.232, 660.856 364.936, 633.500 342.575 C 588.336 305.658, 565.497 271.513, 555.859 226.500 C 552.307 209.912, 552.514 186.119, 556.317 173.718 C 566.203 141.482, 587.727 119.572, 617 111.946 C 652.788 102.623, 690.523 121.586, 703.280 155.305 C 706.153 162.896, 706.386 164.461, 706.441 176.550 L 706.500 189.599 702.747 197.194 C 689.154 224.707, 650.800 232.710, 625.381 213.339 C 618.796 208.321, 617.446 213.044, 620.958 228.813 C 632.567 280.929, 668.972 316.029, 711.381 315.996 C 739.321 315.974, 784.530 296.284, 806.379 274.620 C 814.812 266.258, 822.204 255.492, 826.122 245.866 C 831.157 233.493, 833.826 214.697, 832.138 203.500 C 831.640 200.200, 831.336 197.382, 831.462 197.238 C 831.588 197.094, 835.062 200.294, 839.183 204.348 C 852.118 217.075, 867.445 226.630, 884.086 232.340 C 923.918 246.009, 982.349 233.383, 1020 202.973 L 1022.500 200.954 1019.413 198.227 C 1009.162 189.170, 965.613 151.970, 949.724 138.698 C 864.617 67.608, 826.627 39.713, 800.860 29.390 C 773.290 18.344, 750.873 12.332, 723 8.509 C 711.898 6.986, 675.693 5.751, 667.500 6.615" fill-rule="evenodd"/>
+    </symbol>
+
+    <!-- divider ornament: real border motif, supplied directly — the outer full-canvas
+         frame + background square from the source file are stripped out; only the
+         scrollwork itself remains, so it sits on the page with no colour block behind it -->
+    <symbol id="g-ornament" viewBox="30 313 676 128">
+      <path fill="currentColor" fill-rule="evenodd" d="M 364.194 327.750 C 362.535 330.363, 360.607 334.525, 359.909 337 C 359.211 339.475, 358.561 341.622, 358.465 341.771 C 358.369 341.921, 355.863 340.912, 352.895 339.531 C 348.431 337.453, 345.984 337.018, 338.717 337.010 C 329.478 336.999, 324.064 338.816, 316.500 344.464 C 305.203 352.898, 293.976 351.834, 285.345 341.509 C 279.489 334.502, 277.045 335.786, 277.014 345.884 C 276.973 358.814, 285.240 368.219, 298.597 370.442 L 302.694 371.124 302.226 375.997 C 301.640 382.097, 305.003 390, 308.185 390 C 311.121 390, 315.780 386.336, 317.767 382.464 L 319.500 379.088 323.900 382.044 C 331.396 387.079, 342.719 385.742, 347.451 379.262 C 349.266 376.777, 351.094 365, 349.665 365 C 349.348 365, 347.431 366.125, 345.405 367.500 C 340.252 370.997, 334.742 370.899, 331.341 367.250 C 326.143 361.673, 325.983 356.307, 330.874 351.621 C 343.280 339.735, 363.176 355.373, 363.316 377.121 C 363.430 394.810, 350.732 408.135, 332.290 409.678 C 314.599 411.158, 295.953 400.484, 282.196 381 C 264.941 356.561, 261.482 352.939, 248.071 345.274 C 227.716 333.640, 207.891 334.053, 190.486 346.473 C 182.845 351.925, 179.582 355.862, 166.374 375.561 C 150.330 399.490, 138.986 408.713, 120.723 412.676 C 103.054 416.510, 86.074 407.798, 80.517 392.049 C 72.420 369.099, 95.024 341.211, 110.897 354.567 C 121.784 363.727, 108.433 379.534, 96.595 371.500 C 94.569 370.125, 92.650 369, 92.332 369 C 90.916 369, 92.819 380.284, 94.657 382.791 C 99.289 389.111, 110.633 391.089, 117.110 386.707 C 118.975 385.446, 121.058 384.072, 121.741 383.654 C 122.559 383.152, 123.524 384.032, 124.575 386.235 C 126.406 390.075, 132.263 394.497, 134.421 393.669 C 137.509 392.484, 139.497 387.703, 139.672 381.046 L 139.843 374.500 145.055 373.739 C 154.537 372.355, 161.564 366.494, 164.023 357.920 C 165.503 352.760, 165.228 343.683, 163.525 341.441 C 162.113 339.583, 161.835 339.742, 157.044 345.134 C 147.080 356.348, 137.464 357.044, 124.131 347.516 C 116.698 342.205, 112.755 341, 102.816 341 C 91.148 341, 85.205 343.622, 77.937 351.980 L 72.854 357.823 67.538 355.389 C 61.971 352.840, 44.771 350.508, 42.153 351.947 C 41.193 352.475, 42.196 353.713, 45.653 356.264 C 48.319 358.231, 51.940 361.338, 53.699 363.170 C 58.325 367.985, 67 382.863, 67 385.981 C 67 399.457, 81.637 416.198, 98.487 421.996 C 106.009 424.583, 123.524 424.804, 130.715 422.401 C 137.851 420.017, 151.946 411.673, 156.542 407.112 L 160.583 403.101 162.318 409.801 C 164.144 416.850, 167.702 424.082, 169.661 424.726 C 171.183 425.226, 176.817 413.709, 177.762 408.168 L 178.500 403.836 181.564 408.168 C 187.016 415.877, 196.103 420.711, 207 421.699 C 213.550 422.293, 221.176 419.766, 229.264 414.321 C 237.372 408.862, 239.515 408, 244.982 408 C 253.193 408, 259.548 411.698, 264.311 419.250 C 267.879 424.905, 269.970 422.044, 269.977 411.500 C 269.985 399.134, 262.990 390.708, 250.372 387.884 L 245 386.682 245 381.075 C 245 374.701, 242.357 368.653, 239.388 368.233 C 236.421 367.813, 231.505 371.415, 229.618 375.393 L 227.896 379.022 224.308 376.286 C 218.787 372.075, 208.401 371.694, 203.387 375.519 C 199.181 378.727, 197 383.319, 197 388.968 C 197 393.717, 197.034 393.728, 201.785 390.500 C 210.629 384.490, 221.513 391.119, 219.595 401.346 C 218.041 409.630, 205.911 413.126, 197.389 407.746 C 181.869 397.948, 179.637 372.872, 193.015 358.599 C 199.982 351.166, 206.541 348.544, 218 348.614 C 239.092 348.741, 252.436 357.959, 270.901 385.155 C 293.932 419.076, 325.905 430.080, 353.371 413.536 C 360.318 409.352, 359.997 409.414, 360.010 412.250 C 360.023 415.207, 364.173 423.889, 366.966 426.801 C 368.757 428.668, 369.450 428.872, 370.644 427.881 C 372.962 425.957, 376.728 418.913, 377.983 414.153 C 379.029 410.187, 379.276 409.936, 380.815 411.289 C 387.678 417.327, 401.681 421.396, 413.440 420.771 C 426.476 420.078, 443.034 412.360, 453.677 402.019 C 459.031 396.815, 458.534 397.452, 470.946 379.893 C 484.159 361.202, 493.949 353.482, 509.460 349.522 C 532.635 343.605, 554 358.662, 554 380.912 C 554 394.247, 545.056 407.619, 534.551 409.988 C 521.735 412.879, 512.696 400.104, 521.400 391.400 C 525.724 387.076, 530.901 386.765, 536.405 390.500 C 541.085 393.676, 541.004 393.698, 540.978 389.250 C 540.946 383.853, 537.689 377.391, 533.808 375.024 C 527.759 371.337, 517.664 372.371, 512.328 377.226 L 510.156 379.202 508.614 376.220 C 506.502 372.136, 501.163 367.833, 498.663 368.199 C 495.301 368.690, 492.707 374.339, 492.801 380.964 L 492.884 386.763 486.958 387.929 C 479.577 389.381, 473.332 393.890, 470.222 400.014 C 468.290 403.820, 467.986 405.787, 468.222 412.989 C 468.558 423.244, 470.295 424.662, 474.454 418.073 C 478.072 412.342, 483.910 408.755, 490.514 408.207 C 497.554 407.624, 499.655 408.227, 506.117 412.686 C 514.042 418.156, 520.258 420.895, 526.374 421.614 C 537.298 422.898, 552.575 415.634, 556.971 407.066 L 558.792 403.515 559.943 408.007 C 562.052 416.242, 566.244 425, 568.076 425 C 569.717 425, 572.244 419.990, 574.902 411.465 L 577.552 402.962 581.372 406.994 C 585.660 411.519, 596.069 418.018, 604.738 421.583 C 612.435 424.748, 630.677 425.040, 639.093 422.132 C 657.115 415.907, 668.839 402.398, 671.319 385 C 672.404 377.396, 684.412 361.343, 694 354.681 C 696.089 353.229, 696.254 352.790, 695.007 352.013 C 691.954 350.109, 673.565 352.879, 668.186 356.053 L 664.842 358.026 662.171 354.816 C 653.123 343.942, 647.245 341.014, 634.500 341.032 C 624.220 341.046, 621.314 342.059, 610.671 349.346 C 604.826 353.348, 603.178 354, 598.905 354 C 590.837 354, 583.915 350.283, 579.280 343.461 C 574.676 336.686, 572.416 339.994, 573.208 352.346 C 573.971 364.229, 581.203 372.195, 592.723 373.840 L 597.500 374.522 597.664 380.285 C 597.856 386.995, 600.697 393.353, 603.704 393.801 C 606.133 394.164, 611.505 389.859, 613.543 385.916 L 615.015 383.070 618.684 385.561 C 623.350 388.727, 625.939 389.356, 631.926 388.781 C 640.652 387.943, 646 381.958, 646 373.032 C 646 368.283, 645.966 368.272, 641.215 371.500 C 629.603 379.390, 616.502 365.298, 626.321 355.479 C 635.131 346.669, 648.870 351.960, 655.852 366.852 C 659.861 375.404, 659.719 388.299, 655.532 395.859 C 647.491 410.376, 631.223 416.681, 613.660 412.087 C 597.191 407.778, 586.396 398.259, 569.781 373.395 C 558.292 356.201, 553.251 350.342, 545.571 345.255 C 532.874 336.844, 516.115 334.570, 502.487 339.408 C 485.813 345.327, 472.603 355.794, 462.269 371.274 C 446.279 395.227, 435.711 404.140, 418.004 408.604 C 410.053 410.608, 399.463 409.887, 393.342 406.923 C 372.935 397.045, 368.085 371.195, 383.448 354.190 C 393.182 343.415, 410 346.295, 410 358.736 C 410 368.319, 399.281 373.473, 392.034 367.376 C 388.213 364.160, 387.521 364.727, 387.884 370.783 C 388.436 380, 393.912 385, 403.454 385 C 409.157 385, 413.564 383.436, 415.945 380.566 C 417.589 378.585, 419 378.555, 419 380.500 C 419 383.065, 426.858 390.161, 429.311 389.811 C 432.806 389.314, 436.262 381.632, 435.620 375.786 L 435.103 371.071 438.801 370.451 C 451.863 368.262, 459.263 361.015, 460.684 349.023 C 461.591 341.359, 460.421 337, 457.455 337 C 456.105 337, 455 337.434, 455 337.965 C 455 339.954, 448.371 346.381, 444.509 348.135 C 442.201 349.183, 438.139 349.965, 434.936 349.978 C 429.962 349.998, 428.640 349.509, 422.474 345.373 C 411.952 338.317, 408.160 337, 398.361 337 C 391.033 337, 389.103 337.390, 384.076 339.884 L 378.263 342.768 376.686 337.134 C 375.199 331.823, 369.788 323, 368.018 323 C 367.573 323, 365.852 325.137, 364.194 327.750"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+document.querySelectorAll('.viewer-bar button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.viewer-bar button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.v).classList.add('on');
+  });
+});
+
+const cart = {};
+function fmt(n){return n.toLocaleString('ru-RU')+' ₸';}
+function renderCart(){
+  const box = document.getElementById('checkItems');
+  const keys = Object.keys(cart);
+  if(keys.length===0){
+    box.innerHTML = '<div style="color:var(--cream-soft);font-size:13px;padding:20px 0;text-align:center;">Чек пустой — коснитесь товара слева</div>';
+    document.getElementById('checkTotal').textContent = '0 ₸';
+    return;
+  }
+  let total = 0;
+  box.innerHTML = keys.map(name=>{
+    const it = cart[name];
+    total += it.price*it.qty;
+    return `<div class="citem">
+      <div class="qty"><button onclick="changeQty('${name}',-1)">−</button><span>${it.qty}</span><button onclick="changeQty('${name}',1)">+</button></div>
+      <div class="name">${name}</div>
+      <div class="money">${fmt(it.price*it.qty)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('checkTotal').textContent = fmt(total);
+}
+window.changeQty = function(name,delta){
+  cart[name].qty += delta;
+  if(cart[name].qty<=0) delete cart[name];
+  renderCart();
+};
+document.getElementById('posGrid').addEventListener('click', e=>{
+  const card = e.target.closest('.pcard');
+  if(!card) return;
+  const name = card.dataset.name, price = parseInt(card.dataset.price,10);
+  if(!cart[name]) cart[name] = {price, qty:0};
+  cart[name].qty += 1;
+  renderCart();
+});
+
+const days = [
+  {lbl:'ПН', gold:14, turq:22},{lbl:'ВТ', gold:11, turq:18},{lbl:'СР', gold:18, turq:26},
+  {lbl:'ЧТ', gold:9,  turq:15},{lbl:'ПТ', gold:21, turq:33},{lbl:'СБ', gold:26, turq:38},{lbl:'ВС', gold:19, turq:29},
+];
+const maxV = Math.max(...days.map(d=>d.gold+d.turq));
+document.getElementById('barsChart').innerHTML = days.map(d=>{
+  const h = 110;
+  const goldH = (d.gold/maxV)*h, turqH = (d.turq/maxV)*h;
+  return `<div class="bar-col">
+    <div class="bar-stack" style="height:${goldH+turqH}px;">
+      <div class="seg-gold" style="height:${goldH}px;"></div>
+      <div class="seg-turq" style="height:${turqH}px;"></div>
+    </div>
+    <div class="lbl">${d.lbl}</div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>

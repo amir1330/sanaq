@@ -6,22 +6,25 @@
   --ink: 27 24 17;
   --ink-soft: 91 83 70;
   --paper: 247 244 236;
-  --paper-2: 240 235 221;
+  --paper-2: 239 233 218;
   --foam: 247 244 236;
-  --line: 221 213 193;
-  --line-2: 201 191 165;
-  --sun: 176 138 46;
-  --sun-hot: 196 158 62;
+  --line: 228 220 199;
+  --line-2: 210 199 169;
+  --sun: 188 148 58;
+  --sun-hot: 211 172 82;
   --sky: 63 143 134;
-  --sky-deep: 47 120 113;
+  --sky-deep: 87 171 161;
   --mute: 91 83 70;
   --faint: 139 130 109;
-  --alert: 176 74 52;
-  --roast: 33 29 23;
-  --roast-2: 42 37 29;
-  --line-dark: 60 54 43;
+  --alert: 138 44 46;
+  --maroon: 138 44 46;
+  --maroon-deep: 92 27 29;
+  --roast: 32 27 20;
+  --roast-2: 44 39 30;
+  --line-dark: 69 62 48;
   --cream: 239 233 218;
   --cream-soft: 167 157 133;
+  --navy: 44 74 110;
   color-scheme: light;
   color: rgb(var(--ink));
   background: rgb(var(--paper));
@@ -34,23 +37,26 @@
 html.dark {
   --ink: 239 233 218;
   --ink-soft: 167 157 133;
-  --paper: 33 29 23;
-  --paper-2: 42 37 29;
-  --foam: 42 37 29;
-  --line: 60 54 43;
+  --paper: 32 27 20;
+  --paper-2: 44 39 30;
+  --foam: 44 39 30;
+  --line: 69 62 48;
   --line-2: 80 73 58;
-  --sun: 176 138 46;
-  --sun-hot: 196 158 62;
+  --sun: 188 148 58;
+  --sun-hot: 211 172 82;
   --sky: 63 143 134;
   --sky-deep: 86 168 160;
   --mute: 167 157 133;
   --faint: 139 130 109;
-  --alert: 214 110 86;
-  --roast: 33 29 23;
-  --roast-2: 42 37 29;
-  --line-dark: 60 54 43;
-  --cream: 239 233 218;
+  --alert: 196 90 92;
+  --maroon: 196 90 92;
+  --maroon-deep: 138 44 46;
+  --roast: 32 27 20;
+  --roast-2: 44 39 30;
+  --line-dark: 69 62 48;
+  --cream: 44 39 30;
   --cream-soft: 167 157 133;
+  --navy: 90 122 158;
   color-scheme: dark;
 }
 
@@ -79,7 +85,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 1px solid rgb(var(--sun));
+  outline: 1.5px solid rgb(var(--sun));
   outline-offset: 3px;
 }
 

@@ -8,9 +8,9 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
-  { to: "/owner/products", label: "Меню" },
+  { to: "/owner/products", label: "Товары" },
   { to: "/owner/stock", label: "Склад" },
-  { to: "/owner/staff", label: "Люди" },
+  { to: "/owner/staff", label: "Сотрудники" },
   { to: "/owner/expenses", label: "Расходы" },
   { to: "/owner/shifts", label: "Смены" },
   { to: "/pos", label: "Касса" },
@@ -31,16 +31,16 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <div className="mx-auto max-w-[1080px] px-8 pb-[70px]">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-line py-6">
+      <div className="mx-auto max-w-[1100px] px-8 pb-[70px]">
+        <header className="mb-7 flex flex-wrap items-center justify-between gap-4 py-[22px]">
           <button onClick={() => navigate(kind === "admin" ? "/admin" : "/owner")} className="min-w-0">
             {kind === "admin" ? (
-              <Brand className="text-[15.5px]" markClass="h-[17px] w-[17px]" />
+              <Brand className="text-[17px]" markClass="h-[19px] w-[19px]" />
             ) : (
               <ShopBrand shop={currentShop} fallback="Точка" />
             )}
           </button>
-          <nav className="flex flex-1 flex-wrap justify-center gap-6 text-[13px]">
+          <nav className="flex flex-wrap gap-1 rounded-full bg-cream p-1">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -48,8 +48,8 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                 end={l.to === "/owner" || l.to === "/admin"}
                 className={({ isActive }) =>
                   isActive
-                    ? "border-b border-ink pb-1 text-ink"
-                    : "border-b border-transparent pb-1 text-faint hover:text-ink"
+                    ? "rounded-full bg-ink px-[15px] py-[9px] text-[12.5px] text-paper"
+                    : "rounded-full px-[15px] py-[9px] text-[12.5px] text-faint hover:text-ink"
                 }
               >
                 {l.label}
@@ -61,7 +61,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
               <label className="flex items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-[0.08em]">Филиал</span>
                 <select
-                  className="max-w-48 border-0 border-b border-line-2 bg-transparent py-1 text-ink outline-none"
+                  className="max-w-48 rounded-full border-[1.5px] border-line-2 bg-transparent px-3 py-1 text-ink outline-none"
                   value={shopId ?? ""}
                   onChange={(e) => setShopId(Number(e.target.value))}
                 >

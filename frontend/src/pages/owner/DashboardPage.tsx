@@ -66,13 +66,15 @@ export function DashboardPage() {
     <div>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex border border-line-2">
+          <div className="flex gap-2">
             {(["today", "week", "month", "custom"] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`border-r border-line-2 px-4 py-2 text-xs last:border-r-0 ${
-                  period === p ? "bg-ink text-paper" : "text-ink-soft"
+                className={`rounded-full border-[1.5px] px-4 py-2 text-[12.5px] ${
+                  period === p
+                    ? "border-ink bg-ink text-paper"
+                    : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
                 }`}
               >
                 {p === "today" ? "Сегодня" : p === "week" ? "7 дней" : p === "month" ? "Этот месяц" : "Свои даты"}
@@ -99,43 +101,43 @@ export function DashboardPage() {
           )}
         </div>
         <Button variant="quiet" disabled={!shopId || !rangeOk || exporting} onClick={() => void exportCsv()}>
-          {exporting ? "Собираем…" : "Скачать таблицу"}
+          {exporting ? "Собираем…" : "Скачать CSV"}
         </Button>
       </div>
       {shop && !shop.webkassa_enabled && (
-        <p className="mb-4 border border-alert/40 bg-alert/10 px-4 py-3 text-sm text-alert">
+        <p className="mb-4 rounded-md bg-maroon/10 px-4 py-3 text-sm text-maroon">
           Продажи не фискализируются. Касса Webkassa выключена в настройках.
         </p>
       )}
       {s && (s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0) > 0 && (
-        <p className="mb-4 border border-alert/40 bg-alert/10 px-4 py-3 text-sm text-alert">
+        <p className="mb-4 rounded-md bg-maroon/10 px-4 py-3 text-sm text-maroon">
           Не фискализировано: {(s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0)} чеков за период.
         </p>
       )}
       {!rangeOk && <p className="mb-4 text-sm text-alert">Дата «с» должна быть раньше «по».</p>}
       {exportError && <p className="mb-4 text-sm text-alert">{exportError}</p>}
 
-      <div className="mb-px grid border border-line md:grid-cols-4">
+      <div className="mb-5 grid gap-3.5 md:grid-cols-4">
         <Tile label="Выручка" value={money(s?.revenue)} />
-        <Tile label="Прибыль" value={money(s?.profit)} gold />
+        <Tile label="Прибыль" value={money(s?.profit)} profit />
         <Tile label="Расходы" value={money(s?.expenses)} />
-        <Tile label="Чистыми" value={money(s?.net_profit)} last />
+        <Tile label="Чистыми" value={money(s?.net_profit)} />
       </div>
       {s && (
-        <p className={`border border-t-0 border-line px-6 py-3 text-sm ${Number(s.revision_shortage || 0) > 0 ? "text-alert" : "text-mute"}`}>
+        <p className={`mb-5 rounded-md px-5 py-3 text-sm ${Number(s.revision_shortage || 0) > 0 ? "bg-maroon/10 text-maroon" : "bg-cream text-mute"}`}>
           Недостачи по ревизиям: −{money(s.revision_shortage || 0)}. Уже вычтены из «Чистыми».
         </p>
       )}
 
-      <div className="border border-t-0 border-line px-6 py-8">
-        <h4 className="font-display text-[17px] font-normal">Наличные и безналичные</h4>
-        <div className="mb-7 mt-1.5 flex gap-5 text-xs text-ink-soft">
+      <div className="mb-4 rounded-lg bg-cream px-[26px] py-7 shadow-soft">
+        <h4 className="font-display text-[19px] font-normal">Наличные и безналичные</h4>
+        <div className="mb-[26px] mt-1.5 flex gap-5 text-xs text-ink-soft">
           <span>
-            <i className="mr-2 inline-block h-[7px] w-[7px] bg-gold" />
+            <i className="mr-2 inline-block h-2 w-2 rounded-full bg-gold" />
             Наличными
           </span>
           <span>
-            <i className="mr-2 inline-block h-[7px] w-[7px] bg-turq" />
+            <i className="mr-2 inline-block h-2 w-2 rounded-full bg-turq" />
             Безналично
           </span>
         </div>
@@ -151,7 +153,7 @@ export function DashboardPage() {
               const turqH = (card / maxBar) * h;
               return (
                 <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex w-full max-w-[22px] flex-col-reverse" style={{ height: goldH + turqH }}>
+                  <div className="flex w-full max-w-[26px] flex-col-reverse overflow-hidden rounded-lg" style={{ height: goldH + turqH }}>
                     <div className="bg-gold" style={{ height: goldH }} />
                     <div className="bg-turq" style={{ height: turqH }} />
                   </div>
@@ -165,7 +167,7 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="border border-t-0 border-line">
+      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-line text-left font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
@@ -198,8 +200,8 @@ export function DashboardPage() {
       </div>
 
       {(fiscal.data ?? []).length > 0 && (
-        <div className="mt-8 border border-line">
-          <div className="border-b border-line px-6 py-3">
+        <div className="mt-4 overflow-hidden rounded-lg bg-cream shadow-soft">
+          <div className="px-6 py-3">
             <h4 className="font-display text-[17px] font-normal">Чеки без ОФД</h4>
             <p className="text-sm text-mute">Ошибка Webkassa или ещё не ушло. Можно отправить снова.</p>
           </div>
@@ -260,18 +262,16 @@ function FiscalRow({
 function Tile({
   label,
   value,
-  gold,
-  last,
+  profit,
 }: {
   label: string;
   value: string;
-  gold?: boolean;
-  last?: boolean;
+  profit?: boolean;
 }) {
   return (
-    <div className={`px-6 py-6 ${last ? "" : "border-b border-line md:border-b-0 md:border-r"}`}>
+    <div className="rounded-lg bg-cream px-[22px] py-5 shadow-soft">
       <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">{label}</p>
-      <p className={`mt-2.5 font-mono text-[23px] font-semibold ${gold ? "text-gold" : "text-ink"}`}>{value}</p>
+      <p className={`mt-2.5 font-mono text-2xl font-semibold ${profit ? "text-maroon" : "text-ink"}`}>{value}</p>
     </div>
   );
 }
