@@ -53,46 +53,24 @@ async def list_revisions(session: AsyncSession, shop_id: int) -> list[StockRevis
     return list(result.scalars().unique().all())
 
 
-async def _shop_items(session: AsyncSession, shop_id: int) -> dict[int, StockItem]:
-    rows = (
-        await session.execute(select(StockItem).where(StockItem.shop_id == shop_id).order_by(StockItem.name))
-    ).scalars().all()
-    return {item.id: item for item in rows}
-
-
-async def _append_missing_items(session: AsyncSession, revision: StockRevision) -> None:
-    if revision.status != StockRevisionStatus.draft:
-        return
-    items = await _shop_items(session, revision.shop_id)
-    existing = {line.stock_item_id for line in revision.lines if line.stock_item_id}
-    for item in items.values():
-        if item.id in existing:
-            continue
-        revision.lines.append(
-            StockRevisionLine(
-                stock_item_id=item.id,
-                stock_item_name=item.name,
-                base_unit=item.base_unit,
-                expected_quantity=item.quantity,
-                cost_per_base_unit=item.cost_per_base_unit,
+async def open_revision_id(session: AsyncSession, shop_id: int) -> int | None:
+    return (
+        await session.execute(
+            select(StockRevision.id).where(
+                StockRevision.shop_id == shop_id,
+                StockRevision.status == StockRevisionStatus.draft,
             )
         )
-    await session.flush()
+    ).scalar_one_or_none()
 
 
-async def sync_live_expected(session: AsyncSession, revision: StockRevision) -> None:
-    """Expected = live remainder, so sales during the count don't fake a shortage."""
-    if revision.status != StockRevisionStatus.draft:
-        return
-    await _append_missing_items(session, revision)
-    items = await _shop_items(session, revision.shop_id)
-    for line in revision.lines:
-        item = items.get(line.stock_item_id) if line.stock_item_id else None
-        if item is None:
-            continue
-        line.expected_quantity = item.quantity
-        line.cost_per_base_unit = item.cost_per_base_unit
-    await session.flush()
+async def assert_no_open_revision(session: AsyncSession, shop_id: int) -> None:
+    revision_id = await open_revision_id(session, shop_id)
+    if revision_id is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Идёт ревизия №{revision_id}. Продажи и склад остановлены до проведения или отмены.",
+        )
 
 
 async def create_revision(
@@ -151,7 +129,6 @@ async def save_revision(
 ) -> StockRevision:
     if revision.status != StockRevisionStatus.draft:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ревизия уже закрыта")
-    await sync_live_expected(session, revision)
     if comment is not None:
         revision.comment = comment.strip() or None
     if lines:
@@ -173,7 +150,6 @@ async def save_revision(
 async def post_revision(session: AsyncSession, revision: StockRevision, user: User) -> StockRevision:
     if revision.status != StockRevisionStatus.draft:
         raise HTTPException(status.HTTP_409_CONFLICT, "Ревизия уже закрыта")
-    await sync_live_expected(session, revision)
 
     counted_lines = [line for line in revision.lines if line.counted_quantity is not None]
     if not counted_lines:

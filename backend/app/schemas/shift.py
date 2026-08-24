@@ -70,6 +70,7 @@ class ShiftOut(ORMModel):
     cash_difference: Decimal | None = None
     sellers: list[SellerTotal] = Field(default_factory=list)
     fiscal_pending_count: int = 0
+    stock_revision_id: int | None = None
     z_report_number: str | None = None
     z_report_sent_at: datetime | None = None
     sales: list[ShiftSaleOut] = Field(default_factory=list)

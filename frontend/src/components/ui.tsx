@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "../lib/utils";
 
 export function Button({
@@ -237,5 +238,81 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
     <span className={cn("font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint", className)}>
       {children}
     </span>
+  );
+}
+
+export type MoreMenuItem = {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+};
+
+export function MoreMenu({ items, label = "Ещё" }: { items: MoreMenuItem[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        className="grid h-10 w-10 place-items-center rounded-full text-[18px] leading-none text-faint hover:bg-cream hover:text-ink"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          id={menuId}
+          role="menu"
+          className="absolute right-0 z-20 mt-1 min-w-44 overflow-hidden rounded-md bg-paper py-1 shadow-soft"
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              className={cn(
+                "block w-full px-4 py-2.5 text-left text-[13.5px] disabled:opacity-40",
+                item.danger ? "text-maroon hover:bg-maroon/10" : "text-ink hover:bg-cream",
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (item.disabled) return;
+                setOpen(false);
+                item.onClick();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

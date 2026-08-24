@@ -25,9 +25,12 @@ def test_zero_count_is_full_writeoff_value():
     assert line_value(diff, Decimal("2")) == Decimal("-1000.00")
 
 
-def test_live_expected_sale_during_count_is_not_shortage():
+def test_frozen_snapshot_counts_sale_as_shortage():
+    """Revision freezes expected at start; sales are blocked, so Δ is vs snapshot."""
     counted = Decimal("9800")
-    live_after_sale = Decimal("9800")
     start_snapshot = Decimal("10000")
-    assert line_difference(counted, live_after_sale) == Decimal("0.000")
     assert line_difference(counted, start_snapshot) == Decimal("-200.000")
+
+
+def test_matching_count_is_zero_delta():
+    assert line_difference(Decimal("9800"), Decimal("9800")) == Decimal("0.000")

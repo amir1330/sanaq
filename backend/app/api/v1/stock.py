@@ -1,10 +1,13 @@
+from datetime import datetime
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, roles
 from app.database import get_session
-from app.models import StockItem, StockLogAction, StockMovementType, User, UserRole
+from app.models import StockItem, StockLogAction, StockMovement, StockMovementType, User, UserRole
 from app.schemas.stock import (
     StockItemCreate,
     StockItemOut,
@@ -16,6 +19,7 @@ from app.schemas.stock import (
     StockTransferIn,
 )
 from app.services.access import assert_shop_access, can_receive_stock
+from app.services.revisions import assert_no_open_revision
 from app.services.stock import (
     apply_stock_movement,
     item_create_detail,
@@ -33,7 +37,14 @@ router = APIRouter(tags=["stock"])
 manage = roles(UserRole.super_admin, UserRole.owner)
 
 
-def _item_out(item: StockItem, *, hide_cost: bool) -> StockItemOut:
+def _item_out(
+    item: StockItem,
+    *,
+    hide_cost: bool,
+    last_income_at: datetime | None = None,
+) -> StockItemOut:
+    cost = Decimal("0") if hide_cost else item.cost_per_base_unit
+    value = Decimal("0") if hide_cost else (item.quantity * item.cost_per_base_unit).quantize(Decimal("0.01"))
     return StockItemOut(
         id=item.id,
         shop_id=item.shop_id,
@@ -44,11 +55,29 @@ def _item_out(item: StockItem, *, hide_cost: bool) -> StockItemOut:
         quantity=item.quantity,
         quantity_in_purchase=to_purchase(item.quantity, item.purchase_to_base),
         min_quantity=item.min_quantity,
-        cost_per_base_unit=0 if hide_cost else item.cost_per_base_unit,
+        cost_per_base_unit=cost,
+        value=value,
         image_url=item.image_url,
         updated_at=item.updated_at,
+        last_income_at=last_income_at,
         is_low=item.quantity <= item.min_quantity,
     )
+
+
+async def _last_income_map(session: AsyncSession, shop_id: int, item_id: int | None = None) -> dict[int, datetime]:
+    q = (
+        select(StockMovement.stock_item_id, func.max(StockMovement.created_at))
+        .where(
+            StockMovement.shop_id == shop_id,
+            StockMovement.type == StockMovementType.income,
+            StockMovement.stock_item_id.is_not(None),
+        )
+        .group_by(StockMovement.stock_item_id)
+    )
+    if item_id is not None:
+        q = q.where(StockMovement.stock_item_id == item_id)
+    rows = (await session.execute(q)).all()
+    return {item: at for item, at in rows if item is not None}
 
 
 @router.get("/shops/{shop_id}/stock-items", response_model=list[StockItemOut])
@@ -62,7 +91,8 @@ async def list_stock(
         select(StockItem).where(StockItem.shop_id == shop_id).order_by(StockItem.name)
     )
     hide = user.role == UserRole.barista
-    return [_item_out(i, hide_cost=hide) for i in result.scalars().all()]
+    last = await _last_income_map(session, shop_id)
+    return [_item_out(i, hide_cost=hide, last_income_at=last.get(i.id)) for i in result.scalars().all()]
 
 
 @router.get("/shops/{shop_id}/stock-items/{item_id}", response_model=StockItemOut)
@@ -76,7 +106,8 @@ async def get_stock_item(
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
-    return _item_out(item, hide_cost=user.role == UserRole.barista)
+    last = await _last_income_map(session, shop_id, item_id)
+    return _item_out(item, hide_cost=user.role == UserRole.barista, last_income_at=last.get(item.id))
 
 
 @router.post("/shops/{shop_id}/stock-items", response_model=StockItemOut, status_code=201)
@@ -199,6 +230,7 @@ async def create_movement(
     await assert_shop_access(session, user, shop_id, write=True)
     if not can_receive_stock(user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет права на склад")
+    await assert_no_open_revision(session, shop_id)
     if user.role == UserRole.barista and body.type != StockMovementType.income:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Кассир может только принять товар")
     if body.type not in (StockMovementType.income, StockMovementType.writeoff):
@@ -234,6 +266,7 @@ async def regrade_item(
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id, write=True)
+    await assert_no_open_revision(session, shop_id)
     from_item = await session.get(StockItem, item_id)
     to_item = await session.get(StockItem, body.to_item_id)
     if from_item is None or from_item.shop_id != shop_id:
@@ -270,6 +303,8 @@ async def transfer_item(
 ):
     from_shop = await assert_shop_access(session, user, shop_id, write=True)
     to_shop = await assert_shop_access(session, user, body.to_shop_id, write=True)
+    await assert_no_open_revision(session, shop_id)
+    await assert_no_open_revision(session, body.to_shop_id)
     from_item = await session.get(StockItem, item_id)
     to_item = await session.get(StockItem, body.to_item_id)
     if from_item is None or from_item.shop_id != shop_id:

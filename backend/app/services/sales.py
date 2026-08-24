@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.schemas.shift import SaleItemIn, SellerTotal, StockAlert
 from app.services.access import shop_crew
+from app.services.revisions import assert_no_open_revision
 from app.services.stock import add_lot, consume_fifo, record_stock_movement
 
 
@@ -57,6 +58,7 @@ async def create_sale(
     shift = await get_open_shift(session, shop_id)
     if shift is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No open shift")
+    await assert_no_open_revision(session, shop_id)
     seller = await resolve_seller(session, shop_id, user, barista_id)
 
     qty_by_product: dict[int, int] = defaultdict(int)
@@ -186,6 +188,7 @@ async def refund_sale(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Sale not found")
     if sale.is_refunded:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Sale already refunded")
+    await assert_no_open_revision(session, shop_id)
 
     await session.refresh(sale, attribute_names=["items"])
     restore: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))

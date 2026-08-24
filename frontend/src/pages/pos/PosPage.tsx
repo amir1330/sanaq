@@ -55,6 +55,7 @@ export function PosPage() {
     queryKey: ["shift", sid],
     queryFn: () => api.currentShift(sid),
     enabled: Boolean(user) && sid > 0,
+    refetchInterval: 20_000,
   });
   const crew = useQuery({
     queryKey: ["crew", sid],
@@ -122,11 +123,20 @@ export function PosPage() {
 
   const total = cart.reduce((s, l) => s + Number(l.product.sale_price) * l.quantity, 0);
   const shiftOpen = Boolean(shift.data);
+  const revisionId = shift.data?.stock_revision_id ?? null;
+  const salesFrozen = Boolean(revisionId);
 
   function add(product: Product) {
     if (!shiftOpen) {
       setNotice({ tone: "warn", text: "Сначала открой смену — иначе пробить чек нельзя." });
       setPanel("open");
+      return;
+    }
+    if (salesFrozen) {
+      setNotice({
+        tone: "warn",
+        text: `Идёт ревизия №${revisionId}. Продажи остановлены, пока склад не проведут пересчёт.`,
+      });
       return;
     }
     setCart((prev) => {
@@ -331,8 +341,18 @@ export function PosPage() {
           )}
           {(user?.role !== "barista" || user?.can_receive_stock) && (
             <button
-              className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
-              onClick={() => setReceiveOpen(true)}
+              className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper disabled:opacity-40"
+              onClick={() => {
+                if (salesFrozen) {
+                  setNotice({
+                    tone: "warn",
+                    text: `Идёт ревизия №${revisionId}. Приёмка недоступна.`,
+                  });
+                  return;
+                }
+                setReceiveOpen(true);
+              }}
+              disabled={salesFrozen}
             >
               Приёмка
             </button>
@@ -360,12 +380,17 @@ export function PosPage() {
         {!shiftOpen && (
           <Banner tone="warn">Смена закрыта. Открой смену — потом можно продавать.</Banner>
         )}
+        {salesFrozen && (
+          <Banner tone="warn">
+            Ревизия №{revisionId}: касса на паузе. Продажи и приходы недоступны до проведения пересчёта.
+          </Banner>
+        )}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {visible.map((p) => (
             <button
               key={p.id}
               onClick={() => add(p)}
-              className={`rounded-lg border-[1.5px] border-transparent bg-paper px-4 py-[18px] text-left text-ink transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
+              className={`rounded-lg border-[1.5px] border-transparent bg-paper px-4 py-[18px] text-left text-ink transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen || salesFrozen ? "opacity-50" : ""}`}
             >
               <p className="font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">{p.category_name}</p>
               <p className="mt-2 text-[14.5px] font-medium">{p.name}</p>
@@ -410,14 +435,14 @@ export function PosPage() {
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <button
-              disabled={!shiftOpen || cart.length === 0 || sell.isPending}
+              disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
               onClick={() => sell.mutate("cash")}
               className="rounded-full bg-gold py-[15px] text-[13px] font-bold text-roast hover:bg-sun-hot disabled:opacity-40"
             >
               {payAction("cash")}
             </button>
             <button
-              disabled={!shiftOpen || cart.length === 0 || sell.isPending}
+              disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
               onClick={() => sell.mutate("card")}
               className="rounded-full bg-turq py-[15px] text-[13px] font-bold text-roast hover:bg-sky-deep disabled:opacity-40"
             >
@@ -602,10 +627,15 @@ export function PosPage() {
                   <span>Товар не отдали, вернуть на склад</span>
                 </label>
                 {refund.isError && <p className="mt-3 text-sm text-alert">{(refund.error as Error).message}</p>}
+                {salesFrozen && (
+                  <p className="mt-3 text-sm text-alert">
+                    Пока идёт ревизия №{revisionId}, возвраты недоступны.
+                  </p>
+                )}
                 <div className="mt-6 flex gap-3">
                   <Button
                     className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
-                    disabled={refund.isPending}
+                    disabled={refund.isPending || salesFrozen}
                     onClick={() => refund.mutate(restoreStock)}
                   >
                     Вернуть

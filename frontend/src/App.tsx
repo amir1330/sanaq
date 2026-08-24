@@ -14,9 +14,10 @@ import { ShiftsPage } from "./pages/owner/ShiftsPage";
 import { SettingsPage } from "./pages/owner/SettingsPage";
 import { StaffPage } from "./pages/owner/StaffPage";
 import { StockItemPage } from "./pages/owner/StockItemPage";
+import { StockRevisionPage } from "./pages/owner/StockRevisionPage";
+import { StockRevisionsPage } from "./pages/owner/StockRevisionsPage";
 import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
-import { StockRevisionsPage } from "./pages/owner/StockRevisionsPage";
 import { PosPage } from "./pages/pos/PosPage";
 import { VitrinePage } from "./pages/VitrinePage";
 
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/owner/stock/item/:itemId" element={<StockItemPage />} />
             <Route path="/owner/stock/moves" element={<StockMovesPage />} />
             <Route path="/owner/stock/revisions" element={<StockRevisionsPage />} />
+            <Route path="/owner/stock/revisions/:revisionId" element={<StockRevisionPage />} />
             <Route path="/owner/staff" element={<StaffPage />} />
             <Route path="/owner/expenses" element={<ExpensesPage />} />
             <Route path="/owner/shifts" element={<ShiftsPage />} />

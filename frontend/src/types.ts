@@ -158,8 +158,10 @@ export type StockItem = {
   quantity_in_purchase: string;
   min_quantity: string;
   cost_per_base_unit: string;
+  value?: string;
   image_url: string | null;
   updated_at: string;
+  last_income_at?: string | null;
   is_low: boolean;
 };
 
@@ -184,6 +186,7 @@ export type Shift = {
   fiscal_pending_count?: number;
   z_report_number?: string | null;
   z_report_sent_at?: string | null;
+  stock_revision_id?: number | null;
   sales?: ShiftSale[];
 };
 

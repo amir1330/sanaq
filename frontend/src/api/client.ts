@@ -189,6 +189,8 @@ export const api = {
       `/shops/${shopId}/stock-journal${itemId ? `?item_id=${itemId}` : ""}`,
     ),
   stockRevisions: (shopId: number) => request<StockRevision[]>(`/shops/${shopId}/stock-revisions`),
+  stockRevision: (shopId: number, id: number) =>
+    request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}`),
   createStockRevision: (shopId: number, comment?: string) =>
     request<StockRevision>(`/shops/${shopId}/stock-revisions`, {
       method: "POST",
@@ -206,6 +208,31 @@ export const api = {
     request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}/post`, { method: "POST" }),
   cancelStockRevision: (shopId: number, id: number) =>
     request<StockRevision>(`/shops/${shopId}/stock-revisions/${id}/cancel`, { method: "POST" }),
+  exportStockRevision: async (shopId: number, id: number) => {
+    const { accessToken, refreshToken, setSession, logout } = useAuth.getState();
+    const headers = new Headers();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+    const url = `${BASE}/shops/${shopId}/stock-revisions/${id}/export`;
+    let res = await fetch(url, { headers });
+    if (res.status === 401 && refreshToken) {
+      const refreshed = await fetch(`${BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!refreshed.ok) {
+        logout();
+        throw new ApiError(401, "Сессия истекла");
+      }
+      const pair = (await refreshed.json()) as TokenPair;
+      setSession(pair.access_token, pair.refresh_token, pair.user);
+      headers.set("Authorization", `Bearer ${pair.access_token}`);
+      res = await fetch(url, { headers });
+    }
+    if (!res.ok) throw new ApiError(res.status, "Не удалось скачать ревизию");
+    const blob = await res.blob();
+    downloadBlob(blob, `revision-${id}.xlsx`);
+  },
 
   crew: (shopId: number) => request<CrewMember[]>(`/shops/${shopId}/crew`),
   staff: (shopId: number) => request<User[]>(`/shops/${shopId}/staff`),

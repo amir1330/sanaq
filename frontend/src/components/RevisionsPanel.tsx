@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { money, qty } from "../lib/utils";
 import type { StockRevision, StockRevisionLine } from "../types";
-import { Button, Card, Empty, Field, Input, Select } from "./ui";
+import { Button, Empty, Field, Input, Select } from "./ui";
 
 type Filter = "all" | "open" | "diff";
 
@@ -36,99 +37,86 @@ function lineValue(line: StockRevisionLine, counted: string): number | null {
   return diff * Number(line.cost_per_base_unit);
 }
 
-export function RevisionsPanel({
-  shopId,
-  part = "all",
-}: {
-  shopId: number;
-  part?: "draft" | "history" | "all";
-}) {
+export function RevisionsHistory({ shopId }: { shopId: number }) {
   const list = useQuery({
     queryKey: ["stock-revisions", shopId],
     queryFn: () => api.stockRevisions(shopId),
   });
-  const draft = (list.data ?? []).find((r) => r.status === "draft") ?? null;
   const history = (list.data ?? []).filter((r) => r.status !== "draft");
   const [openId, setOpenId] = useState<number | null>(null);
   const opened = history.find((r) => r.id === openId) ?? null;
-  const showDraft = part !== "history";
-  const showHistory = part !== "draft";
 
-  if (showDraft && !showHistory && !draft) return null;
+  if (history.length === 0) {
+    return <Empty>Ревизий ещё не было. Нажми «Новая ревизия» — система снимет снимок, касса встанет.</Empty>;
+  }
 
   return (
-    <div className={part === "history" ? "" : "mb-8"}>
-      {showDraft && draft && <DraftSheet key={`${draft.id}-${draft.line_count}`} shopId={shopId} revision={draft} />}
-      {showHistory && (
-        <>
-          {part === "all" && (
-          <div className="mb-4">
-            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Ревизии</p>
-            <h2 className="mt-1 font-display text-2xl font-normal text-ink">Пересчёты</h2>
-            <p className="mt-1 text-sm text-mute">
-              Колонка «Система» — живой остаток. Δ — то, чего не хватает на полке сверх чеков. Новую ревизию —
-              кнопкой сверху.
-            </p>
-          </div>
-          )}
-          {history.length === 0 ? (
-            <Empty>Ревизий ещё не было. На остатках нажми «Ревизия» — система снимет остатки, ты вводишь факт.</Empty>
-          ) : (
-        <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
-          <table className="w-full text-sm">
-            <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-              <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">Когда</th>
-                <th>Статус</th>
-                <th>Посчитано</th>
-                <th>Недостача / излишек</th>
-                <th>На сумму</th>
-                <th>Кто</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((row) => (
-                <tr key={row.id} className="border-b border-ink/5">
-                  <td className="px-4 py-3 font-mono text-xs">{when(row.posted_at || row.cancelled_at || row.created_at)}</td>
-                  <td>№{row.id} · {statusLabel(row.status)}</td>
-                  <td className="font-mono">
-                    {row.counted_count}/{row.line_count}
-                  </td>
-                  <td className="font-mono">
-                    {row.status === "posted"
-                      ? `${row.shortage_count} / ${row.surplus_count}`
-                      : "—"}
-                  </td>
-                  <td className={`font-mono ${Number(row.difference_value) < 0 ? "text-alert" : ""}`}>
-                    {row.status === "posted" ? money(row.difference_value) : "—"}
-                  </td>
-                  <td className="text-mute">{row.posted_by_name || row.created_by_name || "—"}</td>
-                  <td className="px-4 py-3 text-right">
+    <>
+      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
+        <table className="w-full text-sm">
+          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
+            <tr className="border-b border-ink/10 text-left">
+              <th className="px-4 py-3">Когда</th>
+              <th>Статус</th>
+              <th>Посчитано</th>
+              <th>Недостача / излишек</th>
+              <th>На сумму</th>
+              <th>Кто</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((row) => (
+              <tr key={row.id} className="border-b border-ink/5">
+                <td className="px-4 py-3 font-mono text-xs">{when(row.posted_at || row.cancelled_at || row.created_at)}</td>
+                <td>
+                  №{row.id} · {statusLabel(row.status)}
+                </td>
+                <td className="font-mono">
+                  {row.counted_count}/{row.line_count}
+                </td>
+                <td className="font-mono">
+                  {row.status === "posted" ? `${row.shortage_count} / ${row.surplus_count}` : "—"}
+                </td>
+                <td className={`font-mono ${Number(row.difference_value) < 0 ? "text-alert" : ""}`}>
+                  {row.status === "posted" ? money(row.difference_value) : "—"}
+                </td>
+                <td className="text-mute">{row.posted_by_name || row.created_by_name || "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-3">
+                    <button className="underline" onClick={() => void api.exportStockRevision(shopId, row.id)}>
+                      Excel
+                    </button>
+                    <Link className="underline" to={`/owner/stock/revisions/${row.id}`}>
+                      Открыть
+                    </Link>
                     <button className="underline" onClick={() => setOpenId(row.id)}>
                       Строки
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-          )}
-          {opened && (
-            <RevisionLinesDialog
-              revision={opened}
-              onClose={() => setOpenId(null)}
-            />
-          )}
-        </>
-      )}
-    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {opened && <RevisionLinesDialog revision={opened} onClose={() => setOpenId(null)} />}
+    </>
   );
 }
 
-function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevision }) {
+export function RevisionWorkspace({
+  shopId,
+  revision,
+  onClosed,
+}: {
+  shopId: number;
+  revision: StockRevision;
+  onClosed?: () => void;
+}) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const readOnly = revision.status !== "draft";
   const [counts, setCounts] = useState<Record<number, string>>(() =>
     Object.fromEntries(
       revision.lines
@@ -179,51 +167,85 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
     };
   }
 
+  function afterClose() {
+    void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-revision", shopId, revision.id] });
+    void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
+    void qc.invalidateQueries({ queryKey: ["shift", shopId] });
+    onClosed?.();
+    navigate("/owner/stock/revisions");
+  }
+
   const save = useMutation({
     mutationFn: () => api.patchStockRevision(shopId, revision.id, payload()),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-revision", shopId, revision.id] });
+    },
   });
   const post = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (withExcel: boolean) => {
       await api.patchStockRevision(shopId, revision.id, payload());
-      return api.postStockRevision(shopId, revision.id);
+      const posted = await api.postStockRevision(shopId, revision.id);
+      if (withExcel) await api.exportStockRevision(shopId, revision.id);
+      return posted;
     },
     onSuccess: () => {
       setConfirm(null);
-      void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
-      void qc.invalidateQueries({ queryKey: ["stock", shopId] });
-      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
+      afterClose();
     },
   });
   const cancel = useMutation({
     mutationFn: () => api.cancelStockRevision(shopId, revision.id),
     onSuccess: () => {
       setConfirm(null);
-      void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
+      afterClose();
     },
   });
 
   return (
-    <Card className="mb-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div className="mb-5 rounded-lg bg-maroon/10 px-5 py-4 text-sm text-maroon">
+        {readOnly ? (
+          <p>
+            Ревизия №{revision.id} · {statusLabel(revision.status)}. Снимок: {when(revision.created_at)}.
+          </p>
+        ) : (
+          <p>
+            Ревизия №{revision.id} открыта с {when(revision.created_at)}. Касса и склад заморожены: продажи,
+            приходы и списания недоступны, пока не проведёшь или не отменишь.
+          </p>
+        )}
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-faint">Ревизия №{revision.id}</p>
-          <p className="mt-1 text-sm text-mute">
-            Посчитано {countedN} из {revision.line_count}. Расхождение сейчас:{" "}
-            <span className={liveValue < 0 ? "text-alert" : ""}>{money(liveValue)}</span>
+          <p className="text-sm text-mute">
+            Посчитано {countedN} из {revision.line_count}. Расхождение:{" "}
+            <span className={liveValue < 0 ? "text-alert" : "font-medium text-ink"}>{money(liveValue)}</span>
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-faint">
+            Колонка «Система» — снимок на {when(revision.created_at)}, не живой остаток.
           </p>
         </div>
-        <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="min-w-40">
-          <option value="all">Все позиции</option>
-          <option value="open">Не посчитано</option>
-          <option value="diff">Только расхождения</option>
-        </Select>
+        <div className="flex flex-wrap gap-2">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="min-w-40">
+            <option value="all">Все позиции</option>
+            <option value="open">Не посчитано</option>
+            <option value="diff">Только расхождения</option>
+          </Select>
+          <Button variant="quiet" onClick={() => void api.exportStockRevision(shopId, revision.id)}>
+            Excel
+          </Button>
+        </div>
       </div>
-      <div className="mt-4 overflow-x-auto border border-line">
-        <table className="w-full text-sm">
+
+      <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="px-3 py-2">Позиция</th>
+              <th className="px-4 py-3">Позиция</th>
               <th>Система</th>
               <th>Факт</th>
               <th>Δ</th>
@@ -239,10 +261,10 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
               const value = lineValue(line, counted);
               return (
                 <tr key={line.id} className="border-b border-ink/5">
-                  <td className="px-3 py-2">{line.stock_item_name}</td>
+                  <td className="px-4 py-3">{line.stock_item_name}</td>
                   <td className="font-mono">{qty(line.expected_quantity, line.base_unit)}</td>
-                  <td className="py-1">
-                    {id ? (
+                  <td className="py-2">
+                    {id && !readOnly ? (
                       <input
                         className="w-28 border-0 border-b border-line-2 bg-transparent py-1 font-mono outline-none focus:border-ink"
                         value={counted}
@@ -251,7 +273,9 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
                         onChange={(e) => setCounts({ ...counts, [id]: e.target.value })}
                       />
                     ) : (
-                      <span className="text-mute">удалено</span>
+                      <span className="font-mono">
+                        {line.counted_quantity == null ? "—" : qty(line.counted_quantity, line.base_unit)}
+                      </span>
                     )}
                   </td>
                   <td className={`font-mono ${diff != null && diff < 0 ? "text-alert" : ""}`}>
@@ -261,14 +285,16 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
                     {value == null ? "—" : money(value)}
                   </td>
                   <td>
-                    {id ? (
+                    {id && !readOnly ? (
                       <input
                         className="w-full border-0 border-b border-line-2 bg-transparent py-1 text-sm outline-none focus:border-ink"
                         value={notes[id] ?? ""}
                         onChange={(e) => setNotes({ ...notes, [id]: e.target.value })}
                         placeholder="бой, пролив…"
                       />
-                    ) : null}
+                    ) : (
+                      <span className="text-mute">{line.comment || "—"}</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -276,43 +302,52 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
           </tbody>
         </table>
       </div>
-      <Field label="Комментарий к ревизии">
-        <Input
-          className="mt-3"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="утро после выходных, перед инвентаризацией месяца"
-        />
-      </Field>
-      {(save.isError || post.isError || cancel.isError) && (
-        <p className="mt-3 text-sm text-alert">
-          {((save.error || post.error || cancel.error) as Error).message}
-        </p>
+
+      {!readOnly && (
+        <>
+          <Field label="Комментарий к ревизии">
+            <Input
+              className="mt-3"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="утро после выходных"
+            />
+          </Field>
+          {(save.isError || post.isError || cancel.isError) && (
+            <p className="mt-3 text-sm text-alert">
+              {((save.error || post.error || cancel.error) as Error).message}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button variant="quiet" onClick={() => save.mutate()} disabled={save.isPending}>
+              Сохранить
+            </Button>
+            <Button onClick={() => setConfirm("post")} disabled={countedN === 0}>
+              Провести
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirm("cancel")}>
+              Отменить ревизию
+            </Button>
+          </div>
+        </>
       )}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="quiet" onClick={() => save.mutate()} disabled={save.isPending}>
-          Сохранить черновик
-        </Button>
-        <Button onClick={() => setConfirm("post")} disabled={countedN === 0}>
-          Провести
-        </Button>
-        <Button variant="ghost" onClick={() => setConfirm("cancel")}>
-          Отменить
-        </Button>
-      </div>
+
       {confirm && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
-          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             {confirm === "post" ? (
               <>
-                <h2 className="text-2xl font-medium">Провести ревизию?</h2>
+                <h2 className="font-display text-2xl font-normal">Провести ревизию?</h2>
                 <p className="text-sm text-mute">
-                  Остатки по посчитанным позициям станут как в колонке «Факт». Незаполненные строки не трогаем.
-                  В журнал уйдут корректировки «Ревизия №{revision.id}».
+                  Остатки по посчитанным позициям станут как в «Факт». Незаполненные строки не трогаем. После
+                  проведения касса снова откроется. Можно сразу скачать Excel.
                 </p>
-                <div className="flex gap-2">
-                  <Button onClick={() => post.mutate()} disabled={post.isPending}>
-                    Провести
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => post.mutate(true)} disabled={post.isPending}>
+                    Провести и Excel
+                  </Button>
+                  <Button onClick={() => post.mutate(false)} disabled={post.isPending} variant="quiet">
+                    Только провести
                   </Button>
                   <Button variant="ghost" onClick={() => setConfirm(null)}>
                     Назад
@@ -321,8 +356,8 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-medium">Отменить черновик?</h2>
-                <p className="text-sm text-mute">Остатки не изменятся. Черновик останется в истории как отменённый.</p>
+                <h2 className="font-display text-2xl font-normal">Отменить черновик?</h2>
+                <p className="text-sm text-mute">Остатки не изменятся. Касса снова заработает.</p>
                 <div className="flex gap-2">
                   <Button variant="danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
                     Отменить ревизию
@@ -336,7 +371,7 @@ function DraftSheet({ shopId, revision }: { shopId: number; revision: StockRevis
           </div>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -348,9 +383,9 @@ function RevisionLinesDialog({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4" onClick={onClose} role="presentation">
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-auto border border-line bg-paper p-7"
+        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-paper p-7 shadow-soft"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -359,7 +394,7 @@ function RevisionLinesDialog({
           <div>
             <h2 className="font-display text-2xl font-normal">Ревизия №{revision.id}</h2>
             <p className="mt-1 text-sm text-mute">
-              {statusLabel(revision.status)}
+              {statusLabel(revision.status)} · снимок {when(revision.created_at)}
               {revision.comment ? ` · ${revision.comment}` : ""}
             </p>
           </div>

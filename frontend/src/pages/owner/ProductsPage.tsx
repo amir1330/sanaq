@@ -1,8 +1,8 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
-import { Button, Check, Empty, Field, Input, PageTitle, Select, pill } from "../../components/ui";
+import { Button, Check, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
 import { money, publicUrl } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Product } from "../../types";
@@ -29,6 +29,7 @@ export function ProductsPage() {
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [editing, setEditing] = useState<Draft | null>(null);
   const [catName, setCatName] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
   const [filterCat, setFilterCat] = useState<number | "all">("all");
   const [rename, setRename] = useState<{ id: number; name: string } | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -81,8 +82,11 @@ export function ProductsPage() {
 
   const addCat = useMutation({
     mutationFn: () => api.createCategory(shopId, catName.trim()),
-    onSuccess: () => {
+    onSuccess: (cat) => {
       setCatName("");
+      setAddingCat(false);
+      setEditing((draft) => (draft ? { ...draft, category_id: cat.id } : draft));
+      setFilterCat(cat.id);
       void qc.invalidateQueries({ queryKey: ["categories", shopId] });
     },
   });
@@ -107,6 +111,8 @@ export function ProductsPage() {
     setPhotoFile(null);
     setPhotoPreview(null);
     setDropPhoto(false);
+    setCatName("");
+    setAddingCat(!p && (categories.data?.length ?? 0) === 0);
     setEditing({
       id: p?.id,
       name: p?.name ?? "",
@@ -138,7 +144,7 @@ export function ProductsPage() {
       <PageTitle
         kicker="Меню"
         title="Товары"
-        hint="Категории сверху. Нажми папку, потом карточку."
+        hint="Папки сверху. Новую заводишь в окне товара."
         action={
           <Button onClick={() => open(undefined, filterCat === "all" ? null : filterCat)}>Добавить товар</Button>
         }
@@ -166,25 +172,6 @@ export function ProductsPage() {
           </button>
         ))}
       </div>
-      <form
-        className="mb-8 flex flex-wrap items-end gap-2"
-        onSubmit={(e: FormEvent) => {
-          e.preventDefault();
-          if (catName.trim()) addCat.mutate();
-        }}
-      >
-        <Field label="Новая категория">
-          <Input
-            placeholder="Кофе, чай, выпечка…"
-            value={catName}
-            onChange={(e) => setCatName(e.target.value)}
-            className="min-h-11 w-56"
-          />
-        </Field>
-        <Button type="submit" variant="quiet" disabled={!catName.trim() || addCat.isPending}>
-          Добавить
-        </Button>
-      </form>
       {groups.map((group) => (
         <section key={group.id ?? "none"} className="mb-8">
           <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
@@ -206,24 +193,20 @@ export function ProductsPage() {
               <>
                 <h2 className="font-display text-[22px] font-normal">{group.name}</h2>
                 {group.id != null && (
-                  <div className="flex gap-2">
-                    <Button variant="quiet" onClick={() => setRename({ id: group.id!, name: group.name })}>
-                      Переименовать
-                    </Button>
-                    <Button variant="ghost" onClick={() => dropCat.mutate(group.id!)}>
-                      Удалить
-                    </Button>
-                    <Button variant="quiet" onClick={() => open(undefined, group.id)}>
-                      + товар
-                    </Button>
-                  </div>
+                  <MoreMenu
+                    items={[
+                      { label: "Добавить товар", onClick: () => open(undefined, group.id) },
+                      { label: "Переименовать", onClick: () => setRename({ id: group.id!, name: group.name }) },
+                      { label: "Удалить", danger: true, onClick: () => dropCat.mutate(group.id!) },
+                    ]}
+                  />
                 )}
               </>
             )}
           </div>
           {group.items.length === 0 ? (
             <p className="rounded-lg bg-cream px-5 py-8 text-sm text-mute shadow-soft">
-              В этой категории пусто. Нажми «+ товар».
+              В этой категории пусто. Меню ⋯ справа — добавить товар.
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -255,7 +238,7 @@ export function ProductsPage() {
         </section>
       ))}
       {(products.data ?? []).length === 0 && (categories.data ?? []).length === 0 && (
-        <Empty>Меню пустое. Сначала категория слева, потом товар в ней.</Empty>
+        <Empty>Меню пустое. Нажми «Добавить товар» — папку можно создать там же.</Empty>
       )}
 
       {editing && (
@@ -279,6 +262,8 @@ export function ProductsPage() {
                   setPhotoFile(null);
                   setPhotoPreview(null);
                   setDropPhoto(false);
+                  setCatName("");
+                  setAddingCat(false);
                 }}
               >
                 Закрыть
@@ -319,21 +304,69 @@ export function ProductsPage() {
                   </Field>
                 </div>
               </div>
-              <Field label="Категория">
-                <Select
-                  value={editing.category_id ?? ""}
-                  onChange={(e) =>
-                    setEditing({ ...editing, category_id: e.target.value ? Number(e.target.value) : null })
-                  }
-                >
-                  <option value="">Без категории</option>
-                  {categories.data?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <div>
+                <Field label="Категория">
+                  <Select
+                    value={editing.category_id ?? ""}
+                    onChange={(e) =>
+                      setEditing({ ...editing, category_id: e.target.value ? Number(e.target.value) : null })
+                    }
+                  >
+                    <option value="">Без категории</option>
+                    {categories.data?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {addingCat ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Input
+                      className="min-w-0 flex-1"
+                      value={catName}
+                      onChange={(e) => setCatName(e.target.value)}
+                      placeholder="Кофе, чай, выпечка…"
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        if (catName.trim()) addCat.mutate();
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="quiet"
+                      disabled={!catName.trim() || addCat.isPending}
+                      onClick={() => addCat.mutate()}
+                    >
+                      {addCat.isPending ? "…" : "Добавить"}
+                    </Button>
+                    {(categories.data ?? []).length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setAddingCat(false);
+                          setCatName("");
+                        }}
+                      >
+                        Отмена
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="mt-2 text-[12.5px] text-mute hover:text-ink"
+                    onClick={() => setAddingCat(true)}
+                  >
+                    + новая категория
+                  </button>
+                )}
+                {addCat.isError && (
+                  <p className="mt-2 text-sm text-alert">{(addCat.error as Error).message}</p>
+                )}
+              </div>
               <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
                 Показывать на кассе и витрине
               </Check>
@@ -444,6 +477,8 @@ export function ProductsPage() {
                   setPhotoFile(null);
                   setPhotoPreview(null);
                   setDropPhoto(false);
+                  setCatName("");
+                  setAddingCat(false);
                 }}
               >
                 Отмена

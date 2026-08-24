@@ -9,7 +9,7 @@ const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
   { to: "/owner/products", label: "Товары" },
   { to: "/owner/stock", label: "Склад" },
-  { to: "/owner/stock/moves", label: "Движения" },
+  { to: "/owner/stock/revisions", label: "Ревизии" },
   { to: "/owner/staff", label: "Сотрудники" },
   { to: "/owner/expenses", label: "Расходы" },
   { to: "/owner/shifts", label: "Смены" },

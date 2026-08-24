@@ -17,6 +17,7 @@ from app.schemas.shift import (
     ShiftSaleOut,
 )
 from app.services.access import assert_shop_access, shop_crew
+from app.services.revisions import open_revision_id
 from app.services.sales import get_open_shift, seller_totals, shift_totals
 from app.services.webkassa import send_z_report, shop_ready
 
@@ -25,7 +26,13 @@ pos_roles = roles(UserRole.super_admin, UserRole.owner, UserRole.barista)
 manage = roles(UserRole.super_admin, UserRole.owner)
 
 
-def _shift_out(shift: Shift, sales: list[Sale], movements: list[ShiftCashMovement]) -> ShiftOut:
+def _shift_out(
+    shift: Shift,
+    sales: list[Sale],
+    movements: list[ShiftCashMovement],
+    *,
+    stock_revision_id: int | None = None,
+) -> ShiftOut:
     totals = shift_totals(shift, sales, movements)
     pending = sum(
         1
@@ -44,6 +51,7 @@ def _shift_out(shift: Shift, sales: list[Sale], movements: list[ShiftCashMovemen
         closed_at=shift.closed_at,
         sellers=seller_totals(sales),
         fiscal_pending_count=pending,
+        stock_revision_id=stock_revision_id,
         z_report_number=shift.z_report_number,
         z_report_sent_at=shift.z_report_sent_at,
         sales=[
@@ -111,7 +119,8 @@ async def current_shift(
     if open_shift is None:
         return None
     shift = await _load_shift(session, open_shift.id)
-    return _shift_out(shift, shift.sales, shift.cash_movements)
+    revision_id = await open_revision_id(session, shop_id)
+    return _shift_out(shift, shift.sales, shift.cash_movements, stock_revision_id=revision_id)
 
 
 @router.post("/shifts/open", response_model=ShiftOut, status_code=201)

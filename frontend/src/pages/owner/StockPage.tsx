@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
-import { RevisionsPanel } from "../../components/RevisionsPanel";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
-import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
@@ -59,6 +58,7 @@ export function StockPage() {
   });
   const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
   const [receive, setReceive] = useState<StockItem | null | "open">(null);
+  const [q, setQ] = useState("");
 
   const add = useMutation({
     mutationFn: async () => {
@@ -83,7 +83,11 @@ export function StockPage() {
   });
   const startRevision = useMutation({
     mutationFn: () => api.createStockRevision(shopId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] }),
+    onSuccess: (rev) => {
+      void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
+      void qc.invalidateQueries({ queryKey: ["shift", shopId] });
+      navigate(`/owner/stock/revisions/${rev.id}`);
+    },
   });
 
   function setUnits(patch: Partial<typeof create>) {
@@ -106,26 +110,39 @@ export function StockPage() {
     setCreating(true);
   }
 
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (stock.data ?? []).filter((i) => !needle || i.name.toLowerCase().includes(needle));
+  }, [stock.data, q]);
+  const shelfTotal = rows.reduce((s, i) => s + shelfValue(i), 0);
+  const lowCount = rows.filter((i) => i.is_low).length;
+
   return (
     <div>
       <PageTitle
         kicker="Склад"
         title="Остатки"
-        hint="Нажми строку — карточка с историей, пересортом и перемещением. Приход сразу на несколько позиций."
+        hint="Строка — карточка. Ревизия открывается отдельным окном и ставит кассу на паузу."
         action={
           <div className="flex flex-wrap gap-2">
-            <Link to="/owner/stock/moves">
-              <Button variant="quiet">Движения</Button>
-            </Link>
-            <Link to="/owner/stock/revisions">
-              <Button variant="quiet">Пересчёты</Button>
-            </Link>
-            {!hasDraft && (
+            {hasDraft ? (
+              <Button
+                onClick={() => {
+                  const draft = (revisions.data ?? []).find((r) => r.status === "draft");
+                  if (draft) navigate(`/owner/stock/revisions/${draft.id}`);
+                }}
+              >
+                Открыть ревизию
+              </Button>
+            ) : (
               <Button variant="quiet" onClick={() => startRevision.mutate()} disabled={startRevision.isPending}>
                 Ревизия
               </Button>
             )}
-            <Button variant="quiet" onClick={() => setReceive("open")}>
+            <Link to="/owner/stock/revisions">
+              <Button variant="quiet">Пересчёты</Button>
+            </Link>
+            <Button variant="quiet" onClick={() => setReceive("open")} disabled={hasDraft}>
               Приход
             </Button>
             <Button variant={creating ? "quiet" : "primary"} onClick={toggleCreate}>
@@ -137,7 +154,12 @@ export function StockPage() {
       {startRevision.isError && (
         <p className="mb-4 text-sm text-alert">{(startRevision.error as Error).message}</p>
       )}
-      <RevisionsPanel shopId={shopId} part="draft" />
+      {hasDraft && (
+        <Card className="mb-4 border border-maroon/30 bg-maroon/5">
+          <p className="font-medium text-maroon">Идёт ревизия — касса и склад на паузе</p>
+          <p className="mt-1 text-sm text-mute">Приходы и продажи недоступны, пока не проведёшь пересчёт.</p>
+        </Card>
+      )}
       {(stock.data ?? []).some((i) => i.is_low) && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
           <p className="font-semibold text-alert">Закупить</p>
@@ -244,19 +266,34 @@ export function StockPage() {
         {add.isError && <p className="text-sm text-alert md:col-span-3">{(add.error as Error).message}</p>}
       </Card>
       )}
-      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
-        <table className="w-full text-sm">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Найти позицию…"
+          className="max-w-xs"
+        />
+        <p className="font-mono text-[12.5px] text-mute">
+          {rows.length} {rows.length === 1 ? "позиция" : "позиций"}
+          {lowCount ? ` · заканчивается ${lowCount}` : ""}
+          {" · "}
+          на полке {money(shelfTotal)}
+        </p>
+      </div>
+      <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-line text-left">
               <th className="px-5 py-3.5">Позиция</th>
               <th>Сейчас</th>
               <th>Минимум</th>
               <th>Себест.</th>
-              <th></th>
+              <th className="text-right">Сумма</th>
+              <th className="pr-5 text-right">Приход</th>
             </tr>
           </thead>
           <tbody>
-            {(stock.data ?? []).map((i) => {
+            {rows.map((i) => {
               const src = publicUrl(i.image_url);
               return (
               <tr
@@ -286,14 +323,18 @@ export function StockPage() {
                     </span>
                   ) : null}
                 </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className="font-mono text-[10px] uppercase tracking-wide text-faint">открыть</span>
-                </td>
+                <td className="pr-4 text-right font-mono font-semibold">{money(shelfValue(i))}</td>
+                <td className="pr-5 text-right font-mono text-[12.5px] text-mute">{shortDay(i.last_income_at)}</td>
               </tr>
               );
             })}
           </tbody>
         </table>
+        {rows.length === 0 && (
+          <p className="px-5 py-8 text-center text-sm text-mute">
+            {q.trim() ? "Ничего не нашлось." : "Склад пустой. Добавь позицию сверху."}
+          </p>
+        )}
       </div>
       {receive != null && (
         <ReceivePanel

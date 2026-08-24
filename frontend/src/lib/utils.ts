@@ -14,6 +14,29 @@ export function money(value: string | number | null | undefined): string {
   }).format(n);
 }
 
+export function shortDay(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const then = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((today.getTime() - then.getTime()) / 86_400_000);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "вчера";
+  if (diff > 1 && diff < 7) return `${diff} дн. назад`;
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
+export function shelfValue(item: {
+  value?: string | number | null;
+  quantity: string | number;
+  cost_per_base_unit: string | number;
+}): number {
+  if (item.value != null && item.value !== "") return Number(item.value);
+  return Number(item.quantity) * Number(item.cost_per_base_unit);
+}
+
 export function payLabel(type: "cash" | "card"): string {
   return type === "cash" ? "Наличными" : "Безналично";
 }

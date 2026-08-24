@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,7 @@ from app.schemas.stock import (
     StockRevisionUpdate,
 )
 from app.services.access import assert_shop_access
+from app.services.revision_xlsx import build_revision_xlsx
 from app.services.revisions import (
     cancel_revision,
     create_revision,
@@ -22,7 +24,6 @@ from app.services.revisions import (
     post_revision,
     revision_summary,
     save_revision,
-    sync_live_expected,
 )
 
 router = APIRouter(tags=["stock-revisions"])
@@ -87,8 +88,6 @@ async def list_shop_revisions(
 ):
     await assert_shop_access(session, user, shop_id)
     revisions = await list_revisions(session, shop_id)
-    for rev in revisions:
-        await sync_live_expected(session, rev)
     return [await _revision_out(session, rev, hide_cost=False) for rev in revisions]
 
 
@@ -119,8 +118,31 @@ async def get_revision(
 ):
     await assert_shop_access(session, user, shop_id)
     revision = await load_revision(session, shop_id, revision_id)
-    await sync_live_expected(session, revision)
     return await _revision_out(session, revision, hide_cost=False)
+
+
+@router.get("/shops/{shop_id}/stock-revisions/{revision_id}/export")
+async def export_revision(
+    shop_id: int,
+    revision_id: int,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    shop = await assert_shop_access(session, user, shop_id)
+    revision = await load_revision(session, shop_id, revision_id)
+    names = await _names(session, revision.created_by, revision.posted_by)
+    payload = build_revision_xlsx(
+        revision,
+        shop_name=shop.name,
+        created_by_name=names.get(revision.created_by) if revision.created_by else None,
+        posted_by_name=names.get(revision.posted_by) if revision.posted_by else None,
+    )
+    filename = f"revision-{revision.id}.xlsx"
+    return Response(
+        content=payload,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/shops/{shop_id}/stock-revisions/{revision_id}", response_model=StockRevisionOut)

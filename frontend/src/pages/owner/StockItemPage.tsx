@@ -4,9 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
-import { Button, Field, Input, PageTitle, Select } from "../../components/ui";
+import { Button, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
 import { WRITEOFF_REASONS, deltaBase, formatDelta, kindTitle } from "../../lib/stock";
-import { PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
 export function StockItemPage() {
@@ -192,11 +192,25 @@ export function StockItemPage() {
       <PageTitle
         kicker="Склад"
         title={item.name}
-        hint={`${stockBalance(item)} на точке. Приход, списание, пересорт и перемещение — с этой карточки, история внизу.`}
+        hint={`${stockBalance(item)} на точке. Действия — в трёх точках справа, история внизу.`}
         action={
-          <Link to="/owner/stock">
-            <Button variant="quiet">К остаткам</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <MoreMenu
+              items={[
+                { label: "Приход", onClick: () => setPanel("receive") },
+                { label: "Списать", onClick: () => setPanel("writeoff") },
+                { label: "Пересорт", onClick: () => setPanel("regrade"), disabled: others.length === 0 },
+                ...(branches.length > 0
+                  ? [{ label: "На другую точку", onClick: () => setPanel("transfer") }]
+                  : []),
+                { label: "Изменить", onClick: () => setPanel("edit") },
+                { label: "Удалить", danger: true, onClick: () => setPanel("remove") },
+              ]}
+            />
+            <Link to="/owner/stock">
+              <Button variant="quiet">К остаткам</Button>
+            </Link>
+          </div>
         }
       />
       <div className="mb-6 flex flex-wrap items-start gap-6">
@@ -210,37 +224,19 @@ export function StockItemPage() {
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[28px] font-semibold leading-none">{stockBalance(item)}</p>
           <p className="mt-2 text-sm text-mute">
+            на полке {money(shelfValue(item))}
+            {" · "}
             минимум {qty(item.min_quantity, item.base_unit)}
             {" · "}
             {unitCost(costPerPurchase(item.cost_per_base_unit, item.purchase_to_base), item.purchase_unit)}
             {Number(item.purchase_to_base) !== 1 || item.purchase_unit !== item.base_unit
               ? ` · ${unitCost(item.cost_per_base_unit, item.base_unit)}`
               : ""}
+            {item.last_income_at ? ` · приход ${shortDay(item.last_income_at)}` : ""}
           </p>
           {item.is_low && <p className="mt-2 text-sm text-alert">Заканчивается — пора закупать.</p>}
         </div>
       </div>
-      <div className="mb-8 flex flex-wrap gap-2">
-        <Button onClick={() => setPanel("receive")}>Приход</Button>
-        <Button variant="quiet" onClick={() => setPanel("writeoff")}>
-          Списать
-        </Button>
-        <Button variant="quiet" onClick={() => setPanel("regrade")} disabled={others.length === 0}>
-          Пересорт
-        </Button>
-        {branches.length > 0 && (
-          <Button variant="quiet" onClick={() => setPanel("transfer")}>
-            На другую точку
-          </Button>
-        )}
-        <Button variant="quiet" onClick={() => setPanel("edit")}>
-          Изменить
-        </Button>
-        <Button variant="ghost" onClick={() => setPanel("remove")}>
-          Удалить
-        </Button>
-      </div>
-
       <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">История</p>
       {groups.length === 0 ? (
         <p className="rounded-lg bg-cream px-5 py-8 text-sm text-mute shadow-soft">
