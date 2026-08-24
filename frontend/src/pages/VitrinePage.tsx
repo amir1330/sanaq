@@ -76,14 +76,18 @@ export function VitrinePage() {
           </div>
           <p className="shrink-0 font-mono text-[28px] tabular-nums text-gold md:text-[34px]">{time}</p>
         </div>
-        <Glyph name="ornament" className="mt-5 h-7 w-full max-w-xl text-maroon" />
       </header>
 
-      <main className="grid flex-1 auto-rows-min gap-x-12 gap-y-10 px-8 py-8 md:px-12 lg:grid-cols-2 xl:grid-cols-3">
+      <main className="grid flex-1 auto-rows-min gap-x-12 gap-y-12 px-8 py-8 md:px-12 lg:grid-cols-2 xl:grid-cols-3">
         {columns.map((col) => (
           <section key={col.id} className="min-w-0">
-            <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint">{col.name}</h2>
-            <ul className="mt-4 space-y-4">
+            <div className="mb-5 flex flex-col items-center text-center">
+              <Glyph name="ornament" className="h-6 w-full max-w-[220px] text-maroon md:h-7 md:max-w-[260px]" />
+              <h2 className="mt-3 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
+                {col.name}
+              </h2>
+            </div>
+            <ul className="space-y-4">
               {col.items.map((p) => (
                 <MenuRow key={p.id} product={p} />
               ))}
