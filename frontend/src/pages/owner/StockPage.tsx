@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { RevisionsPanel } from "../../components/RevisionsPanel";
@@ -7,47 +7,64 @@ import { BASE_UNITS, PURCHASE_UNITS, money, qty, stockBalance, suggestPurchaseFa
 import { useAuth } from "../../store/auth";
 import type { StockItem, StockJournalEntry, StockJournalKind } from "../../types";
 
-const JOURNAL_LABELS: Record<StockJournalKind, string> = {
-  income: "Приход",
-  writeoff: "Списание",
-  correction: "Корректировка",
-  sale: "Продажа",
-  refund: "Возврат",
-  created: "Добавили",
-  updated: "Изменили",
-  deleted: "Удалили",
-};
+const MOVE_KINDS: StockJournalKind[] = ["income", "writeoff", "correction", "sale", "refund"];
+const CARD_KINDS: StockJournalKind[] = ["created", "updated", "deleted"];
 
-const JOURNAL_FILTERS: { id: string; label: string; kinds?: StockJournalKind[] }[] = [
-  { id: "all", label: "Все события" },
-  { id: "moves", label: "Движения", kinds: ["income", "writeoff", "correction", "sale", "refund"] },
-  { id: "logs", label: "Изменения", kinds: ["created", "updated", "deleted"] },
-  { id: "income", label: "Приходы", kinds: ["income"] },
-  { id: "writeoff", label: "Списания", kinds: ["writeoff"] },
-  { id: "correction", label: "Ревизии", kinds: ["correction"] },
-  { id: "sale", label: "Продажи", kinds: ["sale", "refund"] },
+const MOVE_TABS: { id: string; label: string; kinds: StockJournalKind[] }[] = [
+  { id: "moves", label: "Всё по остатку", kinds: MOVE_KINDS },
+  { id: "in", label: "Пришло", kinds: ["income", "refund"] },
+  { id: "out", label: "Ушло", kinds: ["writeoff", "sale"] },
+  { id: "revision", label: "Ревизии", kinds: ["correction"] },
+  { id: "cards", label: "Карточки", kinds: CARD_KINDS },
 ];
 
-function journalWhen(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function kindTitle(kind: StockJournalKind, delta: number | null): string {
+  if (kind === "income") return "Пришло на склад";
+  if (kind === "writeoff") return "Списали";
+  if (kind === "sale") return "Ушло в чек";
+  if (kind === "refund") return "Вернули на полку";
+  if (kind === "correction") return delta != null && delta < 0 ? "Ревизия · недостача" : "Ревизия · излишек";
+  if (kind === "created") return "Добавили карточку";
+  if (kind === "updated") return "Изменили карточку";
+  return "Удалили карточку";
 }
 
-function journalQty(row: StockJournalEntry): string {
-  if (row.quantity_base == null) return "—";
+function deltaBase(row: StockJournalEntry): number | null {
+  if (row.quantity_base == null) return null;
   const n = Number(row.quantity_base);
-  const minus = row.kind === "writeoff" || row.kind === "sale" || n < 0;
-  const sign = minus ? "−" : "+";
-  const abs = Math.abs(n);
+  if (row.kind === "correction") return n;
+  if (row.kind === "writeoff" || row.kind === "sale") return -Math.abs(n);
+  if (row.kind === "income" || row.kind === "refund") return Math.abs(n);
+  return null;
+}
+
+function formatDelta(row: StockJournalEntry): string | null {
+  const d = deltaBase(row);
+  if (d == null) return null;
+  const sign = d < 0 ? "−" : "+";
+  const main = `${sign}${qty(Math.abs(d), row.base_unit ?? undefined)}`;
   if (row.kind === "income" && row.quantity_purchase != null && row.purchase_unit) {
-    return `${sign}${qty(row.quantity_purchase, row.purchase_unit)} → ${qty(abs, row.base_unit ?? undefined)}`;
+    return `+${qty(row.quantity_purchase, row.purchase_unit)} → ${main}`;
   }
-  return `${sign}${qty(abs, row.base_unit ?? undefined)}`;
+  return main;
+}
+
+function clock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yday = new Date();
+  yday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Сегодня";
+  if (d.toDateString() === yday.toDateString()) return "Вчера";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+function dayKey(iso: string): string {
+  return new Date(iso).toDateString();
 }
 
 const emptyCreate = {
@@ -65,7 +82,7 @@ export function StockPage() {
   const [creating, setCreating] = useState(false);
   const [create, setCreate] = useState(emptyCreate);
   const [logItem, setLogItem] = useState("");
-  const [logKind, setLogKind] = useState("all");
+  const [logKind, setLogKind] = useState("moves");
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const journal = useQuery({
     queryKey: ["stock-journal", shopId, logItem],
@@ -160,17 +177,38 @@ export function StockPage() {
       ? Number(move.qty) * Number(move.item.purchase_to_base)
       : null;
 
-  const kindFilter = JOURNAL_FILTERS.find((f) => f.id === logKind);
-  const journalRows = (journal.data ?? []).filter((row) =>
-    kindFilter?.kinds ? kindFilter.kinds.includes(row.kind) : true,
-  );
+  const kindFilter = MOVE_TABS.find((f) => f.id === logKind) ?? MOVE_TABS[0];
+  const selectedItem = (stock.data ?? []).find((i) => String(i.id) === logItem) ?? null;
+  const ledger = useMemo(() => {
+    const rows = (journal.data ?? []).filter((row) => kindFilter.kinds.includes(row.kind));
+    const lines: { row: StockJournalEntry; delta: number | null; after?: number }[] = rows.map((row) => ({
+      row,
+      delta: deltaBase(row),
+    }));
+    if (selectedItem && kindFilter.id !== "cards") {
+      let cursor = Number(selectedItem.quantity);
+      for (const line of lines) {
+        if (line.delta == null) continue;
+        line.after = cursor;
+        cursor -= line.delta;
+      }
+    }
+    const groups: { day: string; lines: typeof lines }[] = [];
+    for (const line of lines) {
+      const key = dayKey(line.row.created_at);
+      const last = groups[groups.length - 1];
+      if (last && dayKey(last.lines[0].row.created_at) === key) last.lines.push(line);
+      else groups.push({ day: dayLabel(line.row.created_at), lines: [line] });
+    }
+    return { groups, empty: lines.length === 0 };
+  }, [journal.data, kindFilter, selectedItem]);
 
   return (
     <div>
       <PageTitle
         kicker="Склад"
         title="Сырьё"
-        hint="Остаток и рецепт всегда в базовой единице (мл, г, шт). На приёмке вводишь пачки и сумму за партию — склад пересчитает сам."
+        hint="Остаток — сколько сейчас. Ниже — зачем он изменился: приход, чек, списание, ревизия."
         action={
           <Button variant={creating ? "ghost" : "primary"} onClick={toggleCreate}>
             {creating ? "Свернуть" : "Добавить сырьё"}
@@ -253,13 +291,12 @@ export function StockPage() {
         {add.isError && <p className="text-sm text-alert md:col-span-3">{(add.error as Error).message}</p>}
       </Card>
       )}
-      <div className="border border-line">
+      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-            <tr className="border-b border-ink/10 text-left">
-              <th className="px-4 py-3">id</th>
-              <th>Название</th>
-              <th>Остаток</th>
+            <tr className="border-b border-line text-left">
+              <th className="px-5 py-3.5">Сырьё</th>
+              <th>Сейчас</th>
               <th>Минимум</th>
               <th>Себест.</th>
               <th></th>
@@ -267,13 +304,30 @@ export function StockPage() {
           </thead>
           <tbody>
             {(stock.data ?? []).map((i) => (
-              <tr key={i.id} className={`border-b border-ink/5 ${i.is_low ? "bg-rust/5" : ""}`}>
-                <td className="px-4 py-3 font-mono">{i.id}</td>
-                <td>{i.name}</td>
+              <tr
+                key={i.id}
+                className={`border-b border-line last:border-0 ${i.is_low ? "bg-maroon/5" : ""} ${
+                  logItem === String(i.id) ? "bg-paper" : ""
+                }`}
+              >
+                <td className="px-5 py-3.5">
+                  <button
+                    className="text-left font-medium hover:underline"
+                    onClick={() => {
+                      setLogItem(String(i.id));
+                      setLogKind("moves");
+                      requestAnimationFrame(() =>
+                        document.getElementById("stock-history")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                      );
+                    }}
+                  >
+                    {i.name}
+                  </button>
+                </td>
                 <td className="font-mono">{stockBalance(i)}</td>
                 <td className="font-mono text-mute">{qty(i.min_quantity, i.base_unit)}</td>
                 <td className="font-mono">{unitCost(i.cost_per_base_unit, i.base_unit)}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-5 py-3.5 text-right">
                   <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
                     <button
                       className="underline"
@@ -304,7 +358,7 @@ export function StockPage() {
                       Списать
                     </button>
                     <button
-                      className="underline text-alert"
+                      className="underline text-maroon"
                       onClick={() => {
                         drop.reset();
                         setRemove(i);
@@ -319,67 +373,109 @@ export function StockPage() {
           </tbody>
         </table>
       </div>
-      <div className="mt-10 mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div id="stock-history" className="mb-4 mt-10 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Журнал</p>
-          <h2 className="mt-1 font-display text-2xl font-normal text-ink">Движения и логи</h2>
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">История</p>
+          <h2 className="mt-1 font-display text-2xl font-normal text-ink">Почему менялся остаток</h2>
           <p className="mt-1 text-sm text-mute">
-            Приход, списание, продажи с кассы и кто менял карточки сырья. Старые продажи без записи не подтянутся.
+            Каждая строка — одно изменение количества. Правки названия и единиц — во вкладке «Карточки».
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Select value={logItem} onChange={(e) => setLogItem(e.target.value)} className="min-w-40">
-            <option value="">Все позиции</option>
-            {(stock.data ?? []).map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name}
-              </option>
-            ))}
-          </Select>
-          <Select value={logKind} onChange={(e) => setLogKind(e.target.value)} className="min-w-40">
-            {JOURNAL_FILTERS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </Select>
-        </div>
       </div>
-      {journalRows.length === 0 ? (
-        <Empty>Пока пусто. Приход, списание и новые продажи появятся здесь.</Empty>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {MOVE_TABS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setLogKind(f.id)}
+            className={`rounded-full border-[1.5px] px-4 py-2 text-[12.5px] ${
+              logKind === f.id
+                ? "border-ink bg-ink text-paper"
+                : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <Select value={logItem} onChange={(e) => setLogItem(e.target.value)} className="min-w-44">
+          <option value="">Все позиции</option>
+          {(stock.data ?? []).map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      {selectedItem && (
+        <p className="mb-4 rounded-md bg-cream px-5 py-3 text-sm shadow-soft">
+          <span className="font-medium">{selectedItem.name}</span>
+          <span className="text-mute"> · сейчас {stockBalance(selectedItem)}</span>
+          <button className="ml-3 underline" onClick={() => setLogItem("")}>
+            показать все
+          </button>
+        </p>
+      )}
+      {ledger.empty ? (
+        <Empty>
+          {kindFilter.id === "cards"
+            ? "Карточки пока не меняли."
+            : "Остаток ещё не двигался. Приход, чек или списание появятся здесь."}
+        </Empty>
       ) : (
-        <div className="border border-line">
-          <table className="w-full text-sm">
-            <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-              <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">Когда</th>
-                <th>Событие</th>
-                <th>Сырьё</th>
-                <th>Сколько</th>
-                <th>Сумма</th>
-                <th>Кто</th>
-                <th>Комментарий</th>
-              </tr>
-            </thead>
-            <tbody>
-              {journalRows.map((row) => (
-                <tr key={row.id} className="border-b border-ink/5">
-                  <td className="px-4 py-3 font-mono text-xs">{journalWhen(row.created_at)}</td>
-                  <td>{JOURNAL_LABELS[row.kind]}</td>
-                  <td>{row.item_name}</td>
-                  <td className="font-mono">{journalQty(row)}</td>
-                  <td className="font-mono">{row.price_total != null ? money(row.price_total) : "—"}</td>
-                  <td className="text-mute">{row.actor_name || "—"}</td>
-                  <td className="text-mute">{row.comment || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {ledger.groups.map((group) => (
+            <div key={group.day}>
+              <p className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">{group.day}</p>
+              <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
+                {group.lines.map((line) => {
+                  const d = line.delta;
+                  const plus = d != null && d > 0;
+                  const minus = d != null && d < 0;
+                  return (
+                    <div
+                      key={line.row.id}
+                      className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line px-5 py-3.5 last:border-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-medium text-ink">
+                          {kindTitle(line.row.kind, d)}
+                          {kindFilter.id !== "cards" && logItem === "" ? (
+                            <span className="font-normal text-ink-soft"> · {line.row.item_name}</span>
+                          ) : null}
+                        </p>
+                        <p className="mt-0.5 text-[12.5px] text-mute">
+                          {clock(line.row.created_at)}
+                          {line.row.actor_name ? ` · ${line.row.actor_name}` : ""}
+                          {line.row.price_total != null ? ` · ${money(line.row.price_total)}` : ""}
+                          {line.row.comment ? ` · ${line.row.comment}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {formatDelta(line.row) && (
+                          <p
+                            className={`font-mono text-[15px] font-semibold ${
+                              plus ? "text-turq" : minus ? "text-maroon" : "text-ink"
+                            }`}
+                          >
+                            {formatDelta(line.row)}
+                          </p>
+                        )}
+                        {line.after != null && selectedItem && (
+                          <p className="font-mono text-[11px] text-faint">
+                            стало {qty(line.after, selectedItem.base_unit)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
       {edit && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
-          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">Изменить · {edit.name}</h2>
             <p className="text-sm text-mute">
               Базовая единица «{edit.base_unit}» не меняется — в ней уже стоят остаток и рецепты.
@@ -441,8 +537,8 @@ export function StockPage() {
         </div>
       )}
       {remove && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
-          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">Удалить · {remove.name}</h2>
             <p className="text-sm text-mute">
               Позиция пропадёт со склада вместе с историей приходов. Если сырьё стоит в рецепте — сначала уберите его
@@ -470,8 +566,8 @@ export function StockPage() {
         </div>
       )}
       {move && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
-          <div className="w-full max-w-sm space-y-3 border border-line bg-paper p-7">
+        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
+          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">
               {move.type === "income" ? "Приход" : "Списать"} · {move.item.name}
             </h2>
