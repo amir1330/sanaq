@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useEffect, useState } from "react";
 import type { User } from "../types";
 
 type AuthState = {
@@ -30,6 +31,26 @@ export const useAuth = create<AuthState>()(
     { name: "coffeeos-auth" },
   ),
 );
+
+/** Wait until persisted auth is loaded before firing protected API calls. */
+export function useAuthReady(): boolean {
+  const [ready, setReady] = useState(() => useAuth.persist.hasHydrated());
+  useEffect(() => {
+    if (useAuth.persist.hasHydrated()) {
+      setReady(true);
+      return;
+    }
+    return useAuth.persist.onFinishHydration(() => setReady(true));
+  }, []);
+  return ready;
+}
+
+export function useAuthSessionReady(): boolean {
+  const ready = useAuthReady();
+  const accessToken = useAuth((s) => s.accessToken);
+  const user = useAuth((s) => s.user);
+  return ready && Boolean(accessToken && user);
+}
 
 export function homePath(role?: string | null): string {
   if (role === "super_admin") return "/admin";

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
 import { generatePassword, money, publicUrl, TIMEZONES } from "../../lib/utils";
+import { useAuthSessionReady } from "../../store/auth";
+import { AdminLoadError, AdminStat } from "./adminUi";
 
 type ShopForm = {
   name: string;
@@ -37,8 +39,22 @@ type OwnerForm = {
 
 export function AdminPage() {
   const qc = useQueryClient();
-  const shops = useQuery({ queryKey: ["admin-shops"], queryFn: api.adminShops });
-  const stats = useQuery({ queryKey: ["admin-stats"], queryFn: api.adminStats });
+  const sessionReady = useAuthSessionReady();
+  const shops = useQuery({
+    queryKey: ["admin-shops"],
+    queryFn: api.adminShops,
+    enabled: sessionReady,
+  });
+  const stats = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: api.adminStats,
+    enabled: sessionReady,
+  });
+  const leads = useQuery({
+    queryKey: ["admin-leads"],
+    queryFn: api.adminLeads,
+    enabled: sessionReady,
+  });
   const [createOpen, setCreateOpen] = useState(false);
   const [shopForm, setShopForm] = useState<ShopForm>(emptyShop);
   const [createdNote, setCreatedNote] = useState("");
@@ -107,7 +123,24 @@ export function AdminPage() {
     (attachExisting ||
       (shopForm.owner_name.trim() && shopForm.owner_email.trim() && shopForm.owner_password.length >= 6));
 
-  const rows = stats.data?.shops ?? [];
+  const rows =
+    stats.data?.shops ??
+    shops.data?.map((shop) => ({
+      shop_id: shop.id,
+      shop_name: shop.name,
+      is_active: shop.is_active,
+      revenue: 0,
+      sales_count: 0,
+      profit: 0,
+    })) ??
+    [];
+
+  const statsLoading = !sessionReady || stats.isLoading || shops.isLoading;
+  const statsError = stats.isError && shops.isError;
+  const shopsCount = stats.data?.shops_count ?? shops.data?.length ?? 0;
+  const activeShops = stats.data?.active_shops ?? shops.data?.filter((s) => s.is_active).length ?? 0;
+  const usersCount = stats.data?.users_count;
+  const newLeads = (leads.data ?? []).filter((l) => l.status === "new").length;
 
   return (
     <div>
@@ -130,23 +163,37 @@ export function AdminPage() {
       {createdNote && (
         <p className="mb-4 border border-sky/30 bg-sky/10 px-4 py-3 text-sm text-ink">{createdNote}</p>
       )}
+      {(stats.isError || shops.isError) && (
+        <AdminLoadError
+          message={
+            ((stats.error || shops.error) as Error | undefined)?.message ||
+            "Не удалось загрузить сводку. Обнови страницу или перелогинься."
+          }
+        />
+      )}
 
-      <div className="mb-6 grid gap-px bg-line md:grid-cols-3">
-        <Card className="border-0">
-          <p className="text-[11px] uppercase tracking-wider text-mute">Точек</p>
-          <p className="mt-2 text-3xl">{stats.data?.shops_count ?? "—"}</p>
-        </Card>
-        <Card className="border-0">
-          <p className="text-[11px] uppercase tracking-wider text-mute">Активных</p>
-          <p className="mt-2 text-3xl">{stats.data?.active_shops ?? "—"}</p>
-        </Card>
-        <Card className="border-0">
-          <p className="text-[11px] uppercase tracking-wider text-mute">Пользователей</p>
-          <p className="mt-2 text-3xl">{stats.data?.users_count ?? "—"}</p>
-        </Card>
+      <div className="mb-6 grid gap-3 md:grid-cols-4">
+        <AdminStat label="Точек" value={shopsCount} loading={statsLoading} error={statsError} />
+        <AdminStat label="Активных" value={activeShops} loading={statsLoading} error={statsError} />
+        <AdminStat
+          label="Пользователей"
+          value={usersCount ?? "—"}
+          loading={statsLoading && usersCount == null}
+          error={stats.isError && usersCount == null}
+        />
+        <AdminStat
+          label="Новых заявок"
+          value={newLeads}
+          loading={!sessionReady || leads.isLoading}
+          error={leads.isError}
+        />
       </div>
 
-      {rows.length === 0 ? (
+      {shops.isLoading && rows.length === 0 ? (
+        <Card>
+          <p className="text-sm text-mute">Загружаем точки…</p>
+        </Card>
+      ) : rows.length === 0 ? (
         <Card>
           <p className="text-sm text-mute">Пока нет точек. Нажми «Новая точка» — заведём заведение и вход для владельца.</p>
         </Card>

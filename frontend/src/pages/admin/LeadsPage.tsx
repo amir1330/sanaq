@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Empty, PageTitle } from "../../components/ui";
+import { useAuthSessionReady } from "../../store/auth";
 import type { Lead, LeadStatus } from "../../types";
+import { AdminLoadError } from "./adminUi";
 
 const labels: Record<LeadStatus, string> = {
   new: "новая",
@@ -11,7 +13,12 @@ const labels: Record<LeadStatus, string> = {
 
 export function LeadsPage() {
   const qc = useQueryClient();
-  const leads = useQuery({ queryKey: ["admin-leads"], queryFn: api.adminLeads });
+  const sessionReady = useAuthSessionReady();
+  const leads = useQuery({
+    queryKey: ["admin-leads"],
+    queryFn: api.adminLeads,
+    enabled: sessionReady,
+  });
   const patch = useMutation({
     mutationFn: ({ id, status }: { id: number; status: LeadStatus }) => api.patchLead(id, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-leads"] }),
@@ -29,9 +36,18 @@ export function LeadsPage() {
       />
       <Card className="mb-4">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">Новых</p>
-        <p className="mt-2 font-mono text-3xl">{fresh}</p>
+        <p className="mt-2 font-mono text-3xl text-ink">
+          {!sessionReady || leads.isLoading ? "…" : fresh}
+        </p>
       </Card>
-      {list.length === 0 ? (
+      {leads.isError && (
+        <AdminLoadError message={(leads.error as Error).message || "Не удалось загрузить заявки."} />
+      )}
+      {!sessionReady || leads.isLoading ? (
+        <Card>
+          <p className="text-sm text-mute">Загружаем заявки…</p>
+        </Card>
+      ) : list.length === 0 ? (
         <Empty>Заявок ещё нет. Они появятся, когда кто-то заполнит форму на главной.</Empty>
       ) : (
         <div className="border border-line">

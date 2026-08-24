@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Check, Dialog, Empty, Field, Input, PageTitle, Select } from "../../components/ui";
 import { generatePassword } from "../../lib/utils";
+import { useAuthSessionReady } from "../../store/auth";
+import { AdminLoadError } from "./adminUi";
 
 type RolePick = "owner" | "barista";
 
@@ -24,8 +26,17 @@ const roleLabel: Record<string, string> = {
 
 export function AdminUsersPage() {
   const qc = useQueryClient();
-  const users = useQuery({ queryKey: ["admin-users"], queryFn: api.adminUsers });
-  const shops = useQuery({ queryKey: ["admin-shops"], queryFn: api.adminShops });
+  const sessionReady = useAuthSessionReady();
+  const users = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: api.adminUsers,
+    enabled: sessionReady,
+  });
+  const shops = useQuery({
+    queryKey: ["admin-shops"],
+    queryFn: api.adminShops,
+    enabled: sessionReady,
+  });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [note, setNote] = useState("");
@@ -72,10 +83,21 @@ export function AdminUsersPage() {
       />
 
       {note && <p className="mb-4 border border-sky/30 bg-sky/10 px-4 py-3 text-sm">{note}</p>}
+      {users.isError && (
+        <AdminLoadError message={(users.error as Error).message || "Не удалось загрузить пользователей."} />
+      )}
 
-      {!shops.data?.length ? (
+      {!sessionReady || shops.isLoading ? (
+        <Card>
+          <p className="text-sm text-mute">Загружаем…</p>
+        </Card>
+      ) : !shops.data?.length ? (
         <Card>
           <p className="text-sm text-mute">Сначала заведи точку во вкладке «Точки», потом сюда — человека.</p>
+        </Card>
+      ) : users.isLoading ? (
+        <Card>
+          <p className="text-sm text-mute">Загружаем пользователей…</p>
         </Card>
       ) : list.length === 0 ? (
         <Empty>Пользователей ещё нет. Нажми «Добавить».</Empty>

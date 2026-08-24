@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
-import { useAuth } from "../store/auth";
+import { useAuth, useAuthSessionReady } from "../store/auth";
 import { Brand } from "./Mark";
 import { ShopBrand } from "./ShopBrand";
 
@@ -26,9 +26,14 @@ const adminLinks = [
 
 export function Shell({ kind }: { kind: "owner" | "admin" }) {
   const { shopId, setShopId } = useAuth();
+  const sessionReady = useAuthSessionReady();
   const navigate = useNavigate();
   const location = useLocation();
-  const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
+  const shops = useQuery({
+    queryKey: ["shops"],
+    queryFn: api.shops,
+    enabled: kind === "owner" && sessionReady,
+  });
   const currentShop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
   const links = kind === "owner" ? ownerLinks : adminLinks;
 
