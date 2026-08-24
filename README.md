@@ -25,7 +25,7 @@ docker compose up --build
 GitHub Actions собирает образы в GHCR и по SSH обновляет VPS. На сервере нет git и нет вебхука.
 
 1. Push в `main` → тесты → образы `ghcr.io/amir1330/sanaq/backend` и `.../nginx` (`:latest` и `:<sha>`).
-2. Тот же job по SSH копирует `docker-compose.prod.yml` и делает `pull` + recreate только `backend` и `nginx`. Postgres не трогаем.
+2. Тот же job по SSH копирует `docker-compose.prod.yml` и делает `pull` + recreate только `backend` и `nginx`. Postgres не трогаем. На VPS нужен Docker Compose v2 (`docker compose`) — v1.29 падает на образах из GHCR.
 3. Логин в GHCR на сервере — короткоживущий `GITHUB_TOKEN` этого прогона. Вечный PAT на VPS не нужен.
 
 Секреты репозитория (Settings → Secrets → Actions):

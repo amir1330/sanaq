@@ -23,11 +23,12 @@ docker logout ghcr.io >/dev/null 2>&1 || true
 echo "Recreating backend and nginx..."
 $DC $FILE up -d --no-build --no-deps --force-recreate backend nginx
 
-old=$(docker ps -aq --filter name=coffeeos_webhook --filter name=coffeeos-webhook)
-if [ -n "$old" ]; then
-  echo "Removing webhook listener..."
-  docker rm -f $old
-fi
+for name in coffeeos_webhook_1 coffeeos-webhook-1; do
+  if docker inspect "$name" >/dev/null 2>&1; then
+    echo "Removing $name..."
+    docker rm -f "$name"
+  fi
+done
 
 docker image prune -f
 echo "Deploy complete."
