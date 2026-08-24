@@ -1,100 +1,157 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
-import { qty, publicUrl, stockBalance } from "../lib/utils";
+import { costPerPurchase, money, publicUrl, qty, stockBalance } from "../lib/utils";
 import type { StockItem } from "../types";
 import { Button, Field, Input } from "./ui";
 
-export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () => void }) {
+type Line = { item: StockItem; qty: string; price: string; touched: boolean };
+
+function suggestPrice(item: StockItem, qtyValue: string): string {
+  const q = Number(qtyValue);
+  const pack = Number(costPerPurchase(item.cost_per_base_unit, item.purchase_to_base));
+  if (!(q > 0) || !(pack > 0)) return "";
+  return String(Math.round(pack * q));
+}
+
+export function ReceivePanel({
+  shopId,
+  onClose,
+  initialItem,
+}: {
+  shopId: number;
+  onClose: () => void;
+  initialItem?: StockItem | null;
+}) {
   const qc = useQueryClient();
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
-  const [pick, setPick] = useState<StockItem | null>(null);
-  const [amount, setAmount] = useState("");
-  const [price, setPrice] = useState("");
+  const [lines, setLines] = useState<Line[]>(() =>
+    initialItem ? [{ item: initialItem, qty: "", price: "", touched: false }] : [],
+  );
 
   const apply = useMutation({
-    mutationFn: () =>
-      api.stockMove(shopId, pick!.id, {
-        type: "income",
-        quantity: amount,
-        price_total: price || null,
-      }),
+    mutationFn: async () => {
+      for (const line of lines) {
+        if (!Number(line.qty)) continue;
+        await api.stockMove(shopId, line.item.id, {
+          type: "income",
+          quantity: line.qty,
+          price_total: line.price || null,
+        });
+      }
+    },
     onSuccess: () => {
-      setPick(null);
-      setAmount("");
-      setPrice("");
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
+      onClose();
     },
   });
 
-  const preview = pick && Number(amount) > 0 ? Number(amount) * Number(pick.purchase_to_base) : null;
+  function addItem(item: StockItem) {
+    if (lines.some((l) => l.item.id === item.id)) return;
+    setLines((prev) => [...prev, { item, qty: "", price: "", touched: false }]);
+  }
+
+  function patch(id: number, next: Partial<Line>) {
+    setLines((prev) => prev.map((l) => (l.item.id === id ? { ...l, ...next } : l)));
+  }
+
+  const total = lines.reduce((s, l) => s + (Number(l.price) || 0), 0);
+  const ready = lines.some((l) => Number(l.qty) > 0);
 
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-auto border border-line bg-paper p-7 text-ink">
-        <h2 className="font-display text-2xl font-normal">Приёмка</h2>
+    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-paper p-7 text-ink shadow-soft">
+        <h2 className="font-display text-2xl font-normal">Приход</h2>
         <p className="mt-2 text-sm text-ink-soft">
-          Количество — в единицах закупки. Сумма — за всю партию, как в накладной.
+          Как накладная: количество в пачках, сумма за строку считается сама — можно поправить, если в чеке иначе.
         </p>
-        <div className="mt-4 max-h-64 overflow-auto">
-          {(stock.data ?? []).map((item) => {
-            const src = publicUrl(item.image_url);
+        <div className="mt-5 space-y-3">
+          {lines.map((line) => {
+            const preview = Number(line.qty) > 0 ? Number(line.qty) * Number(line.item.purchase_to_base) : null;
             return (
-            <button
-              key={item.id}
-              className={`flex w-full items-center gap-3 border-b border-line py-2.5 text-left text-sm ${
-                pick?.id === item.id ? "text-ink" : "text-ink-soft"
-              }`}
-              onClick={() => setPick(item)}
-            >
-              {src ? (
-                <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
-              ) : (
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-cream font-mono text-[9px] uppercase text-mute">
-                  ·
-                </span>
-              )}
-              <span>
-                {item.name}
-                <span className="ml-2 opacity-70">{stockBalance(item)}</span>
-              </span>
-            </button>
+              <div key={line.item.id} className="rounded-md bg-cream px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium">{line.item.name}</p>
+                  <button
+                    type="button"
+                    className="text-[12.5px] text-mute hover:text-maroon"
+                    onClick={() => setLines((prev) => prev.filter((l) => l.item.id !== line.item.id))}
+                  >
+                    Убрать
+                  </button>
+                </div>
+                <p className="mt-1 text-[12.5px] text-mute">
+                  1 {line.item.purchase_unit} = {qty(line.item.purchase_to_base, line.item.base_unit)}
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Field label={`Сколько, ${line.item.purchase_unit}`}>
+                    <Input
+                      value={line.qty}
+                      inputMode="decimal"
+                      onChange={(e) => {
+                        const qtyValue = e.target.value;
+                        patch(line.item.id, {
+                          qty: qtyValue,
+                          price: line.touched ? line.price : suggestPrice(line.item, qtyValue),
+                        });
+                      }}
+                    />
+                  </Field>
+                  <Field label="Сумма за партию, ₸" hint="Считается из последней цены. Поправь, если поставщик изменил.">
+                    <Input
+                      value={line.price}
+                      inputMode="decimal"
+                      onChange={(e) => patch(line.item.id, { price: e.target.value, touched: true })}
+                    />
+                  </Field>
+                </div>
+                {preview != null && (
+                  <p className="mt-2 font-mono text-[11px] text-mute">
+                    на полку +{qty(preview, line.item.base_unit)}
+                  </p>
+                )}
+              </div>
             );
           })}
         </div>
-        {pick && (
-          <div className="mt-5 space-y-4">
-            <p className="text-sm text-ink-soft">
-              {pick.name} · закупка: {pick.purchase_unit} (1 {pick.purchase_unit} ={" "}
-              {qty(pick.purchase_to_base, pick.base_unit)})
-            </p>
-            <Field label={`Сколько, ${pick.purchase_unit}?`}>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
-            </Field>
-            {preview !== null && (
-              <p className="font-mono text-xs text-ink-soft">→ на склад: +{qty(preview, pick.base_unit)}</p>
-            )}
-            <Field label="Сумма закупки за партию, ₸">
-              <Input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                inputMode="decimal"
-                placeholder="можно пусто"
-              />
-            </Field>
-          </div>
+        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">Добавить в накладную</p>
+        <div className="mt-2 max-h-48 overflow-auto rounded-md bg-cream">
+          {(stock.data ?? [])
+            .filter((item) => !lines.some((l) => l.item.id === item.id))
+            .map((item) => {
+              const src = publicUrl(item.image_url);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-paper"
+                  onClick={() => addItem(item)}
+                >
+                  {src ? (
+                    <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                  ) : (
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-paper font-mono text-[9px] uppercase text-mute">
+                      +
+                    </span>
+                  )}
+                  <span>
+                    {item.name}
+                    <span className="ml-2 text-mute">{stockBalance(item)}</span>
+                  </span>
+                </button>
+              );
+            })}
+        </div>
+        {lines.length > 0 && (
+          <p className="mt-4 font-mono text-[15px] font-semibold">Итого {money(total)}</p>
         )}
         {apply.isError && <p className="mt-3 text-sm text-alert">{(apply.error as Error).message}</p>}
-        <div className="mt-6 flex gap-3">
-          <Button
-            className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
-            disabled={!pick || !amount}
-            onClick={() => apply.mutate()}
-          >
-            Принять
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
+            Оприходовать
           </Button>
-          <Button variant="ghost" className="text-ink-soft" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             Закрыть
           </Button>
         </div>

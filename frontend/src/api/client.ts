@@ -137,6 +137,8 @@ export const api = {
   categories: (shopId: number) => request<Category[]>(`/shops/${shopId}/categories`),
   createCategory: (shopId: number, name: string) =>
     request<Category>(`/shops/${shopId}/categories`, { method: "POST", body: json({ name }) }),
+  patchCategory: (shopId: number, id: number, name: string) =>
+    request<Category>(`/shops/${shopId}/categories/${id}`, { method: "PATCH", body: json({ name }) }),
   deleteCategory: (shopId: number, id: number) =>
     request<void>(`/shops/${shopId}/categories/${id}`, { method: "DELETE" }),
 

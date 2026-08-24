@@ -14,6 +14,7 @@ import { SettingsPage } from "./pages/owner/SettingsPage";
 import { StaffPage } from "./pages/owner/StaffPage";
 import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
+import { StockRevisionsPage } from "./pages/owner/StockRevisionsPage";
 import { PosPage } from "./pages/pos/PosPage";
 import { VitrinePage } from "./pages/VitrinePage";
 
@@ -35,6 +36,7 @@ export function App() {
             <Route path="/owner/products" element={<ProductsPage />} />
             <Route path="/owner/stock" element={<StockPage />} />
             <Route path="/owner/stock/moves" element={<StockMovesPage />} />
+            <Route path="/owner/stock/revisions" element={<StockRevisionsPage />} />
             <Route path="/owner/staff" element={<StaffPage />} />
             <Route path="/owner/expenses" element={<ExpensesPage />} />
             <Route path="/owner/shifts" element={<ShiftsPage />} />

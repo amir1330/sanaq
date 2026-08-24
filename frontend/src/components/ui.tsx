@@ -37,10 +37,12 @@ export const pill = "inline-flex h-10 items-center justify-center rounded-full b
 
 export function Field({
   label,
+  hint,
   children,
   tone = "light",
 }: {
   label: string;
+  hint?: string;
   children: ReactNode;
   tone?: "light" | "dark";
 }) {
@@ -55,6 +57,29 @@ export function Field({
         {label}
       </span>
       {children}
+      {hint ? <p className="mt-1.5 text-[12.5px] leading-snug text-mute">{hint}</p> : null}
+    </label>
+  );
+}
+
+export function Check({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[14.5px] text-ink">
+      <input
+        type="checkbox"
+        className="h-5 w-5 shrink-0 rounded-[4px] border-[1.5px] border-line-2 accent-maroon"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{children}</span>
     </label>
   );
 }

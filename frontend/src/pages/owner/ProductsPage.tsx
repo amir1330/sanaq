@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
-import { Button, Card, Empty, Field, Input, PageTitle } from "../../components/ui";
+import { Button, Check, Empty, Field, Input, PageTitle, pill } from "../../components/ui";
 import { money, publicUrl } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Product } from "../../types";
@@ -29,6 +29,8 @@ export function ProductsPage() {
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [editing, setEditing] = useState<Draft | null>(null);
   const [catName, setCatName] = useState("");
+  const [filterCat, setFilterCat] = useState<number | "all">("all");
+  const [rename, setRename] = useState<{ id: number; name: string } | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [dropPhoto, setDropPhoto] = useState(false);
@@ -73,14 +75,30 @@ export function ProductsPage() {
   });
 
   const addCat = useMutation({
-    mutationFn: () => api.createCategory(shopId, catName),
+    mutationFn: () => api.createCategory(shopId, catName.trim()),
     onSuccess: () => {
       setCatName("");
       void qc.invalidateQueries({ queryKey: ["categories", shopId] });
     },
   });
+  const saveCat = useMutation({
+    mutationFn: () => api.patchCategory(shopId, rename!.id, rename!.name.trim()),
+    onSuccess: () => {
+      setRename(null);
+      void qc.invalidateQueries({ queryKey: ["categories", shopId] });
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+  const dropCat = useMutation({
+    mutationFn: (id: number) => api.deleteCategory(shopId, id),
+    onSuccess: () => {
+      setFilterCat("all");
+      void qc.invalidateQueries({ queryKey: ["categories", shopId] });
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
 
-  function open(p?: Product) {
+  function open(p?: Product, categoryId?: number | null) {
     setPhotoFile(null);
     setPhotoPreview(null);
     setDropPhoto(false);
@@ -88,7 +106,7 @@ export function ProductsPage() {
       id: p?.id,
       name: p?.name ?? "",
       sale_price: p?.sale_price ?? "",
-      category_id: p?.category_id ?? null,
+      category_id: p?.category_id ?? categoryId ?? null,
       is_active: p?.is_active ?? true,
       tax_percent: p?.tax_percent ?? "0",
       tax_type: String(p?.tax_type ?? 0),
@@ -98,76 +116,147 @@ export function ProductsPage() {
     });
   }
 
+  const list = products.data ?? [];
+  const cats = categories.data ?? [];
+  const groups = (filterCat === "all" ? cats : cats.filter((c) => c.id === filterCat)).map((c) => ({
+    id: c.id as number | null,
+    name: c.name,
+    items: list.filter((p) => p.category_id === c.id),
+  }));
+  if (filterCat === "all") {
+    const rest = list.filter((p) => !p.category_id);
+    if (rest.length) groups.push({ id: null, name: "Без категории", items: rest });
+  }
+
   return (
     <div>
       <PageTitle
         kicker="Меню"
         title="Товары"
-        hint="Фото и цена для витрины на телевизоре. Касса — отдельные кнопки, без картинок."
-        action={<Button onClick={() => open()}>Добавить товар</Button>}
+        hint="Категории сверху — как папки. Нажми папку, потом карточку товара. На кассе кнопки без фото, на витрине — с фото."
+        action={
+          <Button onClick={() => open(undefined, filterCat === "all" ? null : filterCat)}>Добавить товар</Button>
+        }
       />
-      <Card className="mb-4">
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            if (catName.trim()) addCat.mutate();
-          }}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setFilterCat("all")}
+          className={`${pill} ${
+            filterCat === "all" ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
+          }`}
         >
-          <Field label="Новая категория меню">
-            <Input
-              placeholder="Кофе, чай, выпечка…"
-              value={catName}
-              onChange={(e) => setCatName(e.target.value)}
-              className="w-56"
-            />
-          </Field>
-          <Button type="submit" variant="foam">
-            Добавить категорию
-          </Button>
-          <p className="self-center text-sm text-mute">
-            Сейчас: {categories.data?.map((c) => c.name).join(", ") || "нет"}
-          </p>
-        </form>
-      </Card>
-      {(products.data ?? []).length === 0 ? (
-        <Empty>Меню пустое. Добавь товар с фото — гости увидят его на витрине.</Empty>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(products.data ?? []).map((p) => {
-            const src = publicUrl(p.image_url);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => open(p)}
-                className={`overflow-hidden rounded-lg bg-cream text-left shadow-soft transition hover:-translate-y-0.5 ${
-                  p.is_active ? "" : "opacity-55"
-                }`}
-              >
-                {src ? (
-                  <img src={src} alt="" className="h-40 w-full object-cover" />
-                ) : (
-                  <div className="grid h-40 place-items-center bg-paper text-sm text-mute">Без фото</div>
+          Все
+        </button>
+        {(categories.data ?? []).map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setFilterCat(c.id)}
+            className={`${pill} ${
+              filterCat === c.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
+            }`}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
+      <form
+        className="mb-8 flex flex-wrap items-end gap-2"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if (catName.trim()) addCat.mutate();
+        }}
+      >
+        <Field label="Новая категория">
+          <Input
+            placeholder="Кофе, чай, выпечка…"
+            value={catName}
+            onChange={(e) => setCatName(e.target.value)}
+            className="min-h-11 w-56"
+          />
+        </Field>
+        <Button type="submit" variant="quiet" disabled={!catName.trim() || addCat.isPending}>
+          Добавить
+        </Button>
+      </form>
+      {groups.map((group) => (
+        <section key={group.id ?? "none"} className="mb-8">
+          <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
+            {rename?.id === group.id ? (
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <Input
+                  value={rename.name}
+                  onChange={(e) => setRename({ id: group.id!, name: e.target.value })}
+                  className="max-w-xs"
+                />
+                <Button size="md" disabled={!rename.name.trim() || saveCat.isPending} onClick={() => saveCat.mutate()}>
+                  Сохранить
+                </Button>
+                <Button variant="ghost" onClick={() => setRename(null)}>
+                  Отмена
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-display text-[22px] font-normal">{group.name}</h2>
+                {group.id != null && (
+                  <div className="flex gap-2">
+                    <Button variant="quiet" onClick={() => setRename({ id: group.id!, name: group.name })}>
+                      Переименовать
+                    </Button>
+                    <Button variant="ghost" onClick={() => dropCat.mutate(group.id!)}>
+                      Удалить
+                    </Button>
+                    <Button variant="quiet" onClick={() => open(undefined, group.id)}>
+                      + товар
+                    </Button>
+                  </div>
                 )}
-                <div className="px-5 py-4">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
-                    {p.category_name || "Без категории"}
-                    {!p.is_active ? " · скрыт" : ""}
-                  </p>
-                  <p className="mt-1 font-display text-[19px] font-normal">{p.name}</p>
-                  <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+              </>
+            )}
+          </div>
+          {group.items.length === 0 ? (
+            <p className="rounded-lg bg-cream px-5 py-8 text-sm text-mute shadow-soft">
+              В этой категории пусто. Нажми «+ товар».
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {group.items.map((p) => {
+                const src = publicUrl(p.image_url);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => open(p)}
+                    className={`overflow-hidden rounded-lg bg-cream text-left shadow-soft transition hover:-translate-y-0.5 ${
+                      p.is_active ? "" : "opacity-55"
+                    }`}
+                  >
+                    {src ? (
+                      <img src={src} alt="" className="h-40 w-full object-cover" />
+                    ) : (
+                      <div className="grid h-40 place-items-center bg-paper text-sm text-mute">Без фото</div>
+                    )}
+                    <div className="px-5 py-4">
+                      <p className="font-display text-[19px] font-normal">{p.name}</p>
+                      <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      ))}
+      {(products.data ?? []).length === 0 && (categories.data ?? []).length === 0 && (
+        <Empty>Меню пустое. Сначала категория слева, потом товар в ней.</Empty>
       )}
 
       {editing && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/40 p-4">
           <form
-            className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-auto border border-line bg-paper p-7"
+            className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-auto rounded-lg bg-paper p-7 shadow-soft"
             onSubmit={(e) => {
               e.preventDefault();
               save.mutate();
@@ -214,14 +303,9 @@ export function ProductsPage() {
                 ))}
               </select>
             </Field>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={editing.is_active}
-                onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
-              />
+            <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
               Показывать на витрине и кассе
-            </label>
+            </Check>
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="НДС %, для чека ОФД">
                 <Input

@@ -57,10 +57,11 @@ export function RevisionsPanel({
   if (showDraft && !showHistory && !draft) return null;
 
   return (
-    <div className={part === "history" ? "mt-10" : "mb-8"}>
+    <div className={part === "history" ? "" : "mb-8"}>
       {showDraft && draft && <DraftSheet key={`${draft.id}-${draft.line_count}`} shopId={shopId} revision={draft} />}
-      {showHistory && (history.length > 0 || !draft) && (
+      {showHistory && (
         <>
+          {part === "all" && (
           <div className="mb-4">
             <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Ревизии</p>
             <h2 className="mt-1 font-display text-2xl font-normal text-ink">Пересчёты</h2>
@@ -69,10 +70,11 @@ export function RevisionsPanel({
               кнопкой сверху.
             </p>
           </div>
-          {history.length === 0 && !draft ? (
-            <Empty>Ревизий ещё не было. «Ревизия» в шапке снимает системные остатки, ты вводишь факт.</Empty>
-          ) : history.length > 0 ? (
-        <div className="border border-line">
+          )}
+          {history.length === 0 ? (
+            <Empty>Ревизий ещё не было. На остатках нажми «Ревизия» — система снимет остатки, ты вводишь факт.</Empty>
+          ) : (
+        <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
@@ -112,7 +114,7 @@ export function RevisionsPanel({
             </tbody>
           </table>
         </div>
-          ) : null}
+          )}
           {opened && (
             <RevisionLinesDialog
               revision={opened}

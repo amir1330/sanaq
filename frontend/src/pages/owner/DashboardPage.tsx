@@ -124,8 +124,10 @@ export function DashboardPage() {
         <Tile label="Чистыми" value={money(s?.net_profit)} />
       </div>
       {s && (
-        <p className={`mb-5 rounded-md px-5 py-3 text-sm ${Number(s.revision_shortage || 0) > 0 ? "bg-maroon/10 text-maroon" : "bg-cream text-mute"}`}>
-          Недостачи по ревизиям: −{money(s.revision_shortage || 0)}. Уже вычтены из «Чистыми».
+        <p className="mb-5 text-sm leading-relaxed text-mute">
+          Прибыль = выручка − себестоимость проданного (списание FIFO: сначала старая закупка). Чистыми = прибыль −
+          расходы (аренда, зарплата) − недостачи по ревизии (−{money(s.revision_shortage || 0)}). Закупки товара на
+          складе сюда не входят — они уже в себестоимости чека.
         </p>
       )}
 

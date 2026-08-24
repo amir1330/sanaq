@@ -4,7 +4,6 @@ import { api } from "../api/client";
 import { useAuth } from "../store/auth";
 import { Brand } from "./Mark";
 import { ShopBrand } from "./ShopBrand";
-import { ThemeToggle } from "./ThemeToggle";
 
 const ownerLinks = [
   { to: "/owner", label: "Отчёты" },
@@ -75,17 +74,25 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                 </select>
               </label>
             )}
-            <ThemeToggle />
-            <span>{user?.full_name}</span>
-            <button
-              className="hover:text-ink"
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              Выйти
-            </button>
+            {kind === "owner" && (
+              <button type="button" className="hover:text-ink" onClick={() => navigate("/owner/settings")}>
+                {user?.full_name}
+              </button>
+            )}
+            {kind === "admin" && (
+              <>
+                <span>{user?.full_name}</span>
+                <button
+                  className="hover:text-ink"
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                >
+                  Выйти
+                </button>
+              </>
+            )}
           </div>
         </header>
         <main>

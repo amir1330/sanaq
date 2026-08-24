@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -10,6 +11,7 @@ from app.models import (
     StockItem,
     StockLog,
     StockLogAction,
+    StockLot,
     StockMovement,
     StockMovementType,
     User,
@@ -36,16 +38,92 @@ def to_purchase(base_qty: Decimal, purchase_to_base: Decimal) -> Decimal:
     return (base_qty / factor).quantize(Decimal("0.001"))
 
 
-def moving_average_cost(
-    old_qty: Decimal,
-    old_cost: Decimal,
-    add_qty: Decimal,
-    price_total: Decimal | None,
+def fifo_consume(
+    lots: list[StockLot],
+    qty: Decimal,
+    fallback_cost: Decimal,
 ) -> Decimal:
-    new_qty = old_qty + add_qty
-    if price_total is None or new_qty <= 0:
-        return old_cost
-    return ((old_qty * old_cost) + price_total) / new_qty
+    """Take from oldest lots first. Mutates quantity_remaining. Returns COGS in ₸."""
+    need = qty
+    cogs = Decimal("0")
+    for lot in lots:
+        if need <= 0:
+            break
+        if lot.quantity_remaining <= 0:
+            continue
+        take = min(lot.quantity_remaining, need)
+        cogs += take * lot.cost_per_base_unit
+        lot.quantity_remaining = (lot.quantity_remaining - take).quantize(Decimal("0.001"))
+        need -= take
+    if need > 0:
+        cogs += need * fallback_cost
+    return cogs.quantize(Decimal("0.01"))
+
+
+def fifo_unit_cost(lots: list[StockLot], fallback: Decimal) -> Decimal:
+    live = [lot for lot in lots if lot.quantity_remaining > 0]
+    total = sum((lot.quantity_remaining for lot in live), Decimal("0"))
+    if total <= 0:
+        return fallback
+    blended = sum((lot.quantity_remaining * lot.cost_per_base_unit for lot in live), Decimal("0")) / total
+    return blended.quantize(Decimal("0.0001"))
+
+
+async def _open_lots(session: AsyncSession, item: StockItem) -> list[StockLot]:
+    result = await session.execute(
+        select(StockLot)
+        .where(StockLot.stock_item_id == item.id)
+        .order_by(StockLot.received_at, StockLot.id)
+        .with_for_update()
+    )
+    lots = list(result.scalars().all())
+    covered = sum((lot.quantity_remaining for lot in lots), Decimal("0"))
+    gap = item.quantity - covered
+    if gap > 0:
+        lot = StockLot(
+            shop_id=item.shop_id,
+            stock_item_id=item.id,
+            quantity_remaining=gap,
+            cost_per_base_unit=item.cost_per_base_unit,
+            received_at=datetime.now(timezone.utc),
+        )
+        session.add(lot)
+        await session.flush()
+        lots.append(lot)
+    return lots
+
+
+async def add_lot(
+    session: AsyncSession,
+    item: StockItem,
+    qty_base: Decimal,
+    cost_per_base: Decimal,
+    movement_id: int | None = None,
+) -> None:
+    if qty_base <= 0:
+        return
+    session.add(
+        StockLot(
+            shop_id=item.shop_id,
+            stock_item_id=item.id,
+            quantity_remaining=qty_base,
+            cost_per_base_unit=cost_per_base,
+            received_at=datetime.now(timezone.utc),
+            source_movement_id=movement_id,
+        )
+    )
+    item.quantity = (item.quantity + qty_base).quantize(Decimal("0.001"))
+    await session.flush()
+    lots = await _open_lots(session, item)
+    item.cost_per_base_unit = fifo_unit_cost(lots, cost_per_base)
+
+
+async def consume_fifo(session: AsyncSession, item: StockItem, qty_base: Decimal) -> Decimal:
+    lots = await _open_lots(session, item)
+    cogs = fifo_consume(lots, qty_base, item.cost_per_base_unit)
+    item.quantity = (item.quantity - qty_base).quantize(Decimal("0.001"))
+    item.cost_per_base_unit = fifo_unit_cost(lots, item.cost_per_base_unit)
+    return cogs
 
 
 async def apply_stock_movement(
@@ -71,19 +149,23 @@ async def apply_stock_movement(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Income quantity must be positive")
         quantity_purchase = quantity
         quantity_base = to_base(quantity, item.purchase_to_base)
-        old_qty = item.quantity
-        item.cost_per_base_unit = moving_average_cost(
-            old_qty, item.cost_per_base_unit, quantity_base, price_total
+        unit_cost = (
+            (price_total / quantity_base).quantize(Decimal("0.0001"))
+            if price_total is not None and quantity_base > 0
+            else item.cost_per_base_unit
         )
-        item.quantity = old_qty + quantity_base
+        await add_lot(session, item, quantity_base, unit_cost)
     elif movement_type == StockMovementType.writeoff:
         if quantity <= 0:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Write-off quantity must be positive")
         quantity_base = quantity
-        item.quantity = item.quantity - quantity_base
+        await consume_fifo(session, item, quantity_base)
     elif movement_type == StockMovementType.correction:
         quantity_base = quantity
-        item.quantity = item.quantity + quantity_base
+        if quantity_base > 0:
+            await add_lot(session, item, quantity_base, item.cost_per_base_unit)
+        elif quantity_base < 0:
+            await consume_fifo(session, item, abs(quantity_base))
     else:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown movement type")
 

@@ -24,7 +24,7 @@ from app.models import (
 )
 from app.schemas.shift import SaleItemIn, SellerTotal, StockAlert
 from app.services.access import shop_crew
-from app.services.stock import record_stock_movement
+from app.services.stock import add_lot, consume_fifo, record_stock_movement
 
 
 async def get_open_shift(session: AsyncSession, shop_id: int) -> Shift | None:
@@ -94,12 +94,14 @@ async def create_sale(
 
     cost_by_product: dict[int, Decimal] = {}
     for product_id, qty in qty_by_product.items():
-        cost = Decimal("0")
+        line_cogs = Decimal("0")
         for ing in products[product_id].ingredients:
             item = locked.get(ing.stock_item_id)
-            unit_cost = item.cost_per_base_unit if item else Decimal("0")
-            cost += ing.quantity * unit_cost
-        cost_by_product[product_id] = cost.quantize(Decimal("0.01"))
+            if item is None:
+                continue
+            need = ing.quantity * qty
+            line_cogs += await consume_fifo(session, item, need)
+        cost_by_product[product_id] = (line_cogs / qty).quantize(Decimal("0.01")) if qty else Decimal("0")
 
     total = Decimal("0")
     sale_items: list[SaleItem] = []
@@ -149,7 +151,6 @@ async def create_sale(
         item = locked.get(stock_id)
         if item is None:
             continue
-        item.quantity = item.quantity - need
         record_stock_movement(
             session,
             shop_id=shop_id,
@@ -213,7 +214,7 @@ async def refund_sale(
         for stock_id, qty in restore.items():
             item = locked.get(stock_id)
             if item:
-                item.quantity = item.quantity + qty
+                await add_lot(session, item, qty, item.cost_per_base_unit)
                 record_stock_movement(
                     session,
                     shop_id=shop_id,

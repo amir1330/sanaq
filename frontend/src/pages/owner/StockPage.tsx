@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
+import { ReceivePanel } from "../../components/ReceivePanel";
 import { RevisionsPanel } from "../../components/RevisionsPanel";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
 import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
@@ -59,9 +60,7 @@ export function StockPage() {
   const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
   const [move, setMove] = useState<{
     item: StockItem;
-    type: "income" | "writeoff";
     qty: string;
-    price: string;
     comment: string;
   } | null>(null);
   const [edit, setEdit] = useState<{
@@ -78,6 +77,8 @@ export function StockPage() {
   const [editPreview, setEditPreview] = useState<string | null>(null);
   const [dropEditPhoto, setDropEditPhoto] = useState(false);
   const [remove, setRemove] = useState<StockItem | null>(null);
+  const [menu, setMenu] = useState<StockItem | null>(null);
+  const [receive, setReceive] = useState<StockItem | null | "open">(null);
 
   const add = useMutation({
     mutationFn: async () => {
@@ -133,9 +134,8 @@ export function StockPage() {
   const apply = useMutation({
     mutationFn: () =>
       api.stockMove(shopId, move!.item.id, {
-        type: move!.type,
+        type: "writeoff",
         quantity: move!.qty,
-        price_total: move!.type === "income" ? move!.price || null : null,
         comment: move!.comment || null,
       }),
     onSuccess: () => {
@@ -185,27 +185,30 @@ export function StockPage() {
     });
   }
 
-  const incomePreview =
-    move?.type === "income" && Number(move.qty) > 0
-      ? Number(move.qty) * Number(move.item.purchase_to_base)
-      : null;
+  }
 
   return (
     <div>
       <PageTitle
         kicker="Склад"
         title="Остатки"
-        hint="Молоко, стаканы, печенье — всё, что лежит на точке. Готовый товар тоже сюда, не только то, из чего готовят. История — в разделе Движения."
+        hint="Молоко, стаканы, печенье — всё, что лежит на точке. Минимум нужен только чтобы подсветить, что заканчивается."
         action={
           <div className="flex flex-wrap gap-2">
             <Link to="/owner/stock/moves">
               <Button variant="quiet">Движения</Button>
+            </Link>
+            <Link to="/owner/stock/revisions">
+              <Button variant="quiet">Пересчёты</Button>
             </Link>
             {!hasDraft && (
               <Button variant="quiet" onClick={() => startRevision.mutate()} disabled={startRevision.isPending}>
                 Ревизия
               </Button>
             )}
+            <Button variant="quiet" onClick={() => setReceive("open")}>
+              Приход
+            </Button>
             <Button variant={creating ? "quiet" : "primary"} onClick={toggleCreate}>
               {creating ? "Свернуть" : "Добавить позицию"}
             </Button>
@@ -279,7 +282,10 @@ export function StockPage() {
             {create.base_unit}
           </p>
         </Field>
-        <Field label={`Минимум, ${create.base_unit}`}>
+        <Field
+          label={`Минимум, ${create.base_unit}`}
+          hint="Только для уведомления «заканчивается». Когда остаток опустится до этой цифры — строка подсветится."
+        >
           <Input
             value={create.min_quantity}
             onChange={(e) => setCreate({ ...create, min_quantity: e.target.value })}
@@ -326,7 +332,11 @@ export function StockPage() {
             {(stock.data ?? []).map((i) => {
               const src = publicUrl(i.image_url);
               return (
-              <tr key={i.id} className={`border-b border-line last:border-0 ${i.is_low ? "bg-maroon/5" : ""}`}>
+              <tr
+                key={i.id}
+                className={`cursor-pointer border-b border-line last:border-0 ${i.is_low ? "bg-maroon/5" : ""}`}
+                onClick={() => setMenu(i)}
+              >
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     {src ? (
@@ -336,12 +346,7 @@ export function StockPage() {
                         фото
                       </div>
                     )}
-                    <button
-                      className="text-left font-medium hover:underline"
-                      onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}
-                    >
-                      {i.name}
-                    </button>
+                    <span className="font-medium">{i.name}</span>
                   </div>
                 </td>
                 <td className="font-mono">{stockBalance(i)}</td>
@@ -355,41 +360,7 @@ export function StockPage() {
                   ) : null}
                 </td>
                 <td className="px-5 py-3.5 text-right">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <button
-                      className="text-[12.5px] underline"
-                      onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}
-                    >
-                      История
-                    </button>
-                    <button
-                      className="text-[12.5px] underline"
-                      onClick={() => openEdit(i)}
-                    >
-                      Изменить
-                    </button>
-                    <button
-                      className="text-[12.5px] underline"
-                      onClick={() => setMove({ item: i, type: "income", qty: "", price: "", comment: "" })}
-                    >
-                      Приход
-                    </button>
-                    <button
-                      className="text-[12.5px] underline"
-                      onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "", comment: "" })}
-                    >
-                      Списать
-                    </button>
-                    <button
-                      className="text-[12.5px] text-maroon underline"
-                      onClick={() => {
-                        drop.reset();
-                        setRemove(i);
-                      }}
-                    >
-                      Удалить
-                    </button>
-                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-faint">открыть</span>
                 </td>
               </tr>
               );
@@ -397,7 +368,6 @@ export function StockPage() {
           </tbody>
         </table>
       </div>
-      <RevisionsPanel shopId={shopId} part="history" />
       {edit && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
           <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-lg bg-paper p-7 shadow-soft">
@@ -449,7 +419,10 @@ export function StockPage() {
               />
               <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">{edit.base_unit}</p>
             </Field>
-            <Field label={`Минимум, ${edit.base_unit}`}>
+            <Field
+              label={`Минимум, ${edit.base_unit}`}
+              hint="Порог уведомления «заканчивается», не норма расхода."
+            >
               <Input
                 value={edit.min_quantity}
                 onChange={(e) => setEdit({ ...edit, min_quantity: e.target.value })}
@@ -522,57 +495,28 @@ export function StockPage() {
       {move && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
           <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
-            <h2 className="text-2xl font-medium">
-              {move.type === "income" ? "Приход" : "Списать"} · {move.item.name}
-            </h2>
+            <h2 className="text-2xl font-medium">Списать · {move.item.name}</h2>
             <p className="text-sm text-mute">
-              {move.type === "income"
-                ? `Закупка: ${move.item.purchase_unit} (1 ${move.item.purchase_unit} = ${qty(move.item.purchase_to_base, move.item.base_unit)})`
-                : `Списывают по факту — в ${move.item.base_unit}, не в ${move.item.purchase_unit}.`}
+              Списывают по факту — в {move.item.base_unit}, не в {move.item.purchase_unit}.
             </p>
-            {move.type === "income" ? (
-              <Field label={`Сколько, ${move.item.purchase_unit}?`}>
-                <Input
-                  value={move.qty}
-                  onChange={(e) => setMove({ ...move, qty: e.target.value })}
-                  inputMode="decimal"
-                />
-              </Field>
-            ) : (
-              <Field label={`Сколько списать, ${move.item.base_unit}`}>
-                <Input
-                  value={move.qty}
-                  onChange={(e) => setMove({ ...move, qty: e.target.value })}
-                  inputMode="decimal"
-                />
-              </Field>
-            )}
-            {incomePreview !== null && (
-              <p className="font-mono text-xs text-mute">
-                → на склад: +{qty(incomePreview, move.item.base_unit)}
-              </p>
-            )}
-            {move.type === "income" && (
-              <Field label="Сумма закупки за партию, ₸">
-                <Input
-                  value={move.price}
-                  onChange={(e) => setMove({ ...move, price: e.target.value })}
-                  inputMode="decimal"
-                  placeholder="за всю партию, не за одну пачку"
-                />
-              </Field>
-            )}
-            <Field label="Комментарий">
+            <Field label={`Сколько списать, ${move.item.base_unit}`}>
+              <Input
+                value={move.qty}
+                onChange={(e) => setMove({ ...move, qty: e.target.value })}
+                inputMode="decimal"
+              />
+            </Field>
+            <Field label="Почему">
               <Input
                 value={move.comment}
                 onChange={(e) => setMove({ ...move, comment: e.target.value })}
-                placeholder="по желанию — поставщик, причина списания"
+                placeholder="бой, пролив, дегустация"
               />
             </Field>
             {apply.isError && <p className="text-sm text-alert">{(apply.error as Error).message}</p>}
             <div className="flex gap-2">
               <Button onClick={() => apply.mutate()} disabled={!move.qty || apply.isPending}>
-                Записать
+                Списать
               </Button>
               <Button variant="ghost" onClick={() => setMove(null)}>
                 Отмена
@@ -580,6 +524,72 @@ export function StockPage() {
             </div>
           </div>
         </div>
+      )}
+      {menu && (
+        <div className="fixed inset-0 z-30 bg-roast/60" onClick={() => setMenu(null)}>
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-lg bg-paper p-6 shadow-soft md:inset-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-sm md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-display text-2xl font-normal">{menu.name}</p>
+            <p className="mt-1 font-mono text-sm text-mute">{stockBalance(menu)}</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => {
+                  setReceive(menu);
+                  setMenu(null);
+                }}
+              >
+                Приход
+              </Button>
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  setMove({ item: menu, qty: "", comment: "" });
+                  setMenu(null);
+                }}
+              >
+                Списать
+              </Button>
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  navigate(`/owner/stock/moves?item=${menu.id}`);
+                  setMenu(null);
+                }}
+              >
+                История
+              </Button>
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  openEdit(menu);
+                  setMenu(null);
+                }}
+              >
+                Изменить
+              </Button>
+            </div>
+            <button
+              type="button"
+              className="mt-4 min-h-11 w-full text-center text-[13px] text-maroon"
+              onClick={() => {
+                drop.reset();
+                setRemove(menu);
+                setMenu(null);
+              }}
+            >
+              Удалить позицию
+            </button>
+          </div>
+        </div>
+      )}
+      {receive != null && (
+        <ReceivePanel
+          shopId={shopId}
+          initialItem={receive === "open" ? null : receive}
+          onClose={() => setReceive(null)}
+        />
       )}
     </div>
   );

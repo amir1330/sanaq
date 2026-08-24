@@ -29,7 +29,31 @@ export function qty(value: string | number, unit?: string): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(n);
-  return unit ? `${text} ${unit}` : text;
+  if (!unit) return text;
+  return `${text} ${unitWord(n, unit)}`;
+}
+
+const UNIT_FORMS: Record<string, [string, string, string]> = {
+  пачка: ["пачка", "пачки", "пачек"],
+  мешок: ["мешок", "мешка", "мешков"],
+  ящик: ["ящик", "ящика", "ящиков"],
+  шт: ["шт", "шт", "шт"],
+};
+
+function ruPlural(n: number, forms: [string, string, string]): string {
+  const abs = Math.abs(Math.trunc(n)) % 100;
+  const d = abs % 10;
+  if (abs > 10 && abs < 20) return forms[2];
+  if (d === 1) return forms[0];
+  if (d > 1 && d < 5) return forms[1];
+  return forms[2];
+}
+
+export function unitWord(n: number, unit: string): string {
+  const forms = UNIT_FORMS[unit];
+  if (!forms) return unit;
+  if (!Number.isInteger(n)) return forms[1];
+  return ruPlural(n, forms);
 }
 
 export function unitCost(value: string | number, unit?: string): string {
@@ -79,7 +103,7 @@ export function stockBalance(item: {
   const base = qty(item.quantity, item.base_unit);
   const packs = Number(item.quantity_in_purchase ?? Number(item.quantity) / Number(item.purchase_to_base || 1));
   if (item.purchase_unit === item.base_unit && Number(item.purchase_to_base) === 1) return base;
-  return `${base} · ≈ ${qty(packs, item.purchase_unit)}`;
+  return `${base} ≈ ${qty(packs, item.purchase_unit)}`;
 }
 
 export function publicUrl(path: string | null | undefined): string | null {

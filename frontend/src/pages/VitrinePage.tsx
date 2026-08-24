@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { ShopBrand } from "../components/ShopBrand";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { money, publicUrl } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
 import type { Product } from "../types";
@@ -97,12 +96,9 @@ export function VitrinePage() {
       </main>
 
       <footer className="mt-auto flex items-center justify-between gap-4 px-8 py-4 md:px-12">
-        <div className="flex items-center gap-4">
-          <ThemeToggle className="text-[12.5px] text-faint hover:text-ink" />
-          <Link to={homePath(user?.role)} className="text-[12.5px] text-faint hover:text-ink">
-            Назад
-          </Link>
-        </div>
+        <Link to={homePath(user?.role)} className="text-[12.5px] text-faint hover:text-ink">
+          Назад
+        </Link>
         <button type="button" className="text-[12.5px] text-faint hover:text-ink" onClick={() => void toggleFull()}>
           {full ? "Свернуть" : "На весь экран"}
         </button>

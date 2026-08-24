@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Empty, Field, Input, PageTitle } from "../../components/ui";
+import { Button, Card, Check, Empty, Field, Input, PageTitle } from "../../components/ui";
 import { useAuth } from "../../store/auth";
 
 const emptyForm = {
@@ -68,14 +68,14 @@ export function StaffPage() {
         <Field label="Телефон, по желанию">
           <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </Field>
-        <label className="flex items-end gap-2 pb-2 text-sm">
-          <input
-            type="checkbox"
+        <div className="flex items-end pb-1">
+          <Check
             checked={form.can_receive_stock}
-            onChange={(e) => setForm({ ...form, can_receive_stock: e.target.checked })}
-          />
-          Приёмка
-        </label>
+            onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
+          >
+            Приёмка
+          </Check>
+        </div>
         <div className="flex items-end">
           <Button className="w-full" disabled={!canAdd || create.isPending} onClick={() => create.mutate()}>
             Добавить
@@ -87,7 +87,7 @@ export function StaffPage() {
       {people.length === 0 ? (
         <Empty>Пока никого. Добавь кассира сверху — он войдёт на кассе своим PIN.</Empty>
       ) : (
-        <div className="border border-line">
+        <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">

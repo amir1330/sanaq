@@ -37,6 +37,9 @@ class StockItem(Base):
     )
 
     movements: Mapped[list["StockMovement"]] = relationship(back_populates="stock_item")
+    lots: Mapped[list["StockLot"]] = relationship(
+        back_populates="stock_item", cascade="all, delete-orphan"
+    )
     image: Mapped["Upload | None"] = relationship(  # noqa: F821
         "Upload",
         foreign_keys=[image_upload_id],
@@ -79,6 +82,32 @@ class StockMovement(Base):
 
     stock_item: Mapped[StockItem | None] = relationship(back_populates="movements")
     revision: Mapped["StockRevision | None"] = relationship(back_populates="movements")
+
+
+class StockLot(Base):
+    """One purchase batch. Sales consume oldest lots first (FIFO)."""
+
+    __tablename__ = "stock_lots"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    stock_item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock_items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    quantity_remaining: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    cost_per_base_unit: Mapped[Decimal] = mapped_column(
+        Numeric(12, 4), nullable=False, default=Decimal("0")
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    source_movement_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("stock_movements.id", ondelete="SET NULL")
+    )
+
+    stock_item: Mapped[StockItem] = relationship(back_populates="lots")
 
 
 class StockLog(Base):

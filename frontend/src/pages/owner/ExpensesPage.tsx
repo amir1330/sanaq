@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
+import { Button, Card, Empty, Field, Input, PageTitle, Select } from "../../components/ui";
 import { money } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
@@ -25,7 +25,7 @@ export function ExpensesPage() {
       <PageTitle
         kicker="Деньги"
         title="Расходы"
-        hint="Аренда, зарплата, коммуналка — всё, что не чек с кассы. Это режет «чистыми» на сводке."
+        hint="Аренда, зарплата, коммуналка — то, что платишь мимо кассы. Закупка молока и стаканов — это Приход на складе, не сюда. На сводке: выручка − себестоимость чеков = прибыль, минус эти расходы и недостачи = чистыми."
       />
       <Card className="mb-4 grid gap-3 md:grid-cols-4">
         <Field label="Статья">
@@ -50,7 +50,10 @@ export function ExpensesPage() {
           </Button>
         </div>
       </Card>
-      <div className="border border-line">
+      {(list.data ?? []).length === 0 ? (
+        <Empty>Расходов за это время нет. Аренду и зарплату запиши сверху — закупки товара идут через склад.</Empty>
+      ) : (
+      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
@@ -74,6 +77,7 @@ export function ExpensesPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

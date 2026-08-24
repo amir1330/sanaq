@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { Banner, Button } from "../../components/ui";
 import { rememberPosShop, rememberedPosShop } from "../../lib/posShop";
 import { money, payAction, payLabel } from "../../lib/utils";
@@ -14,8 +14,9 @@ import { PosClockIn } from "./PosClockIn";
 type Line = { product: Product; quantity: number };
 
 export function PosPage() {
-  const { user, shopId, logout } = useAuth();
+  const { user, shopId } = useAuth();
   const remembered = rememberedPosShop();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const sid = shopId ?? user?.shop_id ?? 0;
   const [categoryId, setCategoryId] = useState<number | "all">("all");
@@ -336,13 +337,14 @@ export function PosPage() {
               Приёмка
             </button>
           )}
-          <ThemeToggle className="block pt-1 text-left text-[12.5px] text-ink-soft hover:text-ink" />
-          <button
-            className="pt-1 text-left text-[12.5px] text-ink-soft underline hover:text-ink"
-            onClick={() => logout()}
-          >
-            Выйти
-          </button>
+          {user?.role !== "barista" && (
+            <button
+              className="pt-1 text-left text-[12.5px] text-ink-soft hover:text-ink"
+              onClick={() => navigate("/owner")}
+            >
+              В кабинет
+            </button>
+          )}
         </div>
       </aside>
 
