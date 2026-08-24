@@ -4,7 +4,7 @@
 
 Чек, смена, остатки и чистыми в одном месте — без сведения таблиц в конце месяца.
 
-[Живой стенд](https://coffee.abuyunus.cc) · [Actions](https://github.com/amir1330/sanaq/actions)
+[Живой стенд](https://sanaq.abuyunus.cc) · [Actions](https://github.com/amir1330/sanaq/actions)
 
 [![CI](https://github.com/amir1330/sanaq/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1330/sanaq/actions/workflows/ci.yml)
 

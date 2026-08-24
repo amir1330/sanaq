@@ -22,7 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://coffee:${POSTGRES_PASSWORD}@postgres:5432/coffeeos
       SECRET_KEY: ${SECRET_KEY}
-      CORS_ORIGINS: https://coffee.abuyunus.cc
+      CORS_ORIGINS: https://sanaq.abuyunus.cc,https://coffee.abuyunus.cc
       WEB_CONCURRENCY: "2"
       SEED_DEMO: "0"
       WEBKASSA_URL: ${WEBKASSA_URL:-https://kkm.webkassa.kz}
@@ -46,10 +46,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
-      - "traefik.http.routers.coffee.rule=Host(`coffee.abuyunus.cc`)"
-      - "traefik.http.routers.coffee.entrypoints=websecure"
-      - "traefik.http.routers.coffee.tls=true"
-      - "traefik.http.services.coffee.loadbalancer.server.port=80"
+      - "traefik.http.routers.sanaq.rule=Host(`sanaq.abuyunus.cc`) || Host(`coffee.abuyunus.cc`)"
+      - "traefik.http.routers.sanaq.entrypoints=websecure"
+      - "traefik.http.routers.sanaq.tls=true"
+      - "traefik.http.services.sanaq.loadbalancer.server.port=80"
 
 networks:
   web:
