@@ -4,9 +4,9 @@ from app.schemas.common import UserOut
 
 
 class StaffCreate(BaseModel):
-    full_name: str
+    full_name: str = Field(min_length=1, max_length=200)
     pin_code: str = Field(min_length=4, max_length=8, pattern=r"^\d{4,8}$")
-    password: str = Field(min_length=4)
+    password: str | None = Field(default=None, min_length=4)
     phone: str | None = None
     email: str | None = None
     can_receive_stock: bool = False

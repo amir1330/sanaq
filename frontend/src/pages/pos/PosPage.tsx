@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Banner, Button } from "../../components/ui";
+import { rememberPosShop, rememberedPosShop } from "../../lib/posShop";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { CrewMember, Product, ShiftSale } from "../../types";
+import { PosClockIn } from "./PosClockIn";
 
 type Line = { product: Product; quantity: number };
 
 export function PosPage() {
   const { user, shopId, logout } = useAuth();
-  const navigate = useNavigate();
+  const remembered = rememberedPosShop();
   const qc = useQueryClient();
   const sid = shopId ?? user?.shop_id ?? 0;
   const [categoryId, setCategoryId] = useState<number | "all">("all");
@@ -36,28 +37,28 @@ export function PosPage() {
   const shops = useQuery({
     queryKey: ["shops"],
     queryFn: api.shops,
-    enabled: sid > 0,
+    enabled: Boolean(user) && sid > 0,
   });
   const currentShop = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
   const products = useQuery({
     queryKey: ["products", sid],
     queryFn: () => api.products(sid),
-    enabled: sid > 0,
+    enabled: Boolean(user) && sid > 0,
   });
   const categories = useQuery({
     queryKey: ["categories", sid],
     queryFn: () => api.categories(sid),
-    enabled: sid > 0,
+    enabled: Boolean(user) && sid > 0,
   });
   const shift = useQuery({
     queryKey: ["shift", sid],
     queryFn: () => api.currentShift(sid),
-    enabled: sid > 0,
+    enabled: Boolean(user) && sid > 0,
   });
   const crew = useQuery({
     queryKey: ["crew", sid],
     queryFn: () => api.crew(sid),
-    enabled: sid > 0,
+    enabled: Boolean(user) && sid > 0,
   });
 
   useEffect(() => {
@@ -73,6 +74,10 @@ export function PosPage() {
     }
     setSeller({ id: user.id, name: user.full_name });
   }, [user, sid]);
+
+  useEffect(() => {
+    if (sid > 0) rememberPosShop(sid);
+  }, [sid]);
 
   function pickSeller(next: { id: number; name: string }) {
     setSeller(next);
@@ -230,6 +235,8 @@ export function PosPage() {
     },
   });
 
+  if (!user) return <PosClockIn shopId={remembered} />;
+
   return (
     <div className="grid min-h-screen grid-cols-1 bg-paper text-ink lg:grid-cols-[224px_1fr_340px] lg:gap-px">
       <aside className="flex flex-col gap-5 px-[18px] py-6">
@@ -332,10 +339,7 @@ export function PosPage() {
           <ThemeToggle className="block pt-1 text-left text-[12.5px] text-ink-soft hover:text-ink" />
           <button
             className="pt-1 text-left text-[12.5px] text-ink-soft underline hover:text-ink"
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
+            onClick={() => logout()}
           >
             Выйти
           </button>

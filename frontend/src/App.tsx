@@ -14,7 +14,6 @@ import { SettingsPage } from "./pages/owner/SettingsPage";
 import { StaffPage } from "./pages/owner/StaffPage";
 import { StockMovesPage } from "./pages/owner/StockMovesPage";
 import { StockPage } from "./pages/owner/StockPage";
-import { PinLoginPage } from "./pages/PinLoginPage";
 import { PosPage } from "./pages/pos/PosPage";
 import { VitrinePage } from "./pages/VitrinePage";
 
@@ -25,9 +24,9 @@ export function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/pin" element={<PinLoginPage />} />
+        <Route path="/pin" element={<Navigate to="/pos" replace />} />
+        <Route path="/pos" element={<PosPage />} />
         <Route element={<Guard roles={["barista", "owner", "super_admin"]} />}>
-          <Route path="/pos" element={<PosPage />} />
           <Route path="/vitrine" element={<VitrinePage />} />
         </Route>
         <Route element={<Guard roles={["owner", "super_admin"]} />}>

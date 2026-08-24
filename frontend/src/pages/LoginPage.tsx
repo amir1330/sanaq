@@ -24,8 +24,11 @@ export function LoginPage() {
       const pair = await api.login(login, password);
       setSession(pair.access_token, pair.refresh_token, pair.user);
       navigate(homePath(pair.user.role));
-    } catch {
-      setError("Неверный логин или пароль");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setError(
+        /касс|PIN/i.test(msg) ? "Кассир входит PIN-кодом на кассе, не сюда." : "Неверный логин или пароль",
+      );
     } finally {
       setPending(false);
     }
@@ -43,7 +46,7 @@ export function LoginPage() {
         <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Кабинет</p>
         <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-          Почта или телефон и пароль, который выдал владелец.
+          Кабинет владельца: почта и пароль. Кассир входит PIN-ом на кассе, не отсюда.
         </p>
         <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
           <Field label="Почта или телефон">
@@ -63,9 +66,9 @@ export function LoginPage() {
           </Button>
         </form>
         <p className="mt-6 text-sm text-mute">
-          Общий планшет на стойке —{" "}
-          <Link to="/pin" className="text-ink underline">
-            вход по PIN
+          Касса на планшете —{" "}
+          <Link to="/pos" className="text-ink underline">
+            открыть кассу
           </Link>
         </p>
       </div>
