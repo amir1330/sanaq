@@ -152,6 +152,13 @@ export const api = {
       method: "POST",
       body: json(ingredients),
     }),
+  uploadProductImage: (shopId: number, id: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<Product>(`/shops/${shopId}/products/${id}/image`, { method: "POST", body });
+  },
+  deleteProductImage: (shopId: number, id: number) =>
+    request<Product>(`/shops/${shopId}/products/${id}/image`, { method: "DELETE" }),
 
   stock: (shopId: number) => request<StockItem[]>(`/shops/${shopId}/stock-items`),
   createStock: (shopId: number, body: object) =>
@@ -160,6 +167,13 @@ export const api = {
     request<StockItem>(`/shops/${shopId}/stock-items/${id}`, { method: "PATCH", body: json(body) }),
   deleteStock: (shopId: number, id: number) =>
     request<void>(`/shops/${shopId}/stock-items/${id}`, { method: "DELETE" }),
+  uploadStockImage: (shopId: number, id: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<StockItem>(`/shops/${shopId}/stock-items/${id}/image`, { method: "POST", body });
+  },
+  deleteStockImage: (shopId: number, id: number) =>
+    request<StockItem>(`/shops/${shopId}/stock-items/${id}/image`, { method: "DELETE" }),
   stockMove: (shopId: number, id: number, body: object) =>
     request(`/shops/${shopId}/stock-items/${id}/movements`, { method: "POST", body: json(body) }),
   stockJournal: (shopId: number, itemId?: number) =>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Empty, Field, Input } from "../../components/ui";
+import { Button, Empty, Field, Input, pill } from "../../components/ui";
 import { money, startOfPeriod, type Period } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
@@ -71,7 +71,7 @@ export function DashboardPage() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`rounded-full border-[1.5px] px-4 py-2 text-[12.5px] ${
+                className={`${pill} ${
                   period === p
                     ? "border-ink bg-ink text-paper"
                     : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"

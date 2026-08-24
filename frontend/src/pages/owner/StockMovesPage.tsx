@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Empty, PageTitle, Select } from "../../components/ui";
+import { Button, Empty, PageTitle, Select, pill } from "../../components/ui";
 import { money, qty, stockBalance } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockJournalEntry, StockJournalKind } from "../../types";
@@ -128,7 +128,7 @@ export function StockMovesPage() {
           <button
             key={f.id}
             onClick={() => setLogKind(f.id)}
-            className={`rounded-full border-[1.5px] px-4 py-2 text-[12.5px] ${
+            className={`${pill} ${
               logKind === f.id
                 ? "border-ink bg-ink text-paper"
                 : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
@@ -137,7 +137,7 @@ export function StockMovesPage() {
             {f.label}
           </button>
         ))}
-        <Select value={logItem} onChange={(e) => setItem(e.target.value)} className="min-w-44">
+        <Select value={logItem} onChange={(e) => setItem(e.target.value)} className="h-10 min-w-44 py-0">
           <option value="">Все позиции</option>
           {(stock.data ?? []).map((i) => (
             <option key={i.id} value={i.id}>

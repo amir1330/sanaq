@@ -28,11 +28,25 @@ class StockItem(Base):
     cost_per_base_unit: Mapped[Decimal] = mapped_column(
         Numeric(12, 4), nullable=False, default=Decimal("0")
     )
+    image_upload_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("uploads.id", ondelete="SET NULL", use_alter=True, name="fk_stock_items_image_upload_id"),
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     movements: Mapped[list["StockMovement"]] = relationship(back_populates="stock_item")
+    image: Mapped["Upload | None"] = relationship(  # noqa: F821
+        "Upload",
+        foreign_keys=[image_upload_id],
+        lazy="selectin",
+        post_update=True,
+    )
+
+    @property
+    def image_url(self) -> str | None:
+        return self.image.file_path if self.image is not None else None
 
 
 class StockMovement(Base):

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
-import { qty, stockBalance } from "../lib/utils";
+import { qty, publicUrl, stockBalance } from "../lib/utils";
 import type { StockItem } from "../types";
 import { Button, Field, Input } from "./ui";
 
@@ -38,18 +38,30 @@ export function ReceivePanel({ shopId, onClose }: { shopId: number; onClose: () 
           Количество — в единицах закупки. Сумма — за всю партию, как в накладной.
         </p>
         <div className="mt-4 max-h-64 overflow-auto">
-          {(stock.data ?? []).map((item) => (
+          {(stock.data ?? []).map((item) => {
+            const src = publicUrl(item.image_url);
+            return (
             <button
               key={item.id}
-              className={`block w-full border-b border-line py-2.5 text-left text-sm ${
+              className={`flex w-full items-center gap-3 border-b border-line py-2.5 text-left text-sm ${
                 pick?.id === item.id ? "text-ink" : "text-ink-soft"
               }`}
               onClick={() => setPick(item)}
             >
-              {item.name}
-              <span className="ml-2 opacity-70">{stockBalance(item)}</span>
+              {src ? (
+                <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+              ) : (
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-cream font-mono text-[9px] uppercase text-mute">
+                  ·
+                </span>
+              )}
+              <span>
+                {item.name}
+                <span className="ml-2 opacity-70">{stockBalance(item)}</span>
+              </span>
             </button>
-          ))}
+            );
+          })}
         </div>
         {pick && (
           <div className="mt-5 space-y-4">

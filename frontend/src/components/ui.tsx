@@ -4,26 +4,27 @@ import { cn } from "../lib/utils";
 export function Button({
   className,
   variant = "primary",
+  size = "md",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "ghost" | "ink" | "danger" | "foam" | "sky" | "quiet" | "gold";
+  size?: "md" | "lg";
 }) {
   const styles = {
-    primary:
-      "rounded-full border-[1.5px] border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
-    ink: "rounded-full border-[1.5px] border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
-    foam: "rounded-full border-[1.5px] border-ink bg-transparent text-ink hover:bg-ink hover:text-paper",
-    ghost: "rounded-full border-[1.5px] border-transparent bg-transparent px-2 text-ink hover:text-maroon hover:underline",
-    quiet:
-      "rounded-full border-[1.5px] border-line-2 bg-transparent px-4 py-2 text-ink-soft hover:border-ink hover:text-ink",
-    danger: "rounded-full border-[1.5px] border-maroon bg-maroon text-paper hover:bg-maroon-deep",
-    sky: "rounded-full border-[1.5px] border-turq bg-turq text-roast hover:bg-sky-deep",
-    gold: "rounded-full border-[1.5px] border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
+    primary: "border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
+    ink: "border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
+    foam: "border-ink bg-transparent text-ink hover:bg-ink hover:text-paper",
+    ghost: "border-transparent bg-transparent text-ink hover:text-maroon",
+    quiet: "border-line-2 bg-transparent text-ink-soft hover:border-ink hover:text-ink",
+    danger: "border-maroon bg-maroon text-paper hover:bg-maroon-deep",
+    sky: "border-turq bg-turq text-roast hover:bg-sky-deep",
+    gold: "border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
   }[variant];
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 px-[26px] py-[13px] text-[13.5px] font-semibold transition disabled:opacity-40",
+        "inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] font-semibold transition disabled:opacity-40",
+        size === "lg" ? "h-12 px-[26px] text-[13.5px]" : "h-10 px-[18px] text-[12.5px]",
         styles,
         className,
       )}
@@ -31,6 +32,8 @@ export function Button({
     />
   );
 }
+
+export const pill = "inline-flex h-10 items-center justify-center rounded-full border-[1.5px] px-[18px] text-[12.5px] font-medium transition";
 
 export function Field({
   label,

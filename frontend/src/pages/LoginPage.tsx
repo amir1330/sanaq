@@ -58,7 +58,7 @@ export function LoginPage() {
             />
           </Field>
           {error && <p className="text-sm text-alert">{error}</p>}
-          <Button className="w-full" disabled={pending || !login || !password}>
+          <Button className="w-full" size="lg" disabled={pending || !login || !password}>
             {pending ? "Входим…" : "Войти"}
           </Button>
         </form>

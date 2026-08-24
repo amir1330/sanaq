@@ -140,7 +140,7 @@ export function SettingsPage() {
               </Button>
             )}
           </div>
-          <p className="mt-3 text-sm text-mute">До 2 МБ. Квадрат смотрится лучше всего.</p>
+          <p className="mt-3 text-sm text-mute">До 2 МБ. В шапке и на кассе логотип крупный — лучше квадрат.</p>
         </Card>
       </div>
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}

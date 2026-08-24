@@ -159,9 +159,13 @@ export function AdminPage() {
                 <div>
                   <div className="flex items-center gap-3">
                     {shop?.logo_url ? (
-                      <img src={publicUrl(shop.logo_url) ?? ""} alt="" className="h-10 w-10 object-contain" />
+                      <img
+                        src={publicUrl(shop.logo_url) ?? ""}
+                        alt=""
+                        className="h-16 w-16 rounded-md bg-paper object-contain p-1"
+                      />
                     ) : (
-                      <span className="grid h-10 w-10 place-items-center bg-sun text-roast text-sm">
+                      <span className="grid h-16 w-16 place-items-center bg-sun text-roast text-sm">
                         {row.shop_name.slice(0, 1)}
                       </span>
                     )}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ from app.services.stock import (
     to_purchase,
     write_stock_log,
 )
+from app.services.uploads import delete_upload, replace_upload
 
 router = APIRouter(tags=["stock"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -40,6 +41,7 @@ def _item_out(item: StockItem, *, hide_cost: bool) -> StockItemOut:
         quantity_in_purchase=to_purchase(item.quantity, item.purchase_to_base),
         min_quantity=item.min_quantity,
         cost_per_base_unit=0 if hide_cost else item.cost_per_base_unit,
+        image_url=item.image_url,
         updated_at=item.updated_at,
         is_low=item.quantity <= item.min_quantity,
     )
@@ -100,6 +102,50 @@ async def update_stock_item(
         setattr(item, key, value)
     if detail:
         write_stock_log(session, item=item, action=StockLogAction.updated, user=user, detail=detail)
+    await session.commit()
+    await session.refresh(item)
+    return _item_out(item, hide_cost=False)
+
+
+@router.post("/shops/{shop_id}/stock-items/{item_id}/image", response_model=StockItemOut)
+async def upload_stock_image(
+    shop_id: int,
+    item_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    item = await session.get(StockItem, item_id)
+    if item is None or item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    item.image = await replace_upload(
+        session,
+        file,
+        shop_id=shop_id,
+        kind="stock",
+        prefix=f"item-{item.id}",
+        uploader_id=user.id,
+        previous=item.image,
+    )
+    await session.commit()
+    await session.refresh(item)
+    return _item_out(item, hide_cost=False)
+
+
+@router.delete("/shops/{shop_id}/stock-items/{item_id}/image", response_model=StockItemOut)
+async def delete_stock_image(
+    shop_id: int,
+    item_id: int,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    item = await session.get(StockItem, item_id)
+    if item is None or item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    await delete_upload(session, item.image)
+    item.image = None
     await session.commit()
     await session.refresh(item)
     return _item_out(item, hide_cost=False)

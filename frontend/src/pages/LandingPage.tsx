@@ -76,11 +76,15 @@ export function LandingPage() {
           <ThemeToggle label="Тема" />
           {user ? (
             <Link to={homePath(user.role)}>
-              <Button variant="foam">В кабинет</Button>
+              <Button variant="foam" size="lg">
+                В кабинет
+              </Button>
             </Link>
           ) : (
             <Link to="/login">
-              <Button variant="foam">Войти</Button>
+              <Button variant="foam" size="lg">
+                Войти
+              </Button>
             </Link>
           )}
         </nav>
@@ -99,10 +103,12 @@ export function LandingPage() {
         </p>
         <div className="flex justify-center gap-3.5">
           <a href="#request">
-            <Button>Оставить заявку</Button>
+            <Button size="lg">Оставить заявку</Button>
           </a>
           <a href="#features">
-            <Button variant="ghost">Как это работает</Button>
+            <Button variant="ghost" size="lg">
+              Как это работает
+            </Button>
           </a>
         </div>
       </section>
@@ -133,7 +139,7 @@ export function LandingPage() {
               <p className="text-sm leading-relaxed text-cream-soft">
                 Напишем или позвоним. Обычно в тот же день. Оплата позже — сейчас только запрос.
               </p>
-              <Button variant="gold" className="mt-8 w-full" onClick={() => setDone(false)}>
+              <Button variant="gold" size="lg" className="mt-8 w-full" onClick={() => setDone(false)}>
                 Отправить ещё одну
               </Button>
             </>
@@ -179,7 +185,7 @@ export function LandingPage() {
                   />
                 </div>
                 {error && <p className="text-sm text-maroon">{error}</p>}
-                <Button variant="gold" className="mt-2 w-full" disabled={pending}>
+                <Button variant="gold" size="lg" className="mt-2 w-full" disabled={pending}>
                   {pending ? "Отправляем…" : "Отправить"}
                 </Button>
               </div>

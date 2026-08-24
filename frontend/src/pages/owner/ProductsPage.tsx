@@ -1,8 +1,9 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { PhotoField } from "../../components/PhotoField";
 import { Button, Card, Empty, Field, Input, PageTitle } from "../../components/ui";
-import { money } from "../../lib/utils";
+import { money, publicUrl } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Product } from "../../types";
 
@@ -16,6 +17,7 @@ type Draft = {
   is_active: boolean;
   tax_percent: string;
   tax_type: string;
+  image_url: string | null;
   ingredients: IngRow[];
 };
 
@@ -27,24 +29,28 @@ export function ProductsPage() {
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [editing, setEditing] = useState<Draft | null>(null);
   const [catName, setCatName] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [dropPhoto, setDropPhoto] = useState(false);
 
   const save = useMutation({
     mutationFn: async () => {
       const ingredients = (editing?.ingredients ?? [])
         .filter((i) => i.stock_item_id && i.quantity)
         .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity }));
-      if (editing?.id) {
-        await api.patchProduct(shopId, editing.id, {
-          name: editing.name,
-          sale_price: editing.sale_price,
-          category_id: editing.category_id,
-          is_active: editing.is_active,
-          tax_percent: editing.tax_percent || "0",
-          tax_type: Number(editing.tax_type || 0),
+      let id = editing?.id;
+      if (id) {
+        await api.patchProduct(shopId, id, {
+          name: editing!.name,
+          sale_price: editing!.sale_price,
+          category_id: editing!.category_id,
+          is_active: editing!.is_active,
+          tax_percent: editing!.tax_percent || "0",
+          tax_type: Number(editing!.tax_type || 0),
         });
-        await api.setIngredients(shopId, editing.id, ingredients);
+        await api.setIngredients(shopId, id, ingredients);
       } else {
-        await api.createProduct(shopId, {
+        const created = await api.createProduct(shopId, {
           name: editing?.name,
           sale_price: editing?.sale_price,
           category_id: editing?.category_id || null,
@@ -52,10 +58,16 @@ export function ProductsPage() {
           tax_type: Number(editing?.tax_type || 0),
           ingredients,
         });
+        id = created.id;
       }
+      if (id && dropPhoto && editing?.id && !photoFile) await api.deleteProductImage(shopId, id);
+      if (id && photoFile) await api.uploadProductImage(shopId, id, photoFile);
     },
     onSuccess: () => {
       setEditing(null);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setDropPhoto(false);
       void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
@@ -69,6 +81,9 @@ export function ProductsPage() {
   });
 
   function open(p?: Product) {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setDropPhoto(false);
     setEditing({
       id: p?.id,
       name: p?.name ?? "",
@@ -77,6 +92,7 @@ export function ProductsPage() {
       is_active: p?.is_active ?? true,
       tax_percent: p?.tax_percent ?? "0",
       tax_type: String(p?.tax_type ?? 0),
+      image_url: p?.image_url ?? null,
       ingredients:
         p?.ingredients.map((i) => ({ stock_item_id: i.stock_item_id, quantity: String(i.quantity) })) ?? [],
     });
@@ -86,9 +102,9 @@ export function ProductsPage() {
     <div>
       <PageTitle
         kicker="Меню"
-        title="Товары"
-        hint="Цена — сколько платит гость. Состав — что снять со склада. Капучино: молоко и зерно. Печенье: одна штука, или пусто, если остаток не ведёте."
-        action={<Button onClick={() => open()}>Добавить в меню</Button>}
+        title="Витрина"
+        hint="Прайс на кассе: фото, название, цена. Капучино, печенье, вода — как стоит на стойке. Состав списывает склад, если заполнен."
+        action={<Button onClick={() => open()}>Добавить в витрину</Button>}
       />
       <Card className="mb-4">
         <form
@@ -115,38 +131,36 @@ export function ProductsPage() {
         </form>
       </Card>
       {(products.data ?? []).length === 0 ? (
-        <Empty>Меню пустое. Добавь первый товар — он появится на кассе.</Empty>
+        <Empty>Витрина пустая. Добавь первый товар с фото — он появится на кассе как прайс.</Empty>
       ) : (
-        <div className="border border-line">
-          <table className="w-full text-sm">
-            <thead className="text-[11px] uppercase tracking-wider text-mute">
-              <tr className="border-b border-line text-left">
-                <th className="px-4 py-3">На кассе</th>
-                <th>Категория</th>
-                <th>Цена гостю</th>
-                <th>Себестоимость</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(products.data ?? []).map((p) => (
-                <tr key={p.id} className="border-b border-line/70">
-                  <td className="px-4 py-3">
-                    {p.name}
-                    {!p.is_active && <span className="ml-2 text-mute">скрыт с кассы</span>}
-                  </td>
-                  <td>{p.category_name || "—"}</td>
-                  <td>{money(p.sale_price)}</td>
-                  <td>{money(p.cost_price)}</td>
-                  <td className="px-4 text-right">
-                    <button className="underline" onClick={() => open(p)}>
-                      Изменить
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(products.data ?? []).map((p) => {
+            const src = publicUrl(p.image_url);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => open(p)}
+                className={`overflow-hidden rounded-lg bg-cream text-left shadow-soft transition hover:-translate-y-0.5 ${
+                  p.is_active ? "" : "opacity-55"
+                }`}
+              >
+                {src ? (
+                  <img src={src} alt="" className="h-40 w-full object-cover" />
+                ) : (
+                  <div className="grid h-40 place-items-center bg-paper text-sm text-mute">Без фото</div>
+                )}
+                <div className="px-5 py-4">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                    {p.category_name || "Без категории"}
+                    {!p.is_active ? " · скрыт" : ""}
+                  </p>
+                  <p className="mt-1 font-display text-[19px] font-normal">{p.name}</p>
+                  <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -160,6 +174,20 @@ export function ProductsPage() {
             }}
           >
             <h2 className="font-display text-2xl font-normal">{editing.id ? "Изменить товар" : "Новый товар"}</h2>
+            <PhotoField
+              src={photoPreview ?? (dropPhoto ? null : publicUrl(editing.image_url))}
+              onFile={(file) => {
+                setDropPhoto(false);
+                setPhotoFile(file);
+                setPhotoPreview(URL.createObjectURL(file));
+              }}
+              onClear={() => {
+                setPhotoFile(null);
+                setPhotoPreview(null);
+                setDropPhoto(true);
+              }}
+              hint="Это фото на витрине кассы"
+            />
             <Field label="Как называется на кассе">
               <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
             </Field>
@@ -192,7 +220,7 @@ export function ProductsPage() {
                 checked={editing.is_active}
                 onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
               />
-              Показывать на кассе
+              Показывать на витрине и кассе
             </label>
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="НДС %, для чека ОФД">
@@ -291,7 +319,16 @@ export function ProductsPage() {
             {save.isError && <p className="text-sm text-alert">{(save.error as Error).message}</p>}
             <div className="flex gap-2">
               <Button type="submit">Сохранить</Button>
-              <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setEditing(null);
+                  setPhotoFile(null);
+                  setPhotoPreview(null);
+                  setDropPhoto(false);
+                }}
+              >
                 Отмена
               </Button>
             </div>

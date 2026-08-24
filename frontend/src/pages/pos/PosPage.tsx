@@ -6,7 +6,7 @@ import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Banner, Button } from "../../components/ui";
-import { money, payAction, payLabel } from "../../lib/utils";
+import { money, payAction, payLabel, publicUrl } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { CrewMember, Product, ShiftSale } from "../../types";
 
@@ -109,7 +109,7 @@ export function PosPage() {
   }
 
   const visible = useMemo(() => {
-    const list = products.data ?? [];
+    const list = (products.data ?? []).filter((p) => p.is_active);
     if (categoryId === "all") return list;
     return list.filter((p) => p.category_id === categoryId);
   }, [products.data, categoryId]);
@@ -355,18 +355,35 @@ export function PosPage() {
           <Banner tone="warn">Смена закрыта. Открой смену — потом можно продавать.</Banner>
         )}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {visible.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => add(p)}
-              className={`rounded-lg border-[1.5px] border-transparent bg-roast px-4 py-[18px] text-left text-cream transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
-            >
-              <p className="font-mono text-[9.5px] uppercase tracking-wide text-cream-soft">{p.category_name}</p>
-              <p className="mt-2 text-[14.5px] font-medium">{p.name}</p>
-              <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
-            </button>
-          ))}
+          {visible.map((p) => {
+            const src = publicUrl(p.image_url);
+            return (
+              <button
+                key={p.id}
+                onClick={() => add(p)}
+                className={`overflow-hidden rounded-lg border-[1.5px] border-transparent bg-roast text-left text-cream transition hover:-translate-y-0.5 hover:border-gold ${!shiftOpen ? "opacity-50" : ""}`}
+              >
+                {src ? (
+                  <img src={src} alt="" className="h-28 w-full object-cover" />
+                ) : (
+                  <div className="grid h-20 place-items-center bg-roast-2 font-mono text-[10px] uppercase tracking-wide text-cream-soft">
+                    {p.category_name || "меню"}
+                  </div>
+                )}
+                <div className="px-4 py-3.5">
+                  {src && p.category_name && (
+                    <p className="font-mono text-[9.5px] uppercase tracking-wide text-cream-soft">{p.category_name}</p>
+                  )}
+                  <p className={`text-[14.5px] font-medium ${src && p.category_name ? "mt-1.5" : ""}`}>{p.name}</p>
+                  <p className="mt-2 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
+        {products.isSuccess && visible.length === 0 && (
+          <p className="mt-8 text-center text-[13px] text-cream-soft">Витрина пустая — добавь товары с фото в меню.</p>
+        )}
       </section>
 
       <aside className="flex flex-col px-5 py-6">

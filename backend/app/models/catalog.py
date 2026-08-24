@@ -32,7 +32,10 @@ class Product(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    image_url: Mapped[str | None] = mapped_column(Text)
+    image_upload_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("uploads.id", ondelete="SET NULL", use_alter=True, name="fk_products_image_upload_id"),
+    )
     fiscal_position_code: Mapped[str | None] = mapped_column(Text)
     tax_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=Decimal("0"))
     tax_type: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -44,6 +47,16 @@ class Product(Base):
     ingredients: Mapped[list["ProductIngredient"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
+    image: Mapped["Upload | None"] = relationship(  # noqa: F821
+        "Upload",
+        foreign_keys=[image_upload_id],
+        lazy="selectin",
+        post_update=True,
+    )
+
+    @property
+    def image_url(self) -> str | None:
+        return self.image.file_path if self.image is not None else None
 
 
 class ProductIngredient(Base):

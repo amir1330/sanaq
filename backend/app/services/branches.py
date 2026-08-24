@@ -7,12 +7,13 @@ from sqlalchemy.orm import selectinload
 
 from app.models import Category, OwnerShop, Product, ProductIngredient, Shop, StockItem, User, UserRole
 from app.services.access import owned_shop_ids
+from app.services.uploads import copy_upload
 
 
 async def clone_shop_catalog(session: AsyncSession, source_id: int, dest: Shop) -> None:
-    dest.logo_url = (
-        await session.execute(select(Shop.logo_url).where(Shop.id == source_id))
-    ).scalar_one_or_none() or dest.logo_url
+    source = await session.get(Shop, source_id)
+    if source is not None:
+        dest.logo = copy_upload(session, source.logo, dest.id, prefix="logo")
 
     categories = (
         await session.execute(select(Category).where(Category.shop_id == source_id).order_by(Category.id))
@@ -41,6 +42,7 @@ async def clone_shop_catalog(session: AsyncSession, source_id: int, dest: Shop) 
         )
         session.add(copy)
         await session.flush()
+        copy.image = copy_upload(session, item.image, dest.id, prefix=f"item-{copy.id}")
         item_map[item.id] = copy.id
 
     products = (
@@ -58,13 +60,13 @@ async def clone_shop_catalog(session: AsyncSession, source_id: int, dest: Shop) 
             name=product.name,
             sale_price=product.sale_price,
             is_active=product.is_active,
-            image_url=product.image_url,
             fiscal_position_code=product.fiscal_position_code,
             tax_percent=product.tax_percent,
             tax_type=product.tax_type,
         )
         session.add(copy)
         await session.flush()
+        copy.image = copy_upload(session, product.image, dest.id, prefix=f"product-{copy.id}")
         for ing in product.ingredients:
             new_item_id = item_map.get(ing.stock_item_id)
             if new_item_id is None:

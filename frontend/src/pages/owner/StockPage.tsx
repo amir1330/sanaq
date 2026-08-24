@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { PhotoField } from "../../components/PhotoField";
 import { RevisionsPanel } from "../../components/RevisionsPanel";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
-import { BASE_UNITS, PURCHASE_UNITS, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { BASE_UNITS, PURCHASE_UNITS, publicUrl, qty, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
@@ -23,7 +24,14 @@ export function StockPage() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [create, setCreate] = useState(emptyCreate);
+  const [createPhoto, setCreatePhoto] = useState<File | null>(null);
+  const [createPreview, setCreatePreview] = useState<string | null>(null);
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const revisions = useQuery({
+    queryKey: ["stock-revisions", shopId],
+    queryFn: () => api.stockRevisions(shopId),
+  });
+  const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
   const [move, setMove] = useState<{
     item: StockItem;
     type: "income" | "writeoff";
@@ -39,29 +47,44 @@ export function StockPage() {
     purchase_to_base: string;
     min_quantity: string;
     cost_per_base_unit: string;
+    image_url: string | null;
   } | null>(null);
+  const [editPhoto, setEditPhoto] = useState<File | null>(null);
+  const [editPreview, setEditPreview] = useState<string | null>(null);
+  const [dropEditPhoto, setDropEditPhoto] = useState(false);
   const [remove, setRemove] = useState<StockItem | null>(null);
 
   const add = useMutation({
-    mutationFn: () => api.createStock(shopId, create),
+    mutationFn: async () => {
+      const item = await api.createStock(shopId, create);
+      if (createPhoto) await api.uploadStockImage(shopId, item.id, createPhoto);
+    },
     onSuccess: () => {
       setCreate(emptyCreate);
+      setCreatePhoto(null);
+      setCreatePreview(null);
       setCreating(false);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
   const saveEdit = useMutation({
-    mutationFn: () =>
-      api.patchStock(shopId, edit!.id, {
+    mutationFn: async () => {
+      await api.patchStock(shopId, edit!.id, {
         name: edit!.name,
         purchase_unit: edit!.purchase_unit,
         purchase_to_base: edit!.purchase_to_base,
         min_quantity: edit!.min_quantity,
         cost_per_base_unit: edit!.cost_per_base_unit,
-      }),
+      });
+      if (dropEditPhoto && !editPhoto) await api.deleteStockImage(shopId, edit!.id);
+      if (editPhoto) await api.uploadStockImage(shopId, edit!.id, editPhoto);
+    },
     onSuccess: () => {
       setEdit(null);
+      setEditPhoto(null);
+      setEditPreview(null);
+      setDropEditPhoto(false);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
@@ -89,6 +112,10 @@ export function StockPage() {
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
+  const startRevision = useMutation({
+    mutationFn: () => api.createStockRevision(shopId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] }),
+  });
 
   function setUnits(patch: Partial<typeof create>) {
     const next = { ...create, ...patch };
@@ -102,10 +129,28 @@ export function StockPage() {
     if (creating) {
       add.reset();
       setCreate(emptyCreate);
+      setCreatePhoto(null);
+      setCreatePreview(null);
       setCreating(false);
       return;
     }
     setCreating(true);
+  }
+
+  function openEdit(i: StockItem) {
+    setEditPhoto(null);
+    setEditPreview(null);
+    setDropEditPhoto(false);
+    setEdit({
+      id: i.id,
+      name: i.name,
+      base_unit: i.base_unit,
+      purchase_unit: i.purchase_unit,
+      purchase_to_base: String(Number(i.purchase_to_base)),
+      min_quantity: String(Number(i.min_quantity)),
+      cost_per_base_unit: String(Number(i.cost_per_base_unit)),
+      image_url: i.image_url,
+    });
   }
 
   const incomePreview =
@@ -124,13 +169,21 @@ export function StockPage() {
             <Link to="/owner/stock/moves">
               <Button variant="quiet">Движения</Button>
             </Link>
-            <Button variant={creating ? "ghost" : "primary"} onClick={toggleCreate}>
+            {!hasDraft && (
+              <Button variant="quiet" onClick={() => startRevision.mutate()} disabled={startRevision.isPending}>
+                Ревизия
+              </Button>
+            )}
+            <Button variant={creating ? "quiet" : "primary"} onClick={toggleCreate}>
               {creating ? "Свернуть" : "Добавить позицию"}
             </Button>
           </div>
         }
       />
-      <RevisionsPanel shopId={shopId} />
+      {startRevision.isError && (
+        <p className="mb-4 text-sm text-alert">{(startRevision.error as Error).message}</p>
+      )}
+      <RevisionsPanel shopId={shopId} part="draft" />
       {(stock.data ?? []).some((i) => i.is_low) && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
           <p className="font-semibold text-alert">Заканчивается</p>
@@ -144,6 +197,20 @@ export function StockPage() {
       )}
       {creating && (
       <Card className="mb-4 grid gap-3 md:grid-cols-3">
+        <div className="md:col-span-3">
+          <PhotoField
+            src={createPreview}
+            onFile={(file) => {
+              setCreatePhoto(file);
+              setCreatePreview(URL.createObjectURL(file));
+            }}
+            onClear={() => {
+              setCreatePhoto(null);
+              setCreatePreview(null);
+            }}
+            hint="Снимок пачки, банки, коробки — чтобы не перепутать на приёмке"
+          />
+        </div>
         <Field label="Название">
           <Input
             placeholder="Молоко, печенье, стаканы…"
@@ -218,54 +285,58 @@ export function StockPage() {
             </tr>
           </thead>
           <tbody>
-            {(stock.data ?? []).map((i) => (
+            {(stock.data ?? []).map((i) => {
+              const src = publicUrl(i.image_url);
+              return (
               <tr key={i.id} className={`border-b border-line last:border-0 ${i.is_low ? "bg-maroon/5" : ""}`}>
                 <td className="px-5 py-3.5">
-                  <button
-                    className="text-left font-medium hover:underline"
-                    onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}
-                  >
-                    {i.name}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {src ? (
+                      <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
+                    ) : (
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-paper font-mono text-[9px] uppercase tracking-wide text-mute">
+                        фото
+                      </div>
+                    )}
+                    <button
+                      className="text-left font-medium hover:underline"
+                      onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}
+                    >
+                      {i.name}
+                    </button>
+                  </div>
                 </td>
                 <td className="font-mono">{stockBalance(i)}</td>
                 <td className="font-mono text-mute">{qty(i.min_quantity, i.base_unit)}</td>
                 <td className="font-mono">{unitCost(i.cost_per_base_unit, i.base_unit)}</td>
                 <td className="px-5 py-3.5 text-right">
-                  <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
-                    <button className="underline" onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      className="text-[12.5px] underline"
+                      onClick={() => navigate(`/owner/stock/moves?item=${i.id}`)}
+                    >
                       История
                     </button>
                     <button
-                      className="underline"
-                      onClick={() =>
-                        setEdit({
-                          id: i.id,
-                          name: i.name,
-                          base_unit: i.base_unit,
-                          purchase_unit: i.purchase_unit,
-                          purchase_to_base: String(Number(i.purchase_to_base)),
-                          min_quantity: String(Number(i.min_quantity)),
-                          cost_per_base_unit: String(Number(i.cost_per_base_unit)),
-                        })
-                      }
+                      className="text-[12.5px] underline"
+                      onClick={() => openEdit(i)}
                     >
                       Изменить
                     </button>
                     <button
-                      className="underline"
+                      className="text-[12.5px] underline"
                       onClick={() => setMove({ item: i, type: "income", qty: "", price: "", comment: "" })}
                     >
                       Приход
                     </button>
                     <button
-                      className="underline"
+                      className="text-[12.5px] underline"
                       onClick={() => setMove({ item: i, type: "writeoff", qty: "", price: "", comment: "" })}
                     >
                       Списать
                     </button>
                     <button
-                      className="underline text-maroon"
+                      className="text-[12.5px] text-maroon underline"
                       onClick={() => {
                         drop.reset();
                         setRemove(i);
@@ -276,17 +347,33 @@ export function StockPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
+      <RevisionsPanel shopId={shopId} part="history" />
       {edit && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
-          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
+          <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-lg bg-paper p-7 shadow-soft">
             <h2 className="text-2xl font-medium">Изменить · {edit.name}</h2>
             <p className="text-sm text-mute">
               Базовая единица «{edit.base_unit}» не меняется — в ней уже стоят остаток и составы.
             </p>
+            <PhotoField
+              src={editPreview ?? (dropEditPhoto ? null : publicUrl(edit.image_url))}
+              onFile={(file) => {
+                setDropEditPhoto(false);
+                setEditPhoto(file);
+                setEditPreview(URL.createObjectURL(file));
+              }}
+              onClear={() => {
+                setEditPhoto(null);
+                setEditPreview(null);
+                setDropEditPhoto(true);
+              }}
+              hint="PNG, JPG или WEBP, до 2 МБ"
+            />
             <Field label="Название">
               <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
             </Field>
@@ -336,7 +423,15 @@ export function StockPage() {
               <Button onClick={() => saveEdit.mutate()} disabled={!edit.name || saveEdit.isPending}>
                 Сохранить
               </Button>
-              <Button variant="ghost" onClick={() => setEdit(null)}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setEdit(null);
+                  setEditPhoto(null);
+                  setEditPreview(null);
+                  setDropEditPhoto(false);
+                }}
+              >
                 Отмена
               </Button>
             </div>

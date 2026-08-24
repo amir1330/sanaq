@@ -17,17 +17,18 @@ export function ShopBrand({
 }) {
   const src = publicUrl(shop?.logo_url);
   const name = shop?.name ?? fallback;
-  const box = size === "md" ? "h-5 w-5" : "h-[17px] w-[17px]";
-  const markBox = size === "md" ? "h-5 w-7" : "h-[17px] w-[24px]";
+  const box = size === "md" ? "h-[4.25rem] w-[4.25rem]" : "h-14 w-14";
+  const markBox = size === "md" ? "h-6 w-8" : "h-[18px] w-[25px]";
+  const logoClass = `${box} shrink-0 rounded-md bg-paper object-contain p-1`;
 
   if (!showName) {
-    return src ? <img src={src} alt="" className={`${box} object-contain`} /> : <Mark className={markBox} />;
+    return src ? <img src={src} alt="" className={logoClass} /> : <Mark className={markBox} />;
   }
 
   if (src) {
     return (
       <span className="inline-flex min-w-0 items-center gap-3">
-        <img src={src} alt="" className={`${box} shrink-0 object-contain`} />
+        <img src={src} alt="" className={logoClass} />
         <span className={size === "md" ? "truncate font-semibold" : "truncate font-display text-[17px]"}>
           {name}
         </span>

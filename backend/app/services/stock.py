@@ -14,6 +14,7 @@ from app.models import (
     StockMovementType,
     User,
 )
+from app.services.uploads import delete_upload
 
 _UPDATE_LABELS = {
     "name": "название",
@@ -181,6 +182,7 @@ async def remove_stock_item(session: AsyncSession, item: StockItem, user: User) 
             f"Сначала уберите из состава: {', '.join(used)}",
         )
     write_stock_log(session, item=item, action=StockLogAction.deleted, user=user)
+    await delete_upload(session, item.image)
     await session.delete(item)
 
 

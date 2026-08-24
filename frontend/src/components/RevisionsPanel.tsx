@@ -36,8 +36,13 @@ function lineValue(line: StockRevisionLine, counted: string): number | null {
   return diff * Number(line.cost_per_base_unit);
 }
 
-export function RevisionsPanel({ shopId }: { shopId: number }) {
-  const qc = useQueryClient();
+export function RevisionsPanel({
+  shopId,
+  part = "all",
+}: {
+  shopId: number;
+  part?: "draft" | "history" | "all";
+}) {
   const list = useQuery({
     queryKey: ["stock-revisions", shopId],
     queryFn: () => api.stockRevisions(shopId),
@@ -46,34 +51,27 @@ export function RevisionsPanel({ shopId }: { shopId: number }) {
   const history = (list.data ?? []).filter((r) => r.status !== "draft");
   const [openId, setOpenId] = useState<number | null>(null);
   const opened = history.find((r) => r.id === openId) ?? null;
+  const showDraft = part !== "history";
+  const showHistory = part !== "draft";
 
-  const start = useMutation({
-    mutationFn: () => api.createStockRevision(shopId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] }),
-  });
+  if (showDraft && !showHistory && !draft) return null;
 
   return (
-    <div className="mb-8">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Ревизия</p>
-          <h2 className="mt-1 font-display text-2xl font-normal text-ink">Пересчёт склада</h2>
-          <p className="mt-1 text-sm text-mute">
-            Колонка «Система» — живой остаток: продажи во время пересчёта уже вычтены. Δ — только то, чего не хватает
-            на полке сверх чеков.
-          </p>
-        </div>
-        {!draft && (
-          <Button onClick={() => start.mutate()} disabled={start.isPending}>
-            Начать ревизию
-          </Button>
-        )}
-      </div>
-      {start.isError && <p className="mb-3 text-sm text-alert">{(start.error as Error).message}</p>}
-      {draft && <DraftSheet key={`${draft.id}-${draft.line_count}`} shopId={shopId} revision={draft} />}
-      {history.length === 0 && !draft ? (
-        <Empty>Ревизий ещё не было. Начни первую — система снимет остатки, ты введёшь факт.</Empty>
-      ) : history.length > 0 ? (
+    <div className={part === "history" ? "mt-10" : "mb-8"}>
+      {showDraft && draft && <DraftSheet key={`${draft.id}-${draft.line_count}`} shopId={shopId} revision={draft} />}
+      {showHistory && (history.length > 0 || !draft) && (
+        <>
+          <div className="mb-4">
+            <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Ревизии</p>
+            <h2 className="mt-1 font-display text-2xl font-normal text-ink">Пересчёты</h2>
+            <p className="mt-1 text-sm text-mute">
+              Колонка «Система» — живой остаток. Δ — то, чего не хватает на полке сверх чеков. Новую ревизию —
+              кнопкой сверху.
+            </p>
+          </div>
+          {history.length === 0 && !draft ? (
+            <Empty>Ревизий ещё не было. «Ревизия» в шапке снимает системные остатки, ты вводишь факт.</Empty>
+          ) : history.length > 0 ? (
         <div className="border border-line">
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
@@ -114,12 +112,14 @@ export function RevisionsPanel({ shopId }: { shopId: number }) {
             </tbody>
           </table>
         </div>
-      ) : null}
-      {opened && (
-        <RevisionLinesDialog
-          revision={opened}
-          onClose={() => setOpenId(null)}
-        />
+          ) : null}
+          {opened && (
+            <RevisionLinesDialog
+              revision={opened}
+              onClose={() => setOpenId(null)}
+            />
+          )}
+        </>
       )}
     </div>
   );

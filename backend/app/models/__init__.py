@@ -15,6 +15,7 @@ from app.models.sale import Sale, SaleItem
 from app.models.shift import Shift, ShiftCashMovement
 from app.models.shop import Shop
 from app.models.stock import StockItem, StockLog, StockMovement, StockRevision, StockRevisionLine
+from app.models.upload import Upload
 from app.models.user import OwnerShop, User
 
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "StockRevision",
     "StockRevisionLine",
     "StockRevisionStatus",
+    "Upload",
     "User",
     "UserRole",
 ]

@@ -37,6 +37,7 @@ class StockItemOut(ORMModel):
     quantity_in_purchase: Decimal
     min_quantity: Decimal
     cost_per_base_unit: Decimal
+    image_url: str | None = None
     updated_at: datetime
     is_low: bool = False
 

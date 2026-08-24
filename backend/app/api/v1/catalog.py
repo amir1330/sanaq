@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +19,7 @@ from app.schemas.catalog import (
     ProductUpdate,
 )
 from app.services.access import assert_shop_access
+from app.services.uploads import delete_upload, replace_upload
 
 router = APIRouter(tags=["catalog"])
 manage = roles(UserRole.super_admin, UserRole.owner)
@@ -156,7 +157,6 @@ async def create_product(
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=body.is_active,
-        image_url=body.image_url,
         fiscal_position_code=body.fiscal_position_code,
         tax_percent=body.tax_percent,
         tax_type=body.tax_type,
@@ -186,6 +186,48 @@ async def update_product(
     return await _reload_product(session, product.id)
 
 
+@router.post("/shops/{shop_id}/products/{product_id}/image", response_model=ProductOut)
+async def upload_product_image(
+    shop_id: int,
+    product_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    product = await session.get(Product, product_id)
+    if product is None or product.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+    product.image = await replace_upload(
+        session,
+        file,
+        shop_id=shop_id,
+        kind="product",
+        prefix=f"product-{product.id}",
+        uploader_id=user.id,
+        previous=product.image,
+    )
+    await session.commit()
+    return await _reload_product(session, product.id)
+
+
+@router.delete("/shops/{shop_id}/products/{product_id}/image", response_model=ProductOut)
+async def delete_product_image(
+    shop_id: int,
+    product_id: int,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    product = await session.get(Product, product_id)
+    if product is None or product.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+    await delete_upload(session, product.image)
+    product.image = None
+    await session.commit()
+    return await _reload_product(session, product.id)
+
+
 @router.delete("/shops/{shop_id}/products/{product_id}", status_code=204)
 async def delete_product(
     shop_id: int,
@@ -197,6 +239,7 @@ async def delete_product(
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+    await delete_upload(session, product.image)
     await session.delete(product)
     await session.commit()
 

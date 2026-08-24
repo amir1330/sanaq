@@ -154,6 +154,7 @@ export type StockItem = {
   quantity_in_purchase: string;
   min_quantity: string;
   cost_per_base_unit: string;
+  image_url: string | null;
   updated_at: string;
   is_low: boolean;
 };
