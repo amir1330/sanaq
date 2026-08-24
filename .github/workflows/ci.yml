@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+      packages: write
     concurrency:
       group: sanaq-prod
       cancel-in-progress: false

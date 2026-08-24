@@ -18,6 +18,7 @@ FILE="-f docker-compose.prod.yml"
 
 echo "Pulling images..."
 $DC $FILE pull backend nginx
+docker logout ghcr.io >/dev/null 2>&1 || true
 
 echo "Recreating backend and nginx..."
 $DC $FILE up -d --no-build --no-deps --force-recreate backend nginx
