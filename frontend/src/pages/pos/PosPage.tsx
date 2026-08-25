@@ -588,45 +588,47 @@ export function PosPage() {
   );
 
   return (
-    <div
-      className="h-dvh overflow-hidden bg-paper text-ink"
-      style={{ zoom: SCALE_ZOOM[scale] }}
-    >
-      <div className="hidden h-full grid-cols-[224px_1fr_340px] gap-px lg:grid">
-        {leftColumn}
-        {productsColumn}
-        {cartColumn}
-      </div>
-
-      <div className="flex h-full flex-col lg:hidden">
-        <div className="min-h-0 flex-1 overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
-          <div className={`h-full ${mobileTab === "shift" ? "block" : "hidden"}`}>{leftColumn}</div>
-          <div className={`h-full ${mobileTab === "products" ? "block" : "hidden"}`}>{productsColumn}</div>
-          <div className={`h-full ${mobileTab === "cart" ? "block" : "hidden"}`}>{cartColumn}</div>
+    <div className="h-dvh overflow-hidden bg-paper text-ink">
+      <div
+        className="h-full"
+        style={{ zoom: SCALE_ZOOM[scale], height: `calc(100dvh / ${SCALE_ZOOM[scale]})` }}
+      >
+        <div className="hidden h-full grid-cols-[224px_1fr_340px] gap-px lg:grid">
+          {leftColumn}
+          {productsColumn}
+          {cartColumn}
         </div>
-        <nav className="fixed bottom-0 left-0 right-0 z-20 grid grid-cols-3 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
-          {(
-            [
-              { id: "products" as const, label: t("pos.tabProducts") },
-              { id: "cart" as const, label: t("pos.tabCart") },
-              { id: "shift" as const, label: t("pos.tabShift") },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setMobileTab(tab.id)}
-              className={`flex min-h-14 flex-col items-center justify-center text-[12.5px] font-semibold ${
-                mobileTab === tab.id ? "bg-paper-2 text-ink" : "text-ink-soft"
-              }`}
-            >
-              {tab.label}
-              {tab.id === "cart" && cart.length > 0 && (
-                <span className="mt-0.5 font-mono text-[10px] text-gold">{cart.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
+
+        <div className="flex h-full flex-col lg:hidden">
+          <div className="min-h-0 flex-1 overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
+            <div className={`h-full ${mobileTab === "shift" ? "block" : "hidden"}`}>{leftColumn}</div>
+            <div className={`h-full ${mobileTab === "products" ? "block" : "hidden"}`}>{productsColumn}</div>
+            <div className={`h-full ${mobileTab === "cart" ? "block" : "hidden"}`}>{cartColumn}</div>
+          </div>
+          <nav className="fixed bottom-0 left-0 right-0 z-20 grid grid-cols-3 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
+            {(
+              [
+                { id: "products" as const, label: t("pos.tabProducts") },
+                { id: "cart" as const, label: t("pos.tabCart") },
+                { id: "shift" as const, label: t("pos.tabShift") },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMobileTab(tab.id)}
+                className={`flex min-h-14 flex-col items-center justify-center text-[12.5px] font-semibold ${
+                  mobileTab === tab.id ? "bg-paper-2 text-ink" : "text-ink-soft"
+                }`}
+              >
+                {tab.label}
+                {tab.id === "cart" && cart.length > 0 && (
+                  <span className="mt-0.5 font-mono text-[10px] text-gold">{cart.length}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {panel !== "none" && (

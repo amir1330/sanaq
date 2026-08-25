@@ -21,7 +21,7 @@ export function Button({
     danger: "border-maroon bg-maroon text-paper hover:bg-maroon-deep",
     sky: "border-turq bg-turq text-roast hover:bg-sky-deep",
     gold: "border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
-    confirm: "border-sky bg-sky text-roast hover:bg-sky-deep",
+    confirm: "border-confirm bg-confirm text-paper hover:bg-confirm-deep",
   }[variant];
   return (
     <button

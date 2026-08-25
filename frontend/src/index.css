@@ -19,6 +19,8 @@
   --alert: 138 44 46;
   --maroon: 138 44 46;
   --maroon-deep: 92 27 29;
+  --confirm: 92 140 74;
+  --confirm-deep: 68 110 54;
   --roast: 32 27 20;
   --roast-2: 44 39 30;
   --line-dark: 69 62 48;
@@ -51,6 +53,8 @@ html.dark {
   --alert: 196 90 92;
   --maroon: 196 90 92;
   --maroon-deep: 138 44 46;
+  --confirm: 130 178 108;
+  --confirm-deep: 92 140 74;
   --roast: 32 27 20;
   --roast-2: 44 39 30;
   --line-dark: 69 62 48;

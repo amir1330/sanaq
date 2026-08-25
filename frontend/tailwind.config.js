@@ -21,6 +21,8 @@ export default {
         alert: "rgb(var(--alert) / <alpha-value>)",
         maroon: "rgb(var(--maroon) / <alpha-value>)",
         "maroon-deep": "rgb(var(--maroon-deep) / <alpha-value>)",
+        confirm: "rgb(var(--confirm) / <alpha-value>)",
+        "confirm-deep": "rgb(var(--confirm-deep) / <alpha-value>)",
         roast: "rgb(var(--roast) / <alpha-value>)",
         "roast-2": "rgb(var(--roast-2) / <alpha-value>)",
         "line-dark": "rgb(var(--line-dark) / <alpha-value>)",
