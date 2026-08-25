@@ -9,7 +9,7 @@ export function Button({
   size = "md",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "ink" | "danger" | "foam" | "sky" | "quiet" | "gold";
+  variant?: "primary" | "ghost" | "ink" | "danger" | "foam" | "sky" | "quiet" | "gold" | "confirm";
   size?: "md" | "lg";
 }) {
   const styles = {
@@ -21,6 +21,7 @@ export function Button({
     danger: "border-maroon bg-maroon text-paper hover:bg-maroon-deep",
     sky: "border-turq bg-turq text-roast hover:bg-sky-deep",
     gold: "border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
+    confirm: "border-sky bg-sky text-roast hover:bg-sky-deep",
   }[variant];
   return (
     <button
@@ -272,7 +273,9 @@ export type MoreMenuItem = {
   disabled?: boolean;
 };
 
-export function MoreMenu({ items, label = "Ещё" }: { items: MoreMenuItem[]; label?: string }) {
+export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: string }) {
+  const t = useT();
+  const menuLabel = label ?? t("common.more");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -297,7 +300,7 @@ export function MoreMenu({ items, label = "Ещё" }: { items: MoreMenuItem[]; l
     <div ref={ref} className="relative shrink-0">
       <button
         type="button"
-        aria-label={label}
+        aria-label={menuLabel}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}

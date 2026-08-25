@@ -2,14 +2,16 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useLocale, useT } from "../i18n";
+import { dateLocaleTag } from "../lib/i18nName";
 import { money, qty } from "../lib/utils";
 import type { StockRevision, StockRevisionLine } from "../types";
 import { Button, Empty, Field, Input, Select } from "./ui";
 
 type Filter = "all" | "open" | "diff";
 
-function when(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", {
+function when(iso: string, dateTag: string): string {
+  return new Date(iso).toLocaleString(dateTag, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -18,10 +20,10 @@ function when(iso: string): string {
   });
 }
 
-function statusLabel(status: StockRevision["status"]): string {
-  if (status === "draft") return "черновик";
-  if (status === "posted") return "проведена";
-  return "отменена";
+function statusLabel(t: ReturnType<typeof useT>, status: StockRevision["status"]): string {
+  if (status === "draft") return t("revisions.draft");
+  if (status === "posted") return t("revisions.posted");
+  return t("revisions.cancelled");
 }
 
 function lineDiff(line: StockRevisionLine, counted: string): number | null {
@@ -38,6 +40,9 @@ function lineValue(line: StockRevisionLine, counted: string): number | null {
 }
 
 export function RevisionsHistory({ shopId }: { shopId: number }) {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
+  const dateTag = dateLocaleTag(locale);
   const list = useQuery({
     queryKey: ["stock-revisions", shopId],
     queryFn: () => api.stockRevisions(shopId),
@@ -47,7 +52,7 @@ export function RevisionsHistory({ shopId }: { shopId: number }) {
   const opened = history.find((r) => r.id === openId) ?? null;
 
   if (history.length === 0) {
-    return <Empty>Ревизий ещё не было. Нажми «Новая ревизия» — система снимет снимок, касса встанет.</Empty>;
+    return <Empty>{t("revisions.empty")}</Empty>;
   }
 
   return (
@@ -56,21 +61,23 @@ export function RevisionsHistory({ shopId }: { shopId: number }) {
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="px-4 py-3">Когда</th>
-              <th>Статус</th>
-              <th>Посчитано</th>
-              <th>Недостача / излишек</th>
-              <th>На сумму (себестоимость)</th>
-              <th>Кто</th>
+              <th className="px-4 py-3">{t("revisions.colWhen")}</th>
+              <th>{t("revisions.colStatus")}</th>
+              <th>{t("revisions.colCounted")}</th>
+              <th>{t("revisions.colDiff")}</th>
+              <th>{t("revisions.colValue")}</th>
+              <th>{t("revisions.colWho")}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {history.map((row) => (
               <tr key={row.id} className="border-b border-ink/5">
-                <td className="px-4 py-3 font-mono text-xs">{when(row.posted_at || row.cancelled_at || row.created_at)}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  {when(row.posted_at || row.cancelled_at || row.created_at, dateTag)}
+                </td>
                 <td>
-                  №{row.id} · {statusLabel(row.status)}
+                  #{row.id} · {statusLabel(t, row.status)}
                 </td>
                 <td className="font-mono">
                   {row.counted_count}/{row.line_count}
@@ -88,10 +95,10 @@ export function RevisionsHistory({ shopId }: { shopId: number }) {
                       Excel
                     </button>
                     <Link className="underline" to={`/owner/stock/revisions/${row.id}`}>
-                      Открыть
+                      {t("common.open")}
                     </Link>
                     <button className="underline" onClick={() => setOpenId(row.id)}>
-                      Строки
+                      {t("revisions.lines")}
                     </button>
                   </div>
                 </td>
@@ -114,6 +121,9 @@ export function RevisionWorkspace({
   revision: StockRevision;
   onClosed?: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
+  const dateTag = dateLocaleTag(locale);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const readOnly = revision.status !== "draft";
@@ -209,12 +219,18 @@ export function RevisionWorkspace({
       <div className="mb-5 rounded-lg bg-maroon/10 px-5 py-4 text-sm text-maroon">
         {readOnly ? (
           <p>
-            Ревизия №{revision.id} · {statusLabel(revision.status)}. Снимок: {when(revision.created_at)}.
+            {t("revisions.snapshot", {
+              id: revision.id,
+              status: statusLabel(t, revision.status),
+              when: when(revision.created_at, dateTag),
+            })}
           </p>
         ) : (
           <p>
-            Ревизия №{revision.id} открыта с {when(revision.created_at)}. Касса и склад заморожены: продажи,
-            приходы и списания недоступны, пока не проведёшь или не отменишь.
+            {t("revisions.frozen", {
+              id: revision.id,
+              when: when(revision.created_at, dateTag),
+            })}
           </p>
         )}
       </div>
@@ -222,18 +238,21 @@ export function RevisionWorkspace({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-mute">
-            Посчитано {countedN} из {revision.line_count}. Расхождение:{" "}
-            <span className={liveValue < 0 ? "text-alert" : "font-medium text-ink"}>{money(liveValue)}</span>
+            {t("revisions.progress", {
+              counted: countedN,
+              total: revision.line_count,
+              diff: money(liveValue),
+            })}
           </p>
           <p className="mt-1 font-mono text-[11px] text-faint">
-            Колонка «Система» — снимок на {when(revision.created_at)}, не живой остаток.
+            {t("revisions.systemNote", { when: when(revision.created_at, dateTag) })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="min-w-40">
-            <option value="all">Все позиции</option>
-            <option value="open">Не посчитано</option>
-            <option value="diff">Только расхождения</option>
+            <option value="all">{t("revisions.filterAll")}</option>
+            <option value="open">{t("revisions.filterOpen")}</option>
+            <option value="diff">{t("revisions.filterDiff")}</option>
           </Select>
           <Button variant="quiet" onClick={() => void api.exportStockRevision(shopId, revision.id)}>
             Excel
@@ -245,12 +264,12 @@ export function RevisionWorkspace({
         <table className="w-full min-w-[720px] text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="px-4 py-3">Позиция</th>
-              <th>Система</th>
-              <th>Факт</th>
+              <th className="px-4 py-3">{t("revisions.colItem")}</th>
+              <th>{t("revisions.colSystem")}</th>
+              <th>{t("revisions.colFact")}</th>
               <th>Δ</th>
-              <th>На сумму (себестоимость)</th>
-              <th>Заметка</th>
+              <th>{t("revisions.colValue")}</th>
+              <th>{t("revisions.colNote")}</th>
             </tr>
           </thead>
           <tbody>
@@ -290,7 +309,7 @@ export function RevisionWorkspace({
                         className="w-full border-0 border-b border-line-2 bg-transparent py-1 text-sm outline-none focus:border-ink"
                         value={notes[id] ?? ""}
                         onChange={(e) => setNotes({ ...notes, [id]: e.target.value })}
-                        placeholder="бой, пролив…"
+                        placeholder={t("revisions.notePh")}
                       />
                     ) : (
                       <span className="text-mute">{line.comment || "—"}</span>
@@ -305,12 +324,12 @@ export function RevisionWorkspace({
 
       {!readOnly && (
         <>
-          <Field label="Комментарий к ревизии">
+          <Field label={t("revisions.comment")}>
             <Input
               className="mt-3"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="утро после выходных"
+              placeholder={t("revisions.commentPh")}
             />
           </Field>
           {(save.isError || post.isError || cancel.isError) && (
@@ -320,13 +339,13 @@ export function RevisionWorkspace({
           )}
           <div className="mt-5 flex flex-wrap gap-2">
             <Button variant="quiet" onClick={() => save.mutate()} disabled={save.isPending}>
-              Сохранить
+              {t("common.save")}
             </Button>
             <Button onClick={() => setConfirm("post")} disabled={countedN === 0}>
-              Провести
+              {t("revisions.post")}
             </Button>
             <Button variant="ghost" onClick={() => setConfirm("cancel")}>
-              Отменить ревизию
+              {t("revisions.cancelRev")}
             </Button>
           </div>
         </>
@@ -337,33 +356,30 @@ export function RevisionWorkspace({
           <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
             {confirm === "post" ? (
               <>
-                <h2 className="font-display text-2xl font-normal">Провести ревизию?</h2>
-                <p className="text-sm text-mute">
-                  Остатки по посчитанным позициям станут как в «Факт». Незаполненные строки не трогаем. После
-                  проведения касса снова откроется. Можно сразу скачать Excel.
-                </p>
+                <h2 className="font-display text-2xl font-normal">{t("revisions.postAsk")}</h2>
+                <p className="text-sm text-mute">{t("revisions.postHint")}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => post.mutate(true)} disabled={post.isPending}>
-                    Провести и Excel
+                    {t("revisions.postExcel")}
                   </Button>
                   <Button onClick={() => post.mutate(false)} disabled={post.isPending} variant="quiet">
-                    Только провести
+                    {t("revisions.postOnly")}
                   </Button>
                   <Button variant="ghost" onClick={() => setConfirm(null)}>
-                    Назад
+                    {t("common.back")}
                   </Button>
                 </div>
               </>
             ) : (
               <>
-                <h2 className="font-display text-2xl font-normal">Отменить черновик?</h2>
-                <p className="text-sm text-mute">Остатки не изменятся. Касса снова заработает.</p>
+                <h2 className="font-display text-2xl font-normal">{t("revisions.cancelAsk")}</h2>
+                <p className="text-sm text-mute">{t("revisions.cancelHint")}</p>
                 <div className="flex gap-2">
                   <Button variant="danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-                    Отменить ревизию
+                    {t("revisions.cancelRev")}
                   </Button>
                   <Button variant="ghost" onClick={() => setConfirm(null)}>
-                    Назад
+                    {t("common.back")}
                   </Button>
                 </div>
               </>
@@ -382,6 +398,9 @@ function RevisionLinesDialog({
   revision: StockRevision;
   onClose: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
+  const dateTag = dateLocaleTag(locale);
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4" onClick={onClose} role="presentation">
       <div
@@ -392,24 +411,26 @@ function RevisionLinesDialog({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-normal">Ревизия №{revision.id}</h2>
+            <h2 className="font-display text-2xl font-normal">
+              {t("stock.revision")} #{revision.id}
+            </h2>
             <p className="mt-1 text-sm text-mute">
-              {statusLabel(revision.status)} · снимок {when(revision.created_at)}
+              {statusLabel(t, revision.status)} · {when(revision.created_at, dateTag)}
               {revision.comment ? ` · ${revision.comment}` : ""}
             </p>
           </div>
           <button className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint" onClick={onClose}>
-            Закрыть
+            {t("common.close")}
           </button>
         </div>
         <table className="w-full text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-ink/10 text-left">
-              <th className="py-2">Позиция</th>
-              <th>Система</th>
-              <th>Факт</th>
+              <th className="py-2">{t("revisions.colItem")}</th>
+              <th>{t("revisions.colSystem")}</th>
+              <th>{t("revisions.colFact")}</th>
               <th>Δ</th>
-              <th>Сумма</th>
+              <th>{t("revisions.sum")}</th>
             </tr>
           </thead>
           <tbody>

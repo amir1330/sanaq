@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Empty, Field, Input, pill } from "../../components/ui";
+import { useLocale, useT } from "../../i18n";
+import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { money, startOfPeriod, type Period } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
 export function DashboardPage() {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
   const shopId = useAuth((s) => s.shopId);
   const [period, setPeriod] = useState<Period>("week");
   const preset = period === "custom" ? null : startOfPeriod(period);
@@ -48,6 +52,7 @@ export function DashboardPage() {
   const s = summary.data;
   const days = daily.data ?? [];
   const maxBar = Math.max(1, ...days.map((d) => Number(d.cash_revenue) + Number(d.card_revenue)));
+  const dateTag = dateLocaleTag(locale);
 
   async function exportCsv() {
     if (!shopId || !rangeOk) return;
@@ -56,11 +61,20 @@ export function DashboardPage() {
     try {
       await api.exportReport(shopId, from, to);
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Не скачалось");
+      setExportError(err instanceof Error ? err.message : t("dashboard.exportFail"));
     } finally {
       setExporting(false);
     }
   }
+
+  const periodLabel = (p: Period) =>
+    p === "today"
+      ? t("dashboard.periodToday")
+      : p === "week"
+        ? t("dashboard.periodWeek")
+        : p === "month"
+          ? t("dashboard.periodMonth")
+          : t("dashboard.periodCustom");
 
   return (
     <div>
@@ -77,74 +91,64 @@ export function DashboardPage() {
                     : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
                 }`}
               >
-                {p === "today" ? "Сегодня" : p === "week" ? "7 дней" : p === "month" ? "Этот месяц" : "Свои даты"}
+                {periodLabel(p)}
               </button>
             ))}
           </div>
           {period === "custom" && (
             <div className="flex gap-4">
-              <Field label="С">
-                <Input
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
+              <Field label={t("dashboard.from")}>
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
               </Field>
-              <Field label="По">
-                <Input
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
+              <Field label={t("dashboard.to")}>
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
               </Field>
             </div>
           )}
         </div>
         <Button variant="quiet" disabled={!shopId || !rangeOk || exporting} onClick={() => void exportCsv()}>
-          {exporting ? "Собираем…" : "Скачать CSV"}
+          {exporting ? t("dashboard.exporting") : t("dashboard.exportCsv")}
         </Button>
       </div>
       {shop && !shop.webkassa_enabled && (
-        <p className="mb-4 rounded-md bg-maroon/10 px-4 py-3 text-sm text-maroon">
-          Продажи не фискализируются. Касса Webkassa выключена в настройках.
-        </p>
+        <p className="mb-4 rounded-md bg-maroon/10 px-4 py-3 text-sm text-maroon">{t("dashboard.webkassaOff")}</p>
       )}
       {s && (s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0) > 0 && (
         <p className="mb-4 rounded-md bg-maroon/10 px-4 py-3 text-sm text-maroon">
-          Не фискализировано: {(s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0)} чеков за период.
+          {t("dashboard.fiscalPending", {
+            n: (s.fiscal_failed_count || 0) + (s.fiscal_pending_count || 0),
+          })}
         </p>
       )}
-      {!rangeOk && <p className="mb-4 text-sm text-alert">Дата «с» должна быть раньше «по».</p>}
+      {!rangeOk && <p className="mb-4 text-sm text-alert">{t("dashboard.rangeError")}</p>}
       {exportError && <p className="mb-4 text-sm text-alert">{exportError}</p>}
 
       <div className="mb-5 grid gap-3.5 md:grid-cols-4">
-        <Tile label="Выручка" value={money(s?.revenue)} />
-        <Tile label="Прибыль" value={money(s?.profit)} profit />
-        <Tile label="Расходы" value={money(s?.expenses)} />
-        <Tile label="Чистая прибыль" value={money(s?.net_profit)} />
+        <Tile label={t("dashboard.revenue")} value={money(s?.revenue)} />
+        <Tile label={t("dashboard.profit")} value={money(s?.profit)} profit />
+        <Tile label={t("dashboard.expenses")} value={money(s?.expenses)} />
+        <Tile label={t("dashboard.netProfit")} value={money(s?.net_profit)} />
       </div>
       {s && (
         <p className="mb-5 text-sm leading-relaxed text-mute">
-          Выручка — сколько пробили на кассе. Себестоимость — во сколько обошлись проданные товары по цене закупки.
-          Прибыль = выручка − себестоимость. Чистая прибыль = прибыль − расходы (аренда, зарплата…) − недостачи по
-          ревизии (−{money(s.revision_shortage || 0)}).
+          {t("dashboard.explain", { shortage: money(s.revision_shortage || 0) })}
         </p>
       )}
 
       <div className="mb-4 rounded-lg bg-cream px-[26px] py-7 shadow-soft">
-        <h4 className="font-display text-[19px] font-normal">Наличные и безналичные</h4>
+        <h4 className="font-display text-[19px] font-normal">{t("dashboard.cashCard")}</h4>
         <div className="mb-[26px] mt-1.5 flex gap-5 text-xs text-ink-soft">
           <span>
             <i className="mr-2 inline-block h-2 w-2 rounded-full bg-gold" />
-            Наличными
+            {t("dashboard.cash")}
           </span>
           <span>
             <i className="mr-2 inline-block h-2 w-2 rounded-full bg-turq" />
-            Безналично
+            {t("dashboard.card")}
           </span>
         </div>
         {days.length === 0 ? (
-          <Empty>Продаж за период нет — открой кассу и пробей первый чек.</Empty>
+          <Empty>{t("dashboard.noSales")}</Empty>
         ) : (
           <div className="flex h-[130px] items-end gap-[22px]">
             {days.map((d) => {
@@ -155,12 +159,18 @@ export function DashboardPage() {
               const turqH = (card / maxBar) * h;
               return (
                 <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex w-full max-w-[26px] flex-col-reverse overflow-hidden rounded-lg" style={{ height: goldH + turqH }}>
+                  <div
+                    className="flex w-full max-w-[26px] flex-col-reverse overflow-hidden rounded-lg"
+                    style={{ height: goldH + turqH }}
+                  >
                     <div className="bg-gold" style={{ height: goldH }} />
                     <div className="bg-turq" style={{ height: turqH }} />
                   </div>
                   <div className="font-mono text-[10px] tracking-wide text-faint">
-                    {new Date(d.day).toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "").toUpperCase()}
+                    {new Date(d.day)
+                      .toLocaleDateString(dateTag, { weekday: "short" })
+                      .replace(".", "")
+                      .toUpperCase()}
                   </div>
                 </div>
               );
@@ -173,16 +183,16 @@ export function DashboardPage() {
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-line text-left font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-              <th className="px-6 py-3.5">Товар</th>
-              <th className="px-6 py-3.5">Продано</th>
-              <th className="px-6 py-3.5">Выручка</th>
-              <th className="px-6 py-3.5">Себестоимость</th>
+              <th className="px-6 py-3.5">{t("dashboard.colProduct")}</th>
+              <th className="px-6 py-3.5">{t("dashboard.colSold")}</th>
+              <th className="px-6 py-3.5">{t("dashboard.colRevenue")}</th>
+              <th className="px-6 py-3.5">{t("dashboard.colCost")}</th>
             </tr>
           </thead>
           <tbody>
             {(top.data ?? []).map((p) => (
               <tr key={p.product_id} className="border-b border-line last:border-0">
-                <td className="px-6 py-3.5 text-ink-soft">{p.name}</td>
+                <td className="px-6 py-3.5 text-ink-soft">{localizedName(p, locale)}</td>
                 <td className="px-6 py-3.5 text-ink-soft">{p.quantity}</td>
                 <td className="px-6 py-3.5 font-mono font-semibold text-ink">{money(p.revenue)}</td>
                 <td className="px-6 py-3.5 font-mono font-semibold text-ink">
@@ -193,7 +203,7 @@ export function DashboardPage() {
             {(top.data ?? []).length === 0 && (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-sm text-mute">
-                  Пока пусто — появятся после продаж.
+                  {t("dashboard.topEmpty")}
                 </td>
               </tr>
             )}
@@ -204,23 +214,23 @@ export function DashboardPage() {
       {(fiscal.data ?? []).length > 0 && (
         <div className="mt-4 overflow-hidden rounded-lg bg-cream shadow-soft">
           <div className="px-6 py-3">
-            <h4 className="font-display text-[17px] font-normal">Чеки без ОФД</h4>
-            <p className="text-sm text-mute">Ошибка Webkassa или ещё не ушло. Можно отправить снова.</p>
+            <h4 className="font-display text-[17px] font-normal">{t("dashboard.fiscalTitle")}</h4>
+            <p className="text-sm text-mute">{t("dashboard.fiscalHint")}</p>
           </div>
           <table className="w-full text-[13px]">
             <thead>
               <tr className="border-b border-line text-left font-mono text-[10px] uppercase tracking-[0.06em] text-faint">
-                <th className="px-6 py-3">Когда</th>
-                <th>Чек</th>
-                <th>Сумма</th>
-                <th>Статус</th>
-                <th>Ошибка</th>
+                <th className="px-6 py-3">{t("dashboard.colWhen")}</th>
+                <th>{t("dashboard.colReceipt")}</th>
+                <th>{t("dashboard.colAmount")}</th>
+                <th>{t("dashboard.colStatus")}</th>
+                <th>{t("dashboard.colError")}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {(fiscal.data ?? []).map((row) => (
-                <FiscalRow key={row.id} shopId={shopId!} row={row} />
+                <FiscalRow key={row.id} shopId={shopId!} row={row} dateTag={dateTag} />
               ))}
             </tbody>
           </table>
@@ -233,10 +243,13 @@ export function DashboardPage() {
 function FiscalRow({
   shopId,
   row,
+  dateTag,
 }: {
   shopId: number;
+  dateTag: string;
   row: { id: number; created_at: string; total_amount: string; fiscal_status: string; fiscal_error: string | null };
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const retry = useMutation({
     mutationFn: () => api.retryFiscal(shopId, row.id),
@@ -247,14 +260,16 @@ function FiscalRow({
   });
   return (
     <tr className="border-b border-line last:border-0">
-      <td className="px-6 py-3 font-mono text-xs">{new Date(row.created_at).toLocaleString("ru-RU")}</td>
+      <td className="px-6 py-3 font-mono text-xs">{new Date(row.created_at).toLocaleString(dateTag)}</td>
       <td className="px-6 py-3 font-mono">#{row.id}</td>
       <td className="px-6 py-3 font-mono">{money(row.total_amount)}</td>
-      <td className="px-6 py-3">{row.fiscal_status === "failed" ? "ошибка" : "ждёт"}</td>
+      <td className="px-6 py-3">
+        {row.fiscal_status === "failed" ? t("dashboard.statusFail") : t("dashboard.statusPending")}
+      </td>
       <td className="px-6 py-3 text-mute">{row.fiscal_error || "—"}</td>
       <td className="px-6 py-3 text-right">
         <button className="underline" disabled={retry.isPending} onClick={() => retry.mutate()}>
-          Повторить
+          {t("dashboard.retry")}
         </button>
       </td>
     </tr>

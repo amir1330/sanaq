@@ -45,11 +45,15 @@ def _product_out(product: Product) -> ProductOut:
         shop_id=product.shop_id,
         category_id=product.category_id,
         name=product.name,
+        name_kk=product.name_kk,
+        name_en=product.name_en,
         sale_price=product.sale_price,
         is_active=product.is_active,
         image_url=product.image_url,
         created_at=product.created_at,
         category_name=product.category.name if product.category else None,
+        category_name_kk=product.category.name_kk if product.category else None,
+        category_name_en=product.category.name_en if product.category else None,
         cost_price=cost.quantize(Decimal("0.01")),
         fiscal_position_code=product.fiscal_position_code,
         tax_percent=product.tax_percent,
@@ -79,7 +83,12 @@ async def create_category(
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id, write=True)
-    category = Category(shop_id=shop_id, name=body.name)
+    category = Category(
+        shop_id=shop_id,
+        name=body.name.strip(),
+        name_kk=(body.name_kk or "").strip() or None,
+        name_en=(body.name_en or "").strip() or None,
+    )
     session.add(category)
     await session.commit()
     await session.refresh(category)
@@ -99,7 +108,12 @@ async def update_category(
     if category is None or category.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
     if body.name is not None:
-        category.name = body.name
+        category.name = body.name.strip()
+    data = body.model_dump(exclude_unset=True)
+    if "name_kk" in data:
+        category.name_kk = (data["name_kk"] or "").strip() or None
+    if "name_en" in data:
+        category.name_en = (data["name_en"] or "").strip() or None
     await session.commit()
     await session.refresh(category)
     return category
@@ -154,7 +168,9 @@ async def create_product(
     await assert_shop_access(session, user, shop_id, write=True)
     product = Product(
         shop_id=shop_id,
-        name=body.name,
+        name=body.name.strip(),
+        name_kk=(body.name_kk or "").strip() or None,
+        name_en=(body.name_en or "").strip() or None,
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=body.is_active,
@@ -226,6 +242,10 @@ async def update_product(
     if product is None or product.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
     for key, value in body.model_dump(exclude_unset=True).items():
+        if key in ("name_kk", "name_en"):
+            value = (value or "").strip() or None
+        elif key == "name" and isinstance(value, str):
+            value = value.strip()
         setattr(product, key, value)
     await session.commit()
     return await _reload_product(session, product.id)

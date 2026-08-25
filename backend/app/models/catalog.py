@@ -15,6 +15,8 @@ class Category(Base):
         BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_kk: Mapped[str | None] = mapped_column(Text)
+    name_en: Mapped[str | None] = mapped_column(Text)
 
     products: Mapped[list["Product"]] = relationship(back_populates="category")
 
@@ -30,6 +32,8 @@ class Product(Base):
         BigInteger, ForeignKey("categories.id", ondelete="SET NULL")
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_kk: Mapped[str | None] = mapped_column(Text)
+    name_en: Mapped[str | None] = mapped_column(Text)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     image_upload_id: Mapped[int | None] = mapped_column(

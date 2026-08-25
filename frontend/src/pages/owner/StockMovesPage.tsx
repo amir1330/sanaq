@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Empty, PageTitle, Select, pill } from "../../components/ui";
+import { useLocale, useT } from "../../i18n";
+import { dateLocaleTag } from "../../lib/i18nName";
 import { MOVE_KINDS, deltaBase, formatDelta, kindTitle } from "../../lib/stock";
 import { money, qty, stockBalance } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
@@ -10,26 +12,31 @@ import type { StockJournalEntry, StockJournalKind } from "../../types";
 
 const CARD_KINDS: StockJournalKind[] = ["created", "updated", "deleted"];
 
-const MOVE_TABS: { id: string; label: string; kinds: StockJournalKind[] }[] = [
-  { id: "moves", label: "Всё по остатку", kinds: MOVE_KINDS },
-  { id: "in", label: "Пришло", kinds: ["income", "refund", "transfer_in", "regrade_in"] },
-  { id: "out", label: "Ушло", kinds: ["writeoff", "sale", "transfer_out", "regrade_out"] },
-  { id: "revision", label: "Ревизии", kinds: ["correction"] },
-  { id: "cards", label: "Карточки", kinds: CARD_KINDS },
+const MOVE_TABS: { id: string; labelKey: string; kinds: StockJournalKind[] }[] = [
+  { id: "moves", labelKey: "stock.tabAll", kinds: MOVE_KINDS },
+  { id: "in", labelKey: "stock.tabIn", kinds: ["income", "refund", "transfer_in", "regrade_in"] },
+  { id: "out", labelKey: "stock.tabOut", kinds: ["writeoff", "sale", "transfer_out", "regrade_out"] },
+  { id: "revision", labelKey: "stock.tabRev", kinds: ["correction"] },
+  { id: "cards", labelKey: "stock.tabCards", kinds: CARD_KINDS },
 ];
 
-function clock(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+function capitalize(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toLocaleUpperCase() + s.slice(1);
 }
 
-function dayLabel(iso: string): string {
+function clock(iso: string, dateTag: string): string {
+  return new Date(iso).toLocaleTimeString(dateTag, { hour: "2-digit", minute: "2-digit" });
+}
+
+function dayLabel(iso: string, dateTag: string, today: string, yesterday: string): string {
   const d = new Date(iso);
-  const today = new Date();
+  const now = new Date();
   const yday = new Date();
-  yday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Сегодня";
-  if (d.toDateString() === yday.toDateString()) return "Вчера";
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  yday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return capitalize(today);
+  if (d.toDateString() === yday.toDateString()) return capitalize(yesterday);
+  return d.toLocaleDateString(dateTag, { day: "numeric", month: "long" });
 }
 
 function dayKey(iso: string): string {
@@ -37,6 +44,9 @@ function dayKey(iso: string): string {
 }
 
 export function StockMovesPage() {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
+  const dateTag = dateLocaleTag(locale);
   const shopId = useAuth((s) => s.shopId)!;
   const [params, setParams] = useSearchParams();
   const logItem = params.get("item") ?? "";
@@ -63,15 +73,17 @@ export function StockMovesPage() {
         cursor -= line.delta;
       }
     }
+    const today = t("common.today");
+    const yesterday = t("common.yesterday");
     const groups: { day: string; lines: typeof lines }[] = [];
     for (const line of lines) {
       const key = dayKey(line.row.created_at);
       const last = groups[groups.length - 1];
       if (last && dayKey(last.lines[0].row.created_at) === key) last.lines.push(line);
-      else groups.push({ day: dayLabel(line.row.created_at), lines: [line] });
+      else groups.push({ day: dayLabel(line.row.created_at, dateTag, today, yesterday), lines: [line] });
     }
     return { groups, empty: lines.length === 0 };
-  }, [journal.data, kindFilter, selectedItem]);
+  }, [journal.data, kindFilter, selectedItem, t, dateTag]);
 
   function setItem(id: string) {
     const next = new URLSearchParams(params);
@@ -83,12 +95,12 @@ export function StockMovesPage() {
   return (
     <div>
       <PageTitle
-        kicker="Движения"
-        title="Почему менялся остаток"
-        hint="Приход, чек, списание, пересорт, перемещение, ревизия. Карточка позиции — на складе."
+        kicker={t("stock.movesKicker")}
+        title={t("stock.movesTitle")}
+        hint={t("stock.movesHint")}
         action={
           <Link to="/owner/stock">
-            <Button variant="quiet">К остаткам</Button>
+            <Button variant="quiet">{t("stock.toStock")}</Button>
           </Link>
         }
       />
@@ -103,11 +115,11 @@ export function StockMovesPage() {
                 : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
             }`}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
         <Select value={logItem} onChange={(e) => setItem(e.target.value)} className="h-10 min-w-44 py-0">
-          <option value="">Все позиции</option>
+          <option value="">{t("stock.allItems")}</option>
           {(stock.data ?? []).map((i) => (
             <option key={i.id} value={i.id}>
               {i.name}
@@ -118,21 +130,17 @@ export function StockMovesPage() {
       {selectedItem && (
         <p className="mb-4 rounded-md bg-cream px-5 py-3 text-sm shadow-soft">
           <span className="font-medium">{selectedItem.name}</span>
-          <span className="text-mute"> · сейчас {stockBalance(selectedItem)}</span>
+          <span className="text-mute"> · {t("stock.nowQty", { n: stockBalance(selectedItem) })}</span>
           <Link className="ml-3 underline" to={`/owner/stock/item/${selectedItem.id}`}>
-            карточка
+            {t("stock.cardLink")}
           </Link>
           <button className="ml-3 underline" onClick={() => setItem("")}>
-            показать все
+            {t("stock.showAll")}
           </button>
         </p>
       )}
       {ledger.empty ? (
-        <Empty>
-          {kindFilter.id === "cards"
-            ? "Карточки пока не меняли."
-            : "Остаток ещё не двигался. Приход, чек или списание появятся здесь."}
-        </Empty>
+        <Empty>{kindFilter.id === "cards" ? t("stock.emptyCards") : t("stock.emptyMoves")}</Empty>
       ) : (
         <div className="space-y-6">
           {ledger.groups.map((group) => (
@@ -156,7 +164,7 @@ export function StockMovesPage() {
                           ) : null}
                         </p>
                         <p className="mt-0.5 text-[12.5px] text-mute">
-                          {clock(line.row.created_at)}
+                          {clock(line.row.created_at, dateTag)}
                           {line.row.actor_name ? ` · ${line.row.actor_name}` : ""}
                           {line.row.price_total != null ? ` · ${money(line.row.price_total)}` : ""}
                           {line.row.comment ? ` · ${line.row.comment}` : ""}
@@ -174,7 +182,7 @@ export function StockMovesPage() {
                         )}
                         {line.after != null && selectedItem && (
                           <p className="font-mono text-[11px] text-faint">
-                            стало {qty(line.after, selectedItem.base_unit)}
+                            {t("stock.became", { n: qty(line.after, selectedItem.base_unit) })}
                           </p>
                         )}
                       </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
+import { useT } from "../../i18n";
 import { generatePassword, money, publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuthSessionReady } from "../../store/auth";
 import { AdminLoadError, AdminStat } from "./adminUi";
@@ -38,6 +39,7 @@ type OwnerForm = {
 };
 
 export function AdminPage() {
+  const t = useT();
   const qc = useQueryClient();
   const sessionReady = useAuthSessionReady();
   const shops = useQuery({
@@ -85,8 +87,8 @@ export function AdminPage() {
     onSuccess: (shop) => {
       setCreatedNote(
         shopForm.existing_owner_email.trim()
-          ? `Филиал «${shop.name}» привязан к ${shopForm.existing_owner_email.trim()}`
-          : `Точка «${shop.name}» готова. Владелец входит как ${shopForm.owner_email.trim()}`,
+          ? t("admin.branchLinked", { name: shop.name, email: shopForm.existing_owner_email.trim() })
+          : t("admin.shopReady", { name: shop.name, email: shopForm.owner_email.trim() }),
       );
       setShopForm(emptyShop());
       setCreateOpen(false);
@@ -102,7 +104,7 @@ export function AdminPage() {
 
   const createOwner = useMutation({
     mutationFn: () => {
-      if (!owner) throw new Error("Нет точки");
+      if (!owner) throw new Error(t("admin.noShop"));
       return api.createOwner(owner.shopId, {
         full_name: owner.full_name.trim(),
         email: owner.email.trim(),
@@ -111,7 +113,7 @@ export function AdminPage() {
       });
     },
     onSuccess: () => {
-      setCreatedNote(`Владелец ${owner?.email} добавлен в «${owner?.shopName}»`);
+      setCreatedNote(t("admin.ownerAdded", { email: owner?.email ?? "", name: owner?.shopName ?? "" }));
       setOwner(null);
       refresh();
     },
@@ -145,9 +147,9 @@ export function AdminPage() {
   return (
     <div>
       <PageTitle
-        kicker="Система"
-        title="Точки"
-        hint="Точка и владелец — вместе. Отдельного человека к существующей точке — во вкладке «Пользователи»."
+        kicker={t("admin.shopsKicker")}
+        title={t("admin.shopsTitle")}
+        hint={t("admin.shopsHint")}
         action={
           <Button
             onClick={() => {
@@ -155,7 +157,7 @@ export function AdminPage() {
               setCreateOpen(true);
             }}
           >
-            Новая точка
+            {t("admin.newShop")}
           </Button>
         }
       />
@@ -165,24 +167,21 @@ export function AdminPage() {
       )}
       {(stats.isError || shops.isError) && (
         <AdminLoadError
-          message={
-            ((stats.error || shops.error) as Error | undefined)?.message ||
-            "Не удалось загрузить сводку. Обнови страницу или перелогинься."
-          }
+          message={((stats.error || shops.error) as Error | undefined)?.message || t("admin.loadFail")}
         />
       )}
 
       <div className="mb-6 grid gap-3 md:grid-cols-4">
-        <AdminStat label="Точек" value={shopsCount} loading={statsLoading} error={statsError} />
-        <AdminStat label="Активных" value={activeShops} loading={statsLoading} error={statsError} />
+        <AdminStat label={t("admin.shopsCount")} value={shopsCount} loading={statsLoading} error={statsError} />
+        <AdminStat label={t("admin.activeCount")} value={activeShops} loading={statsLoading} error={statsError} />
         <AdminStat
-          label="Пользователей"
-          value={usersCount ?? "—"}
+          label={t("admin.usersCount")}
+          value={usersCount ?? t("common.none")}
           loading={statsLoading && usersCount == null}
           error={stats.isError && usersCount == null}
         />
         <AdminStat
-          label="Новых заявок"
+          label={t("admin.newLeads")}
           value={newLeads}
           loading={!sessionReady || leads.isLoading}
           error={leads.isError}
@@ -191,11 +190,11 @@ export function AdminPage() {
 
       {shops.isLoading && rows.length === 0 ? (
         <Card>
-          <p className="text-sm text-mute">Загружаем точки…</p>
+          <p className="text-sm text-mute">{t("admin.loadingShops")}</p>
         </Card>
       ) : rows.length === 0 ? (
         <Card>
-          <p className="text-sm text-mute">Пока нет точек. Нажми «Новая точка» — заведём заведение и вход для владельца.</p>
+          <p className="text-sm text-mute">{t("admin.noShops")}</p>
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -219,15 +218,19 @@ export function AdminPage() {
                     <div>
                       <p className="text-lg font-medium">
                         {row.shop_name}
-                        {!row.is_active && <span className="ml-2 text-sm text-alert">выкл</span>}
+                        {!row.is_active && <span className="ml-2 text-sm text-alert">{t("common.off")}</span>}
                       </p>
                       <p className="text-sm text-mute">
-                        {shop?.address || "Адрес не указан"} · {shop?.timezone ?? "—"}
+                        {shop?.address || t("admin.noAddress")} · {shop?.timezone ?? t("common.none")}
                       </p>
                     </div>
                   </div>
                   <p className="mt-3 text-sm text-mute">
-                    30 дней: {money(row.revenue)} выручки · {money(row.profit)} чистыми · {row.sales_count} чеков
+                    {t("admin.days30", {
+                      revenue: money(row.revenue),
+                      profit: money(row.profit),
+                      sales: row.sales_count,
+                    })}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -244,13 +247,13 @@ export function AdminPage() {
                       })
                     }
                   >
-                    Владелец
+                    {t("admin.owner")}
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => toggle.mutate({ id: row.shop_id, is_active: !row.is_active })}
                   >
-                    {row.is_active ? "Выключить" : "Включить"}
+                    {row.is_active ? t("common.disable") : t("common.enable")}
                   </Button>
                 </div>
               </Card>
@@ -262,28 +265,28 @@ export function AdminPage() {
       <Dialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Новая точка"
-        hint="Новый владелец — отдельная точка. Почта существующего — филиал в его кабинете."
+        title={t("admin.newShopTitle")}
+        hint={t("admin.newShopHint")}
         wide
       >
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-wider text-mute">Точка</p>
-            <Field label="Название">
+            <p className="text-[11px] uppercase tracking-wider text-mute">{t("admin.shopSection")}</p>
+            <Field label={t("settings.shopName")}>
               <Input
                 value={shopForm.name}
                 onChange={(e) => setShopForm({ ...shopForm, name: e.target.value })}
-                placeholder="Например, Corner на Абая"
+                placeholder={t("admin.shopNamePh")}
               />
             </Field>
-            <Field label="Адрес">
+            <Field label={t("settings.address")}>
               <Input
                 value={shopForm.address}
                 onChange={(e) => setShopForm({ ...shopForm, address: e.target.value })}
-                placeholder="улица, город"
+                placeholder={t("settings.addressPh")}
               />
             </Field>
-            <Field label="Часовой пояс">
+            <Field label={t("settings.timezone")}>
               <Select
                 value={shopForm.timezone}
                 onChange={(e) => setShopForm({ ...shopForm, timezone: e.target.value })}
@@ -297,22 +300,22 @@ export function AdminPage() {
             </Field>
           </div>
           <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-wider text-mute">Владелец</p>
-            <Field label="Почта существующего — если это филиал">
+            <p className="text-[11px] uppercase tracking-wider text-mute">{t("admin.ownerSection")}</p>
+            <Field label={t("admin.existingOwner")}>
               <Input
                 type="email"
                 value={shopForm.existing_owner_email}
                 onChange={(e) => setShopForm({ ...shopForm, existing_owner_email: e.target.value })}
-                placeholder="owner@… — тогда поля ниже не нужны"
+                placeholder={t("admin.existingOwnerPh")}
               />
             </Field>
-            <Field label="Имя">
+            <Field label={t("staff.name")}>
               <Input
                 value={shopForm.owner_name}
                 onChange={(e) => setShopForm({ ...shopForm, owner_name: e.target.value })}
               />
             </Field>
-            <Field label="Почта для входа">
+            <Field label={t("staff.email")}>
               <Input
                 type="email"
                 value={shopForm.owner_email}
@@ -320,14 +323,14 @@ export function AdminPage() {
                 autoComplete="off"
               />
             </Field>
-            <Field label="Телефон">
+            <Field label={t("staff.phone")}>
               <Input
                 value={shopForm.owner_phone}
                 onChange={(e) => setShopForm({ ...shopForm, owner_phone: e.target.value })}
-                placeholder="+7…"
+                placeholder={t("staff.phonePh")}
               />
             </Field>
-            <Field label="Пароль, от 6 символов">
+            <Field label={t("admin.passwordMin")}>
               <div className="flex gap-2">
                 <Input
                   type="text"
@@ -340,7 +343,7 @@ export function AdminPage() {
                   variant="foam"
                   onClick={() => setShopForm({ ...shopForm, owner_password: generatePassword() })}
                 >
-                  Сгенерировать
+                  {t("common.generate")}
                 </Button>
               </div>
             </Field>
@@ -351,10 +354,10 @@ export function AdminPage() {
         )}
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setCreateOpen(false)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button disabled={!canCreate || createShop.isPending} onClick={() => createShop.mutate()}>
-            {createShop.isPending ? "Создаём…" : "Создать точку и вход"}
+            {createShop.isPending ? t("admin.creating") : t("admin.createShop")}
           </Button>
         </div>
       </Dialog>
@@ -362,25 +365,25 @@ export function AdminPage() {
       <Dialog
         open={!!owner}
         onClose={() => setOwner(null)}
-        title={owner ? `Владелец для «${owner.shopName}»` : "Владелец"}
-        hint="Ещё один человек с доступом в кабинет этой точки."
+        title={owner ? t("admin.ownerFor", { name: owner.shopName }) : t("admin.owner")}
+        hint={t("admin.ownerHint")}
       >
         {owner && (
           <div className="space-y-3">
-            <Field label="Имя">
+            <Field label={t("staff.name")}>
               <Input value={owner.full_name} onChange={(e) => setOwner({ ...owner, full_name: e.target.value })} />
             </Field>
-            <Field label="Почта">
+            <Field label={t("landing.fieldEmail")}>
               <Input
                 type="email"
                 value={owner.email}
                 onChange={(e) => setOwner({ ...owner, email: e.target.value })}
               />
             </Field>
-            <Field label="Телефон">
+            <Field label={t("staff.phone")}>
               <Input value={owner.phone} onChange={(e) => setOwner({ ...owner, phone: e.target.value })} />
             </Field>
-            <Field label="Пароль">
+            <Field label={t("staff.password")}>
               <div className="flex gap-2">
                 <Input
                   type="text"
@@ -388,7 +391,7 @@ export function AdminPage() {
                   onChange={(e) => setOwner({ ...owner, password: e.target.value })}
                 />
                 <Button variant="foam" onClick={() => setOwner({ ...owner, password: generatePassword() })}>
-                  Сгенерировать
+                  {t("common.generate")}
                 </Button>
               </div>
             </Field>
@@ -397,7 +400,7 @@ export function AdminPage() {
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="ghost" onClick={() => setOwner(null)}>
-                Отмена
+                {t("common.cancel")}
               </Button>
               <Button
                 disabled={
@@ -408,7 +411,7 @@ export function AdminPage() {
                 }
                 onClick={() => createOwner.mutate()}
               >
-                {createOwner.isPending ? "Создаём…" : "Добавить"}
+                {createOwner.isPending ? t("admin.creating") : t("common.add")}
               </Button>
             </div>
           </div>

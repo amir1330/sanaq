@@ -2,10 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, PageTitle } from "../../components/ui";
+import { useLocale, useT } from "../../i18n";
+import { dateLocaleTag } from "../../lib/i18nName";
 import { money, payLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
 export function ShiftsPage() {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
+  const dateTag = dateLocaleTag(locale);
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const shifts = useQuery({ queryKey: ["shifts", shopId], queryFn: () => api.shifts(shopId) });
@@ -23,24 +28,20 @@ export function ShiftsPage() {
 
   return (
     <div>
-      <PageTitle
-        kicker="Касса"
-        title="Смены"
-        hint="Смена = один ящик. Если касс несколько — у каждой своя смена. Старт + нал − изъятия = сколько должно лежать. Изъятие делают на кассе, пока смена открыта."
-      />
+      <PageTitle kicker={t("shifts.kicker")} title={t("shifts.title")} hint={t("shifts.hint")} />
       <div className="border border-line">
         <table className="w-full text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-mute">
             <tr className="border-b border-line text-left">
-              <th className="px-4 py-3">Когда</th>
-              <th>Касса</th>
-              <th>Открыл</th>
-              <th>Кто продал</th>
+              <th className="px-4 py-3">{t("shifts.colWhen")}</th>
+              <th>{t("shifts.colTill")}</th>
+              <th>{t("shifts.colOpened")}</th>
+              <th>{t("shifts.colSellers")}</th>
               <th>{payLabel("cash")}</th>
               <th>{payLabel("card")}</th>
-              <th>Должно быть</th>
-              <th>Пересчитали</th>
-              <th>Расхождение</th>
+              <th>{t("shifts.colExpected")}</th>
+              <th>{t("shifts.colCounted")}</th>
+              <th>{t("shifts.colDiff")}</th>
               <th></th>
             </tr>
           </thead>
@@ -50,31 +51,37 @@ export function ShiftsPage() {
               return (
                 <tr key={s.id} className="border-b border-line/70 align-top">
                   <td className="px-4 py-3">
-                    {new Date(s.opened_at).toLocaleString("ru-RU")}
-                    <div className="text-mute">{s.status === "open" ? "открыта" : "закрыта"}</div>
+                    {new Date(s.opened_at).toLocaleString(dateTag)}
+                    <div className="text-mute">
+                      {s.status === "open" ? t("shifts.open") : t("shifts.closed")}
+                    </div>
                   </td>
-                  <td className="py-3">{s.cash_register_name ?? "—"}</td>
+                  <td className="py-3">{s.cash_register_name ?? t("common.none")}</td>
                   <td className="py-3">{s.barista_name}</td>
                   <td className="py-3">
-                    {(s.sellers ?? []).length === 0 && <span className="text-mute">нет чеков</span>}
+                    {(s.sellers ?? []).length === 0 && (
+                      <span className="text-mute">{t("shifts.noReceipts")}</span>
+                    )}
                     {(s.sellers ?? []).map((seller) => (
                       <div key={seller.barista_id}>
                         {seller.barista_name} · {money(seller.revenue)}
-                        <span className="text-mute"> · {seller.sales_count} чек.</span>
+                        <span className="text-mute">{t("shifts.receipts", { n: seller.sales_count })}</span>
                       </div>
                     ))}
                   </td>
                   <td className="py-3">{money(s.cash_revenue)}</td>
                   <td className="py-3">{money(s.card_revenue)}</td>
                   <td className="py-3">{money(s.expected_cash)}</td>
-                  <td className="py-3">{s.closing_cash == null ? "—" : money(s.closing_cash)}</td>
+                  <td className="py-3">
+                    {s.closing_cash == null ? t("common.none") : money(s.closing_cash)}
+                  </td>
                   <td className={`py-3 ${diff && diff !== 0 ? "text-alert" : ""}`}>
-                    {diff == null ? "—" : money(diff)}
+                    {diff == null ? t("common.none") : money(diff)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {s.status === "open" && (
                       <button className="underline" onClick={() => setCloseId(s.id)}>
-                        Закрыть
+                        {t("shifts.close")}
                       </button>
                     )}
                   </td>
@@ -87,8 +94,8 @@ export function ShiftsPage() {
       {closeId !== null && (
         <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
           <div className="w-full max-w-sm border border-line bg-paper p-7">
-            <h2 className="font-display text-2xl font-normal">Закрыть смену</h2>
-            <p className="mt-2 text-sm text-mute">Сколько наличных в ящике сейчас.</p>
+            <h2 className="font-display text-2xl font-normal">{t("shifts.closeTitle")}</h2>
+            <p className="mt-2 text-sm text-mute">{t("shifts.closeHint")}</p>
             <input
               className="mt-4 w-full border border-line px-3 py-2"
               value={cashClose}
@@ -102,14 +109,14 @@ export function ShiftsPage() {
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Button className="flex-1" onClick={() => closeShift.mutate(false)}>
-                Закрыть
+                {t("shifts.close")}
               </Button>
               <Button variant="ghost" onClick={() => setCloseId(null)}>
-                Назад
+                {t("common.back")}
               </Button>
               {closeShift.isError && (
                 <Button variant="danger" onClick={() => closeShift.mutate(true)}>
-                  Закрыть всё равно
+                  {t("shifts.closeAnyway")}
                 </Button>
               )}
             </div>

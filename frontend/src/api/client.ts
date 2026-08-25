@@ -1,5 +1,6 @@
 import { formatApiError } from "../lib/errors";
 import { downloadBlob } from "../lib/utils";
+import { t } from "../i18n";
 import { useAuth } from "../store/auth";
 import type {
   AdminStats,
@@ -234,14 +235,14 @@ export const api = {
       });
       if (!refreshed.ok) {
         logout();
-        throw new ApiError(401, "Сессия истекла");
+        throw new ApiError(401, t("common.sessionExpired"));
       }
       const pair = (await refreshed.json()) as TokenPair;
       setSession(pair.access_token, pair.refresh_token, pair.user);
       headers.set("Authorization", `Bearer ${pair.access_token}`);
       res = await fetch(url, { headers });
     }
-    if (!res.ok) throw new ApiError(res.status, "Не удалось скачать ревизию");
+    if (!res.ok) throw new ApiError(res.status, t("errors.downloadRevision"));
     const blob = await res.blob();
     downloadBlob(blob, `revision-${id}.xlsx`);
   },
@@ -335,14 +336,14 @@ export const api = {
       });
       if (!refreshed.ok) {
         logout();
-        throw new ApiError(401, "Сессия истекла");
+        throw new ApiError(401, t("common.sessionExpired"));
       }
       const pair = (await refreshed.json()) as TokenPair;
       setSession(pair.access_token, pair.refresh_token, pair.user);
       headers.set("Authorization", `Bearer ${pair.access_token}`);
       res = await fetch(`${BASE}/shops/${shopId}/reports/export?from=${from}&to=${to}`, { headers });
     }
-    if (!res.ok) throw new ApiError(res.status, "Не удалось скачать отчёт");
+    if (!res.ok) throw new ApiError(res.status, t("errors.downloadReport"));
     const blob = await res.blob();
     downloadBlob(blob, `sanaq-${from}-${to}.xlsx`);
   },

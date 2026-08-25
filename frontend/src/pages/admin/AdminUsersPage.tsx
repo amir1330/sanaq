@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Check, Dialog, Empty, Field, Input, PageTitle, Select } from "../../components/ui";
+import { useT } from "../../i18n";
 import { generatePassword } from "../../lib/utils";
 import { useAuthSessionReady } from "../../store/auth";
 import { AdminLoadError } from "./adminUi";
@@ -18,13 +19,8 @@ const emptyForm = () => ({
   can_receive_stock: false,
 });
 
-const roleLabel: Record<string, string> = {
-  owner: "владелец",
-  barista: "сотрудник",
-  super_admin: "админ",
-};
-
 export function AdminUsersPage() {
+  const t = useT();
   const qc = useQueryClient();
   const sessionReady = useAuthSessionReady();
   const users = useQuery({
@@ -41,6 +37,13 @@ export function AdminUsersPage() {
   const [form, setForm] = useState(emptyForm);
   const [note, setNote] = useState("");
 
+  const roleLabel = (role: string) => {
+    if (role === "owner") return t("admin.roleOwner");
+    if (role === "barista") return t("admin.roleStaff");
+    if (role === "super_admin") return t("admin.roleAdmin");
+    return role;
+  };
+
   const create = useMutation({
     mutationFn: () =>
       api.createAdminUser({
@@ -54,10 +57,11 @@ export function AdminUsersPage() {
       }),
     onSuccess: (user) => {
       const shop = shops.data?.find((s) => s.id === user.shop_id);
+      const name = shop?.name ?? user.shop_name ?? "";
       setNote(
         user.role === "owner"
-          ? `Владелец ${user.email} добавлен в «${shop?.name ?? user.shop_name}».`
-          : `Сотрудник ${user.email} добавлен в «${shop?.name ?? user.shop_name}». Вход — почта и пароль, только касса.`,
+          ? t("admin.userOwnerNote", { email: user.email ?? "", name })
+          : t("admin.userStaffNote", { email: user.email ?? "", name }),
       );
       setForm(emptyForm());
       setOpen(false);
@@ -76,41 +80,41 @@ export function AdminUsersPage() {
   return (
     <div>
       <PageTitle
-        kicker="Система"
-        title="Пользователи"
-        hint="Владелец или сотрудник — с почтой и паролем. Сотрудник после входа видит только кассу."
-        action={<Button onClick={() => setOpen(true)}>Добавить</Button>}
+        kicker={t("admin.usersKicker")}
+        title={t("admin.usersTitle")}
+        hint={t("admin.usersHint")}
+        action={<Button onClick={() => setOpen(true)}>{t("common.add")}</Button>}
       />
 
       {note && <p className="mb-4 border border-sky/30 bg-sky/10 px-4 py-3 text-sm">{note}</p>}
       {users.isError && (
-        <AdminLoadError message={(users.error as Error).message || "Не удалось загрузить пользователей."} />
+        <AdminLoadError message={(users.error as Error).message || t("admin.loadUsersFail")} />
       )}
 
       {!sessionReady || shops.isLoading ? (
         <Card>
-          <p className="text-sm text-mute">Загружаем…</p>
+          <p className="text-sm text-mute">{t("common.loading")}</p>
         </Card>
       ) : !shops.data?.length ? (
         <Card>
-          <p className="text-sm text-mute">Сначала заведи точку во вкладке «Точки», потом сюда — человека.</p>
+          <p className="text-sm text-mute">{t("admin.needShopFirst")}</p>
         </Card>
       ) : users.isLoading ? (
         <Card>
-          <p className="text-sm text-mute">Загружаем пользователей…</p>
+          <p className="text-sm text-mute">{t("admin.loadingUsers")}</p>
         </Card>
       ) : list.length === 0 ? (
-        <Empty>Пользователей ещё нет. Нажми «Добавить».</Empty>
+        <Empty>{t("admin.noUsers")}</Empty>
       ) : (
         <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">Имя</th>
-                <th>Роль</th>
-                <th>Точка</th>
-                <th>Вход</th>
-                <th>Статус</th>
+                <th className="px-4 py-3">{t("admin.colName")}</th>
+                <th>{t("admin.colRole")}</th>
+                <th>{t("admin.colShop")}</th>
+                <th>{t("admin.colLogin")}</th>
+                <th>{t("admin.colStatus")}</th>
               </tr>
             </thead>
             <tbody>
@@ -120,17 +124,17 @@ export function AdminUsersPage() {
                     <p className="font-medium">{u.full_name}</p>
                     {u.phone && <p className="text-mute">{u.phone}</p>}
                   </td>
-                  <td>{roleLabel[u.role] ?? u.role}</td>
-                  <td className="text-mute">{u.shop_name || "—"}</td>
+                  <td>{roleLabel(u.role)}</td>
+                  <td className="text-mute">{u.shop_name || t("common.none")}</td>
                   <td className="font-mono text-xs">
-                    {u.email || "—"}
+                    {u.email || t("common.none")}
                     {u.role === "barista" && (
                       <span className="block font-sans text-[11px] text-mute">
-                        {u.can_receive_stock ? "касса + приёмка" : "только касса"}
+                        {u.can_receive_stock ? t("admin.rightsPosStock") : t("admin.rightsPos")}
                       </span>
                     )}
                   </td>
-                  <td>{u.is_active ? "активен" : "выкл"}</td>
+                  <td>{u.is_active ? t("admin.active") : t("admin.inactive")}</td>
                 </tr>
               ))}
             </tbody>
@@ -141,35 +145,35 @@ export function AdminUsersPage() {
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="Новый пользователь"
-        hint="Заявка с сайта не нужна — заводишь сам, когда договорились."
+        title={t("admin.newUser")}
+        hint={t("admin.newUserHint")}
       >
         <div className="space-y-3">
-          <Field label="Точка">
+          <Field label={t("admin.colShop")}>
             <Select value={form.shop_id} onChange={(e) => setForm({ ...form, shop_id: e.target.value })}>
-              <option value="">Выбери точку</option>
+              <option value="">{t("admin.pickShop")}</option>
               {(shops.data ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                  {!s.is_active ? " (выкл)" : ""}
+                  {!s.is_active ? t("admin.shopOff") : ""}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Роль">
+          <Field label={t("admin.role")}>
             <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as RolePick })}>
-              <option value="owner">Владелец — кабинет по почте</option>
-              <option value="barista">Сотрудник — касса по почте</option>
+              <option value="owner">{t("admin.roleOwnerOpt")}</option>
+              <option value="barista">{t("admin.roleStaffOpt")}</option>
             </Select>
           </Field>
-          <Field label="Имя">
+          <Field label={t("staff.name")}>
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
               placeholder="Айгерим"
             />
           </Field>
-          <Field label="Почта для входа">
+          <Field label={t("staff.email")}>
             <Input
               type="email"
               value={form.email}
@@ -177,10 +181,14 @@ export function AdminUsersPage() {
               autoComplete="off"
             />
           </Field>
-          <Field label="Телефон">
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+7…" />
+          <Field label={t("staff.phone")}>
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder={t("staff.phonePh")}
+            />
           </Field>
-          <Field label="Пароль, от 6 символов">
+          <Field label={t("admin.passwordMin")}>
             <div className="flex gap-2">
               <Input
                 type="text"
@@ -189,7 +197,7 @@ export function AdminUsersPage() {
                 autoComplete="new-password"
               />
               <Button type="button" variant="foam" onClick={() => setForm({ ...form, password: generatePassword() })}>
-                Сгенерировать
+                {t("common.generate")}
               </Button>
             </div>
           </Field>
@@ -198,16 +206,16 @@ export function AdminUsersPage() {
               checked={form.can_receive_stock}
               onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
             >
-              Можно делать приёмку на кассе
+              {t("admin.canReceive")}
             </Check>
           )}
           {create.isError && <p className="text-sm text-alert">{(create.error as Error).message}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Отмена
+              {t("common.cancel")}
             </Button>
             <Button disabled={!canSave || create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? "Создаём…" : "Создать"}
+              {create.isPending ? t("admin.creating") : t("admin.create")}
             </Button>
           </div>
         </div>

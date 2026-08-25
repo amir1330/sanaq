@@ -2,7 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { useLocale, useT, type LocalePreference } from "../i18n";
 import { useAuth } from "../store/auth";
 import { useTheme, type ThemePreference } from "../store/theme";
+import { useUiScale, type UiScale } from "../store/uiScale";
 import { Button, Card } from "./ui";
+
+const SCALES: UiScale[] = ["sm", "md", "lg", "xl"];
 
 export function SessionCard() {
   const t = useT();
@@ -12,6 +15,8 @@ export function SessionCard() {
   const setPreference = useTheme((s) => s.setPreference);
   const localePreference = useLocale((s) => s.preference);
   const setLocalePreference = useLocale((s) => s.setPreference);
+  const scale = useUiScale((s) => s.scale);
+  const setScale = useUiScale((s) => s.setScale);
 
   const themes: { id: ThemePreference; label: string; note: string }[] = [
     { id: "auto", label: t("account.themeAuto"), note: t("account.themeAutoNote") },
@@ -67,6 +72,24 @@ export function SessionCard() {
       <p className="mt-2 text-[12.5px] text-mute">
         {themes.find((c) => c.id === preference)?.note}
       </p>
+
+      <p className="mt-5 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">
+        {t("account.scale")}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {SCALES.map((s) => (
+          <Button key={s} variant={scale === s ? "primary" : "quiet"} onClick={() => setScale(s)}>
+            {s === "sm"
+              ? t("account.scaleSm")
+              : s === "md"
+                ? t("account.scaleMd")
+                : s === "lg"
+                  ? t("account.scaleLg")
+                  : t("account.scaleXl")}
+          </Button>
+        ))}
+      </div>
+
       <div className="mt-5">
         <Button
           variant="ghost"

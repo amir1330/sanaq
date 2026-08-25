@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { RevisionWorkspace } from "../../components/RevisionsPanel";
 import { Button, PageTitle } from "../../components/ui";
+import { useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 
 export function StockRevisionPage() {
+  const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const { revisionId } = useParams();
   const id = Number(revisionId);
@@ -19,9 +21,9 @@ export function StockRevisionPage() {
   if (revision.isError) {
     return (
       <div>
-        <PageTitle kicker="Склад" title="Ревизия не найдена" />
+        <PageTitle kicker={t("stock.revKicker")} title={t("stock.revMissing")} />
         <Button variant="quiet" onClick={() => navigate("/owner/stock/revisions")}>
-          К пересчётам
+          {t("stock.toRecounts")}
         </Button>
       </div>
     );
@@ -30,7 +32,7 @@ export function StockRevisionPage() {
   if (!revision.data) {
     return (
       <div>
-        <PageTitle kicker="Склад" title="Ревизия" hint="Открываем снимок…" />
+        <PageTitle kicker={t("stock.revKicker")} title={t("stock.revision")} hint={t("stock.revLoading")} />
       </div>
     );
   }
@@ -40,20 +42,16 @@ export function StockRevisionPage() {
   return (
     <div>
       <PageTitle
-        kicker="Склад"
-        title={draft ? `Ревизия №${revision.data.id}` : `Ревизия №${revision.data.id}`}
-        hint={
-          draft
-            ? "Отдельное окно пересчёта. Касса стоит, пока не проведёшь или не отменишь."
-            : "Готовый акт. Можно скачать Excel."
-        }
+        kicker={t("stock.revKicker")}
+        title={`${t("stock.revision")} #${revision.data.id}`}
+        hint={draft ? t("stock.revDraftHint") : t("stock.revDoneHint")}
         action={
           <div className="flex flex-wrap gap-2">
             <Link to="/owner/stock/revisions">
-              <Button variant="quiet">Все пересчёты</Button>
+              <Button variant="quiet">{t("stock.allRecounts")}</Button>
             </Link>
             <Link to="/owner/stock">
-              <Button variant="quiet">К остаткам</Button>
+              <Button variant="quiet">{t("stock.toStock")}</Button>
             </Link>
           </div>
         }

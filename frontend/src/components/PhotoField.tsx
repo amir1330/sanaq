@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useT } from "../i18n";
 import { Button } from "./ui";
 
 export function PhotoField({
@@ -6,7 +7,7 @@ export function PhotoField({
   onFile,
   onClear,
   busy,
-  label = "Фото",
+  label,
   hint,
   compact,
 }: {
@@ -18,7 +19,9 @@ export function PhotoField({
   hint?: string;
   compact?: boolean;
 }) {
+  const t = useT();
   const ref = useRef<HTMLInputElement>(null);
+  const title = label ?? t("photo.label");
   if (compact) {
     return (
       <div>
@@ -28,7 +31,7 @@ export function PhotoField({
           onClick={() => ref.current?.click()}
           className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-md bg-cream text-[12.5px] text-mute hover:ring-1 hover:ring-ink disabled:opacity-40"
         >
-          {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : "фото"}
+          {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : t("common.photo")}
         </button>
         <input
           ref={ref}
@@ -43,7 +46,7 @@ export function PhotoField({
         />
         {src && onClear && (
           <button type="button" className="mt-1 block text-[12px] text-mute hover:text-maroon" onClick={onClear}>
-            убрать
+            {t("common.remove")}
           </button>
         )}
       </div>
@@ -51,7 +54,7 @@ export function PhotoField({
   }
   return (
     <div>
-      <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">{label}</p>
+      <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">{title}</p>
       <button
         type="button"
         disabled={busy}
@@ -61,7 +64,7 @@ export function PhotoField({
         {src ? (
           <img src={src} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="px-4 text-center text-sm text-mute">Нажми — выбрать снимок</span>
+          <span className="px-4 text-center text-sm text-mute">{t("photo.click")}</span>
         )}
       </button>
       <input
@@ -77,11 +80,11 @@ export function PhotoField({
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button type="button" variant="quiet" onClick={() => ref.current?.click()} disabled={busy}>
-          {src ? "Заменить" : "Выбрать"}
+          {src ? t("settings.replace") : t("photo.choose")}
         </Button>
         {src && onClear && (
           <Button type="button" variant="ghost" onClick={onClear} disabled={busy}>
-            Убрать
+            {t("common.remove")}
           </Button>
         )}
         <span className="text-[12.5px] text-mute">{hint}</span>

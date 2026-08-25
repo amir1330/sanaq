@@ -148,16 +148,14 @@ export function SettingsPage() {
               </Button>
             )}
           </div>
-          <p className="mt-3 text-sm text-mute">До 2 МБ. В шапке и на кассе логотип крупный — лучше квадрат.</p>
+          <p className="mt-3 text-sm text-mute">{t("settings.logoNote")}</p>
         </Card>
       </div>
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}
 
       <Card className="mt-4">
         <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.vitrine")}</p>
-        <p className="mt-2 max-w-xl text-sm text-mute">
-          Меню на телевизоре у стойки: фото, название, цена. Открой на ТВ и нажми «На весь экран».
-        </p>
+        <p className="mt-2 max-w-xl text-sm text-mute">{t("settings.vitrineHint")}</p>
         <div className="mt-4">
           <Link to="/vitrine">
             <Button variant="quiet">{t("settings.openVitrine")}</Button>
@@ -173,6 +171,7 @@ export function SettingsPage() {
 }
 
 function CashRegistersCard({ shopId }: { shopId: number }) {
+  const t = useT();
   const qc = useQueryClient();
   const registers = useQuery({
     queryKey: ["cash-registers", shopId, "all"],
@@ -207,11 +206,8 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
   return (
     <Card className="mt-4 space-y-4">
       <div>
-        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">Кассы</p>
-        <p className="mt-2 max-w-xl text-sm text-mute">
-          Если в точке два ящика — добавь «Касса 2». На каждой кассе своя смена: открыл / закрыл / деньги в ящике.
-          На кассе в POS выбирают, за какой ящик работают.
-        </p>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.tills")}</p>
+        <p className="mt-2 max-w-xl text-sm text-mute">{t("settings.tillsHint")}</p>
       </div>
       <ul className="divide-y divide-line border border-line">
         {(registers.data ?? []).map((r) => (
@@ -228,19 +224,19 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
                   disabled={!editName.trim() || patch.isPending}
                   onClick={() => patch.mutate({ id: r.id, body: { name: editName.trim() } })}
                 >
-                  Сохранить
+                  {t("common.save")}
                 </Button>
                 <Button variant="ghost" onClick={() => setEditingId(null)}>
-                  Отмена
+                  {t("common.cancel")}
                 </Button>
               </>
             ) : (
               <>
                 <span className={`flex-1 ${r.is_active ? "" : "text-mute line-through"}`}>{r.name}</span>
                 {r.has_open_shift && (
-                  <span className="text-[11px] uppercase tracking-wide text-gold">смена открыта</span>
+                  <span className="text-[11px] uppercase tracking-wide text-gold">{t("settings.tillOpen")}</span>
                 )}
-                {!r.is_active && <span className="text-[11px] text-mute">выключена</span>}
+                {!r.is_active && <span className="text-[11px] text-mute">{t("settings.tillOff")}</span>}
                 <button
                   type="button"
                   className="underline text-mute hover:text-ink"
@@ -249,7 +245,7 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
                     setEditName(r.name);
                   }}
                 >
-                  Переименовать
+                  {t("common.rename")}
                 </button>
                 {r.is_active ? (
                   <button
@@ -258,7 +254,7 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
                     onClick={() => patch.mutate({ id: r.id, body: { is_active: false } })}
                     disabled={patch.isPending}
                   >
-                    Выключить
+                    {t("common.disable")}
                   </button>
                 ) : (
                   <button
@@ -267,7 +263,7 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
                     onClick={() => patch.mutate({ id: r.id, body: { is_active: true } })}
                     disabled={patch.isPending}
                   >
-                    Включить
+                    {t("common.enable")}
                   </button>
                 )}
               </>
@@ -280,10 +276,10 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
           className="max-w-xs flex-1"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Касса 2"
+          placeholder={t("settings.tillAddPh")}
         />
         <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
-          Добавить кассу
+          {t("settings.tillAdd")}
         </Button>
       </div>
       {error && <p className="text-sm text-rust">{error}</p>}
@@ -292,6 +288,7 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
 }
 
 function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
+  const t = useT();
   const qc = useQueryClient();
   const setShopId = useAuth((s) => s.setShopId);
   const [open, setOpen] = useState(false);
@@ -330,15 +327,14 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
     <Card className="mt-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Сеть</p>
-          <h2 className="mt-1 font-display text-2xl font-normal">Филиалы</h2>
-          <p className="mt-2 text-sm text-mute">
-            Каждая точка — свой склад, касса, смена и касса Webkassa. Меню можно скопировать, остатки на новой точке
-            будут нулевые.
+          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
+            {t("settings.network")}
           </p>
+          <h2 className="mt-1 font-display text-2xl font-normal">{t("settings.branches")}</h2>
+          <p className="mt-2 text-sm text-mute">{t("settings.branchesHint")}</p>
         </div>
         <Button variant={open ? "ghost" : "primary"} onClick={() => setOpen((v) => !v)}>
-          {open ? "Свернуть" : "Новый филиал"}
+          {open ? t("common.collapse") : t("settings.branchNew")}
         </Button>
       </div>
       {shops.length > 1 && (
@@ -346,8 +342,8 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">Точка</th>
-                <th>Адрес</th>
+                <th className="px-4 py-3">{t("nav.pointFallback")}</th>
+                <th>{t("settings.address")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -356,14 +352,14 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
                 <tr key={s.id} className="border-b border-ink/5">
                   <td className="px-4 py-3">
                     {s.name}
-                    {s.id === shopId && <span className="ml-2 text-mute">сейчас</span>}
-                    {!s.is_active && <span className="ml-2 text-alert">выкл</span>}
+                    {s.id === shopId && <span className="ml-2 text-mute">{t("common.now")}</span>}
+                    {!s.is_active && <span className="ml-2 text-alert">{t("common.off")}</span>}
                   </td>
-                  <td className="text-mute">{s.address || "—"}</td>
+                  <td className="text-mute">{s.address || t("common.none")}</td>
                   <td className="px-4 py-3 text-right">
                     {s.id !== shopId && (
                       <button className="underline" onClick={() => setShopId(s.id)}>
-                        Открыть
+                        {t("common.open")}
                       </button>
                     )}
                   </td>
@@ -375,21 +371,21 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
       )}
       {open && (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label="Название филиала">
+          <Field label={t("settings.branchName")}>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={current ? `${current.name} · Достык` : "Вторая точка"}
+              placeholder={t("settings.branchNamePh")}
             />
           </Field>
-          <Field label="Адрес">
+          <Field label={t("settings.address")}>
             <Input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="улица, город"
+              placeholder={t("settings.addressPh")}
             />
           </Field>
-          <Field label="Часовой пояс">
+          <Field label={t("settings.timezone")}>
             <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
               {TIMEZONES.map((z) => (
                 <option key={z} value={z}>
@@ -399,12 +395,12 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
             </Select>
           </Field>
           <Check checked={form.copy_catalog} onChange={(copy_catalog) => setForm({ ...form, copy_catalog })}>
-            Скопировать меню и склад с текущей точки. Остатки — ноль.
+            {t("settings.copyCatalog")}
           </Check>
           {add.isError && <p className="text-sm text-alert md:col-span-2">{(add.error as Error).message}</p>}
           <div className="md:col-span-2">
             <Button disabled={!form.name.trim() || add.isPending} onClick={() => add.mutate()}>
-              Создать филиал
+              {t("settings.createBranch")}
             </Button>
           </div>
         </div>
@@ -422,6 +418,7 @@ function WebkassaCard({
   shop?: Shop;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [form, setForm] = useState({
     login: "",
     password: "",
@@ -463,55 +460,55 @@ function WebkassaCard({
 
   return (
     <Card className="mt-6">
-      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">Фискализация</p>
+      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
+        {t("settings.fiscal")}
+      </p>
       <h2 className="mt-1 font-display text-2xl font-normal">Webkassa</h2>
       {shop?.webkassa_enabled ? (
-        <p className="mt-2 text-sm text-mute">Чеки уходят в ОФД в фоне. Без аккаунта кассы Webkassa будет 401.</p>
+        <p className="mt-2 text-sm text-mute">{t("settings.webkassaOn")}</p>
       ) : (
-        <p className="mt-2 text-sm text-alert">
-          Продажи не фискализируются. Касса работает как раньше, в журнал пишется «пропущено».
-        </p>
+        <p className="mt-2 text-sm text-alert">{t("settings.webkassaOff")}</p>
       )}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Field label="Login кассы">
+        <Field label={t("settings.wkLogin")}>
           <Input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />
         </Field>
-        <Field label="Пароль кассы">
+        <Field label={t("settings.wkPassword")}>
           <Input
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={shop?.webkassa_has_password ? "сохранён, введи чтобы сменить" : ""}
+            placeholder={shop?.webkassa_has_password ? t("settings.wkPasswordPh") : ""}
           />
         </Field>
-        <Field label="CashboxUniqueNumber">
+        <Field label={t("settings.wkCashbox")}>
           <Input
             value={form.cashbox_number}
             onChange={(e) => setForm({ ...form, cashbox_number: e.target.value })}
           />
         </Field>
-        <Field label="API-KEY (если выдали отдельно)">
+        <Field label={t("settings.wkApiKey")}>
           <Input
             type="password"
             value={form.api_key}
             onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-            placeholder={shop?.webkassa_has_api_key ? "сохранён, введи чтобы сменить" : "можно оставить пустым"}
+            placeholder={shop?.webkassa_has_api_key ? t("settings.wkApiKeySaved") : t("settings.wkApiKeyPh")}
           />
         </Field>
       </div>
       <div className="mt-4">
         <Check checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })}>
-          Включена — чеки уходят в Webkassa
+          {t("settings.wkEnabled")}
         </Check>
       </div>
       {save.isError && <p className="mt-2 text-sm text-alert">{(save.error as Error).message}</p>}
       {testMsg && <p className="mt-2 text-sm text-mute">{testMsg}</p>}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          Сохранить кассу
+          {t("settings.wkSave")}
         </Button>
         <Button variant="foam" onClick={() => test.mutate()} disabled={test.isPending}>
-          Проверить подключение
+          {t("settings.wkTest")}
         </Button>
       </div>
     </Card>

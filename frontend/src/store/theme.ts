@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { storageGet, storageSet } from "../lib/storage";
 
 export type Theme = "light" | "dark";
 export type ThemePreference = "auto" | Theme;
@@ -12,7 +13,7 @@ function systemTheme(): Theme {
 
 function readPreference(): ThemePreference {
   if (typeof window === "undefined") return "auto";
-  const saved = window.localStorage.getItem(KEY);
+  const saved = storageGet(KEY);
   if (saved === "dark" || saved === "light" || saved === "auto") return saved;
   return "auto";
 }
@@ -45,7 +46,7 @@ type ThemeState = {
 export const useTheme = create<ThemeState>((set) => ({
   preference: readPreference(),
   setPreference: (preference) => {
-    window.localStorage.setItem(KEY, preference);
+    storageSet(KEY, preference);
     applyTheme(resolveTheme(preference));
     set({ preference });
   },

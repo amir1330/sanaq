@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { RevisionsHistory } from "../../components/RevisionsPanel";
 import { Button, Card, PageTitle } from "../../components/ui";
+import { useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 
 export function StockRevisionsPage() {
+  const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -27,20 +29,22 @@ export function StockRevisionsPage() {
   return (
     <div>
       <PageTitle
-        kicker="Склад"
-        title="Ревизии"
-        hint="Новая ревизия снимает снимок остатков и останавливает кассу. В конце — Excel."
+        kicker={t("stock.revKicker")}
+        title={t("stock.revTitle")}
+        hint={t("stock.revHint")}
         action={
           <div className="flex flex-wrap gap-2">
             {draft ? (
-              <Button onClick={() => navigate(`/owner/stock/revisions/${draft.id}`)}>Открыть ревизию №{draft.id}</Button>
+              <Button onClick={() => navigate(`/owner/stock/revisions/${draft.id}`)}>
+                {t("stock.openRevN", { id: draft.id })}
+              </Button>
             ) : (
               <Button onClick={() => start.mutate()} disabled={start.isPending}>
-                Новая ревизия
+                {t("stock.newRev")}
               </Button>
             )}
             <Link to="/owner/stock">
-              <Button variant="quiet">К остаткам</Button>
+              <Button variant="quiet">{t("stock.toStock")}</Button>
             </Link>
           </div>
         }
@@ -48,10 +52,10 @@ export function StockRevisionsPage() {
       {start.isError && <p className="mb-4 text-sm text-alert">{(start.error as Error).message}</p>}
       {draft && (
         <Card className="mb-5 border border-maroon/30 bg-maroon/5">
-          <p className="font-medium text-maroon">Сейчас идёт ревизия №{draft.id}</p>
-          <p className="mt-1 text-sm text-mute">Продажи и движения склада остановлены. Открой окно пересчёта.</p>
+          <p className="font-medium text-maroon">{t("stock.revRunning", { id: draft.id })}</p>
+          <p className="mt-1 text-sm text-mute">{t("stock.revRunningHint")}</p>
           <Button className="mt-3" onClick={() => navigate(`/owner/stock/revisions/${draft.id}`)}>
-            Продолжить
+            {t("common.continue")}
           </Button>
         </Card>
       )}

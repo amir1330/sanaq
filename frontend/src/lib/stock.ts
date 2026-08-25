@@ -1,7 +1,21 @@
 import type { StockJournalEntry, StockJournalKind } from "../types";
+import { t } from "../i18n";
 import { qty } from "./utils";
 
 export const WRITEOFF_REASONS = ["бой", "пролив", "дегустация", "срок", "угощение"] as const;
+
+const REASON_KEYS: Record<(typeof WRITEOFF_REASONS)[number], string> = {
+  бой: "stock.reasonBreak",
+  пролив: "stock.reasonSpill",
+  дегустация: "stock.reasonTaste",
+  срок: "stock.reasonExpiry",
+  угощение: "stock.reasonTreat",
+};
+
+export function writeoffReasonLabel(reason: string): string {
+  const key = REASON_KEYS[reason as (typeof WRITEOFF_REASONS)[number]];
+  return key ? t(key) : reason;
+}
 
 export const MOVE_KINDS: StockJournalKind[] = [
   "income",
@@ -16,18 +30,18 @@ export const MOVE_KINDS: StockJournalKind[] = [
 ];
 
 export function kindTitle(kind: StockJournalKind, delta: number | null): string {
-  if (kind === "income") return "Пришло на склад";
-  if (kind === "writeoff") return "Списали";
-  if (kind === "sale") return "Ушло в чек";
-  if (kind === "refund") return "Вернули на полку";
-  if (kind === "correction") return delta != null && delta < 0 ? "Ревизия · недостача" : "Ревизия · излишек";
-  if (kind === "transfer_in") return "Приехало с другой точки";
-  if (kind === "transfer_out") return "Уехало на другую точку";
-  if (kind === "regrade_in") return "Пересорт · сюда";
-  if (kind === "regrade_out") return "Пересорт · отсюда";
-  if (kind === "created") return "Добавили карточку";
-  if (kind === "updated") return "Изменили карточку";
-  return "Удалили карточку";
+  if (kind === "income") return t("stock.kindIncome");
+  if (kind === "writeoff") return t("stock.kindWriteoff");
+  if (kind === "sale") return t("stock.kindSale");
+  if (kind === "refund") return t("stock.kindRefund");
+  if (kind === "correction") return delta != null && delta < 0 ? t("stock.kindRevShort") : t("stock.kindRevOver");
+  if (kind === "transfer_in") return t("stock.kindTransferIn");
+  if (kind === "transfer_out") return t("stock.kindTransferOut");
+  if (kind === "regrade_in") return t("stock.kindRegradeIn");
+  if (kind === "regrade_out") return t("stock.kindRegradeOut");
+  if (kind === "created") return t("stock.kindCreated");
+  if (kind === "updated") return t("stock.kindUpdated");
+  return t("stock.kindDeleted");
 }
 
 export function deltaBase(row: StockJournalEntry): number | null {

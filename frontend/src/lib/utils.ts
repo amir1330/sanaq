@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { t } from "../i18n";
+import { t, useLocale } from "../i18n";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -16,17 +16,18 @@ export function money(value: string | number | null | undefined): string {
 }
 
 export function shortDay(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return t("common.none");
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return t("common.none");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const then = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.round((today.getTime() - then.getTime()) / 86_400_000);
-  if (diff === 0) return "сегодня";
-  if (diff === 1) return "вчера";
-  if (diff > 1 && diff < 7) return `${diff} дн. назад`;
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  if (diff === 0) return t("common.today");
+  if (diff === 1) return t("common.yesterday");
+  if (diff > 1 && diff < 7) return t("common.daysAgo", { n: diff });
+  const tag = useLocale.getState().locale === "kk" ? "kk-KZ" : useLocale.getState().locale === "en" ? "en-GB" : "ru-RU";
+  return d.toLocaleDateString(tag, { day: "numeric", month: "short" });
 }
 
 export function shelfValue(item: {
@@ -57,27 +58,16 @@ export function qty(value: string | number, unit?: string): string {
   return `${text} ${unitWord(n, unit)}`;
 }
 
-const UNIT_FORMS: Record<string, [string, string, string]> = {
-  пачка: ["пачка", "пачки", "пачек"],
-  мешок: ["мешок", "мешка", "мешков"],
-  ящик: ["ящик", "ящика", "ящиков"],
-  шт: ["шт", "шт", "шт"],
+const UNIT_KEYS: Record<string, string> = {
+  пачка: "units.pack",
+  мешок: "units.bag",
+  ящик: "units.box",
+  шт: "units.pcs",
 };
 
-function ruPlural(n: number, forms: [string, string, string]): string {
-  const abs = Math.abs(Math.trunc(n)) % 100;
-  const d = abs % 10;
-  if (abs > 10 && abs < 20) return forms[2];
-  if (d === 1) return forms[0];
-  if (d > 1 && d < 5) return forms[1];
-  return forms[2];
-}
-
-export function unitWord(n: number, unit: string): string {
-  const forms = UNIT_FORMS[unit];
-  if (!forms) return unit;
-  if (!Number.isInteger(n)) return forms[1];
-  return ruPlural(n, forms);
+export function unitWord(_n: number, unit: string): string {
+  const key = UNIT_KEYS[unit];
+  return key ? t(key) : unit;
 }
 
 export function unitCost(value: string | number, unit?: string): string {

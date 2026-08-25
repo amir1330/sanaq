@@ -181,6 +181,8 @@ async def top_products(
         select(
             SaleItem.product_id,
             Product.name,
+            Product.name_kk,
+            Product.name_en,
             func.sum(SaleItem.quantity).label("qty"),
             func.sum(SaleItem.price_snapshot * SaleItem.quantity).label("revenue"),
             func.sum(
@@ -195,7 +197,7 @@ async def top_products(
             Sale.created_at >= start,
             Sale.created_at <= end,
         )
-        .group_by(SaleItem.product_id, Product.name)
+        .group_by(SaleItem.product_id, Product.name, Product.name_kk, Product.name_en)
         .order_by(func.sum(SaleItem.quantity).desc())
         .limit(limit)
     )
@@ -203,6 +205,8 @@ async def top_products(
         TopProduct(
             product_id=row.product_id,
             name=row.name,
+            name_kk=row.name_kk,
+            name_en=row.name_en,
             quantity=int(row.qty or 0),
             revenue=Decimal(str(row.revenue or 0)),
             profit=Decimal(str(row.profit or 0)),

@@ -27,6 +27,8 @@ class ReportSummary(BaseModel):
 class TopProduct(BaseModel):
     product_id: int
     name: str
+    name_kk: str | None = None
+    name_en: str | None = None
     quantity: int
     revenue: Decimal
     profit: Decimal

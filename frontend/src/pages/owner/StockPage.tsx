@@ -5,6 +5,7 @@ import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
+import { useT } from "../../i18n";
 import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
@@ -20,12 +21,19 @@ function CostHint({
   purchaseUnit: string;
   baseUnit: string;
 }) {
+  const t = useT();
   const perBase = Number(costPerBase(purchasePrice, factor));
   const pack = Number(purchasePrice);
   const n = Number(factor);
-  if (!n || n <= 0) return <p className="mt-1 text-[12.5px] text-mute">Сначала сколько {baseUnit} в одной {purchaseUnit}</p>;
+  if (!n || n <= 0) {
+    return (
+      <p className="mt-1 text-[12.5px] text-mute">
+        {t("stock.costHintUnits", { base: baseUnit, purchase: purchaseUnit })}
+      </p>
+    );
+  }
   if (!(pack > 0) || (n === 1 && purchaseUnit === baseUnit)) {
-    return <p className="mt-1 text-[12.5px] text-mute">Можно 0 — подставится с приёмки</p>;
+    return <p className="mt-1 text-[12.5px] text-mute">{t("stock.costHintZero")}</p>;
   }
   return (
     <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
@@ -44,6 +52,7 @@ const emptyCreate = {
 };
 
 export function StockPage() {
+  const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -120,9 +129,9 @@ export function StockPage() {
   return (
     <div>
       <PageTitle
-        kicker="Склад"
-        title="Остатки"
-        hint="Себестоимость — сколько стоила закупка за единицу. Сумма на складе — сколько денег заморожено в этом остатке (количество × себестоимость)."
+        kicker={t("stock.kicker")}
+        title={t("stock.title")}
+        hint={t("stock.hint")}
         action={
           <div className="flex flex-wrap gap-2">
             {hasDraft ? (
@@ -132,21 +141,21 @@ export function StockPage() {
                   if (draft) navigate(`/owner/stock/revisions/${draft.id}`);
                 }}
               >
-                Открыть ревизию
+                {t("stock.openRevision")}
               </Button>
             ) : (
               <Button variant="quiet" onClick={() => startRevision.mutate()} disabled={startRevision.isPending}>
-                Ревизия
+                {t("stock.revision")}
               </Button>
             )}
             <Link to="/owner/stock/revisions">
-              <Button variant="quiet">Пересчёты</Button>
+              <Button variant="quiet">{t("stock.recounts")}</Button>
             </Link>
             <Button variant="quiet" onClick={() => setReceive("open")} disabled={hasDraft}>
-              Приход
+              {t("stock.income")}
             </Button>
             <Button variant={creating ? "quiet" : "primary"} onClick={toggleCreate}>
-              {creating ? "Свернуть" : "Добавить позицию"}
+              {creating ? t("common.collapse") : t("stock.addItem")}
             </Button>
           </div>
         }
@@ -156,13 +165,13 @@ export function StockPage() {
       )}
       {hasDraft && (
         <Card className="mb-4 border border-maroon/30 bg-maroon/5">
-          <p className="font-medium text-maroon">Идёт ревизия — касса и склад на паузе</p>
-          <p className="mt-1 text-sm text-mute">Приходы и продажи недоступны, пока не проведёшь пересчёт.</p>
+          <p className="font-medium text-maroon">{t("stock.revisionPause")}</p>
+          <p className="mt-1 text-sm text-mute">{t("stock.revisionPauseHint")}</p>
         </Card>
       )}
       {(stock.data ?? []).some((i) => i.is_low) && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
-          <p className="font-semibold text-alert">Закупить</p>
+          <p className="font-semibold text-alert">{t("stock.buy")}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {stock.data
               ?.filter((i) => i.is_low)
@@ -192,17 +201,17 @@ export function StockPage() {
               setCreatePhoto(null);
               setCreatePreview(null);
             }}
-            hint="Снимок пачки, банки, коробки — чтобы не перепутать на приёмке"
+            hint={t("stock.photoHint")}
           />
         </div>
-        <Field label="Название">
+        <Field label={t("stock.name")}>
           <Input
-            placeholder="Молоко, печенье, стаканы…"
+            placeholder={t("stock.namePh")}
             value={create.name}
             onChange={(e) => setCreate({ ...create, name: e.target.value })}
           />
         </Field>
-        <Field label="Базовая единица — в ней остаток">
+        <Field label={t("stock.baseUnit")}>
           <Select value={create.base_unit} onChange={(e) => setUnits({ base_unit: e.target.value })}>
             {BASE_UNITS.map((u) => (
               <option key={u} value={u}>
@@ -211,7 +220,7 @@ export function StockPage() {
             ))}
           </Select>
         </Field>
-        <Field label="Единица закупки — как покупаешь">
+        <Field label={t("stock.purchaseUnit")}>
           <Select value={create.purchase_unit} onChange={(e) => setUnits({ purchase_unit: e.target.value })}>
             {PURCHASE_UNITS.map((u) => (
               <option key={u} value={u}>
@@ -220,33 +229,30 @@ export function StockPage() {
             ))}
           </Select>
         </Field>
-        <Field label={`1 ${create.purchase_unit} =`}>
+        <Field label={t("stock.oneEquals", { unit: create.purchase_unit })}>
           <Input
             value={create.purchase_to_base}
             onChange={(e) => setCreate({ ...create, purchase_to_base: e.target.value })}
             inputMode="decimal"
-            placeholder={`сколько ${create.base_unit}`}
+            placeholder={t("stock.howMany", { unit: create.base_unit })}
           />
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
             {create.base_unit}
           </p>
         </Field>
-        <Field
-          label={`Минимум, ${create.base_unit}`}
-          hint="Только для уведомления «заканчивается». Когда остаток опустится до этой цифры — строка подсветится."
-        >
+        <Field label={t("stock.minLabel", { unit: create.base_unit })} hint={t("stock.minHint")}>
           <Input
             value={create.min_quantity}
             onChange={(e) => setCreate({ ...create, min_quantity: e.target.value })}
             inputMode="decimal"
           />
         </Field>
-        <Field label={`Цена за 1 ${create.purchase_unit}, ₸`}>
+        <Field label={t("stock.pricePer", { unit: create.purchase_unit })}>
           <Input
             value={create.cost_per_purchase}
             onChange={(e) => setCreate({ ...create, cost_per_purchase: e.target.value })}
             inputMode="decimal"
-            placeholder="как в чеке за одну пачку"
+            placeholder={t("stock.pricePh")}
           />
           <CostHint
             purchasePrice={create.cost_per_purchase}
@@ -257,10 +263,10 @@ export function StockPage() {
         </Field>
         <div className="flex flex-wrap items-end gap-2 md:col-span-3">
           <Button onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
-            Сохранить
+            {t("common.save")}
           </Button>
           <Button variant="ghost" onClick={toggleCreate}>
-            Отмена
+            {t("common.cancel")}
           </Button>
         </div>
         {add.isError && <p className="text-sm text-alert md:col-span-3">{(add.error as Error).message}</p>}
@@ -270,26 +276,26 @@ export function StockPage() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Найти позицию…"
+          placeholder={t("stock.searchPh")}
           className="max-w-xs"
         />
         <p className="font-mono text-[12.5px] text-mute">
-          {rows.length} {rows.length === 1 ? "позиция" : "позиций"}
-          {lowCount ? ` · заканчивается ${lowCount}` : ""}
+          {rows.length === 1 ? t("stock.nItems", { n: rows.length }) : t("stock.nItemsMany", { n: rows.length })}
+          {lowCount ? ` · ${t("stock.runningLow", { n: lowCount })}` : ""}
           {" · "}
-          сумма на складе {money(shelfTotal)}
+          {t("stock.shelfSum", { n: money(shelfTotal) })}
         </p>
       </div>
       <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
             <tr className="border-b border-line text-left">
-              <th className="px-5 py-3.5">Позиция</th>
-              <th>Сейчас</th>
-              <th>Минимум</th>
-              <th>Себестоимость</th>
-              <th className="text-right">Сумма на складе</th>
-              <th className="pr-5 text-right">Последний приход</th>
+              <th className="px-5 py-3.5">{t("stock.colItem")}</th>
+              <th>{t("stock.colNow")}</th>
+              <th>{t("stock.colMin")}</th>
+              <th>{t("stock.colCost")}</th>
+              <th className="text-right">{t("stock.colShelf")}</th>
+              <th className="pr-5 text-right">{t("stock.colLastIn")}</th>
             </tr>
           </thead>
           <tbody>
@@ -307,7 +313,7 @@ export function StockPage() {
                       <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
                     ) : (
                       <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-paper font-mono text-[9px] uppercase tracking-wide text-mute">
-                        фото
+                        {t("common.photo")}
                       </div>
                     )}
                     <span className="font-medium">{i.name}</span>
@@ -332,7 +338,7 @@ export function StockPage() {
         </table>
         {rows.length === 0 && (
           <p className="px-5 py-8 text-center text-sm text-mute">
-            {q.trim() ? "Ничего не нашлось." : "Склад пустой. Добавь позицию сверху."}
+            {q.trim() ? t("stock.emptySearch") : t("stock.empty")}
           </p>
         )}
       </div>

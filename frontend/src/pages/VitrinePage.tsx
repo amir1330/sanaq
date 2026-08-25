@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { ShopBrand } from "../components/ShopBrand";
 import { useLocale, useT } from "../i18n";
+import { localizedName } from "../lib/i18nName";
 import { money, publicUrl } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
 import type { Product } from "../types";
@@ -51,14 +52,14 @@ export function VitrinePage() {
     const blocks = cats
       .map((c) => ({
         id: c.id,
-        name: c.name,
+        name: localizedName(c, locale),
         items: active.filter((p) => p.category_id === c.id),
       }))
       .filter((b) => b.items.length > 0);
     const rest = active.filter((p) => !p.category_id || !cats.some((c) => c.id === p.category_id));
     if (rest.length) blocks.push({ id: 0, name: otherLabel, items: rest });
     return blocks;
-  }, [products.data, categories.data, otherLabel]);
+  }, [products.data, categories.data, otherLabel, locale]);
 
   async function toggleFull() {
     if (document.fullscreenElement) {
@@ -117,6 +118,8 @@ export function VitrinePage() {
 }
 
 function MenuRow({ product }: { product: Product }) {
+  const locale = useLocale((s) => s.locale);
+  const label = localizedName(product, locale);
   const src = publicUrl(product.image_url);
   return (
     <li className="flex items-end gap-3.5">
@@ -124,12 +127,12 @@ function MenuRow({ product }: { product: Product }) {
         <img src={src} alt="" className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-md object-cover" />
       ) : (
         <span className="grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center rounded-md bg-paper-2 font-display text-2xl text-maroon">
-          {product.name.slice(0, 1)}
+          {label.slice(0, 1)}
         </span>
       )}
       <div className="flex min-w-0 flex-1 items-baseline gap-2 pb-1">
         <h3 className="min-w-0 truncate font-display text-[26px] font-normal leading-none md:text-[30px]">
-          {product.name}
+          {label}
         </h3>
         <span className="mb-[3px] min-w-6 flex-1 border-b border-dotted border-line-2" />
         <span className="shrink-0 font-mono text-[18px] font-semibold tabular-nums text-gold md:text-[20px]">

@@ -5,7 +5,8 @@ import { PhotoField } from "../../components/PhotoField";
 import { Button, Check, Dialog, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
 import { parseBulkProductLines } from "../../lib/bulkProducts";
 import { money, publicUrl } from "../../lib/utils";
-import { useT } from "../../i18n";
+import { localizedName } from "../../lib/i18nName";
+import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import type { Product } from "../../types";
 
@@ -27,6 +28,8 @@ type IngRow = { stock_item_id: number | ""; quantity: string };
 type Draft = {
   id?: number;
   name: string;
+  name_kk: string;
+  name_en: string;
   sale_price: string;
   category_id: number | null;
   is_active: boolean;
@@ -38,6 +41,7 @@ type Draft = {
 
 export function ProductsPage() {
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const products = useQuery({ queryKey: ["products", shopId], queryFn: () => api.products(shopId) });
@@ -71,9 +75,9 @@ export function ProductsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!editing?.name.trim()) throw new Error("Напиши название");
+      if (!editing?.name.trim()) throw new Error(t("products.needName"));
       if (!editing.sale_price.trim() || Number.isNaN(Number(editing.sale_price.replace(",", ".")))) {
-        throw new Error("Укажи цену");
+        throw new Error(t("products.needPrice"));
       }
       const price = editing.sale_price.replace(",", ".");
       const ingredients = (editing.ingredients ?? [])
@@ -83,6 +87,8 @@ export function ProductsPage() {
       if (id) {
         await api.patchProduct(shopId, id, {
           name: editing.name.trim(),
+          name_kk: editing.name_kk.trim() || null,
+          name_en: editing.name_en.trim() || null,
           sale_price: price,
           category_id: editing.category_id,
           is_active: editing.is_active,
@@ -93,6 +99,8 @@ export function ProductsPage() {
       } else {
         const created = await api.createProduct(shopId, {
           name: editing.name.trim(),
+          name_kk: editing.name_kk.trim() || null,
+          name_en: editing.name_en.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
           tax_percent: editing.tax_percent || "0",
@@ -171,6 +179,8 @@ export function ProductsPage() {
     setEditing({
       id: p?.id,
       name: p?.name ?? "",
+      name_kk: p?.name_kk ?? "",
+      name_en: p?.name_en ?? "",
       sale_price: p?.sale_price ?? "",
       category_id: p?.category_id ?? categoryId ?? null,
       is_active: p?.is_active ?? true,
@@ -186,12 +196,12 @@ export function ProductsPage() {
   const cats = categories.data ?? [];
   const groups = (filterCat === "all" ? cats : cats.filter((c) => c.id === filterCat)).map((c) => ({
     id: c.id as number | null,
-    name: c.name,
+    name: localizedName(c, locale),
     items: list.filter((p) => p.category_id === c.id),
   }));
   if (filterCat === "all") {
     const rest = list.filter((p) => !p.category_id);
-    if (rest.length) groups.push({ id: null, name: "Без категории", items: rest });
+    if (rest.length) groups.push({ id: null, name: t("products.noCategory"), items: rest });
   }
 
   return (
@@ -220,7 +230,7 @@ export function ProductsPage() {
               filterCat === "all" ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
             }`}
           >
-            Все
+            {t("common.all")}
           </button>
           {(categories.data ?? []).map((c) => (
             <button
@@ -231,7 +241,7 @@ export function ProductsPage() {
                 filterCat === c.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
               }`}
             >
-              {c.name}
+              {localizedName(c, locale)}
             </button>
           ))}
         </div>
@@ -267,10 +277,10 @@ export function ProductsPage() {
                   className="max-w-xs"
                 />
                 <Button size="md" disabled={!rename.name.trim() || saveCat.isPending} onClick={() => saveCat.mutate()}>
-                  Сохранить
+                  {t("common.save")}
                 </Button>
                 <Button variant="ghost" onClick={() => setRename(null)}>
-                  Отмена
+                  {t("common.cancel")}
                 </Button>
               </div>
             ) : (
@@ -279,9 +289,9 @@ export function ProductsPage() {
                 {group.id != null && (
                   <MoreMenu
                     items={[
-                      { label: "Добавить товар", onClick: () => open(undefined, group.id) },
+                      { label: t("products.addOne"), onClick: () => open(undefined, group.id) },
                       {
-                        label: "Добавить списком",
+                        label: t("products.addBulk"),
                         onClick: () => {
                           setBulkCategoryId(group.id!);
                           setBulkText("");
@@ -289,8 +299,11 @@ export function ProductsPage() {
                           setBulkOpen(true);
                         },
                       },
-                      { label: "Переименовать", onClick: () => setRename({ id: group.id!, name: group.name }) },
-                      { label: "Удалить", danger: true, onClick: () => dropCat.mutate(group.id!) },
+                      { label: t("common.rename"), onClick: () => {
+                        const cat = cats.find((c) => c.id === group.id);
+                        setRename({ id: group.id!, name: cat?.name ?? group.name });
+                      } },
+                      { label: t("common.delete"), danger: true, onClick: () => dropCat.mutate(group.id!) },
                     ]}
                   />
                 )}
@@ -299,7 +312,7 @@ export function ProductsPage() {
           </div>
           {group.items.length === 0 ? (
             <p className="rounded-lg bg-cream px-5 py-8 text-sm text-mute shadow-soft">
-              В этой категории пусто. Меню ⋯ справа — добавить товар.
+              {t("products.catEmpty")}
             </p>
           ) : viewMode === "list" ? (
             <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
@@ -331,7 +344,7 @@ export function ProductsPage() {
                                 —
                               </div>
                             )}
-                            <span className="font-medium">{p.name}</span>
+                            <span className="font-medium">{localizedName(p, locale)}</span>
                           </div>
                         </td>
                         <td className="pr-4 font-mono font-semibold">{money(p.sale_price)}</td>
@@ -360,10 +373,10 @@ export function ProductsPage() {
                     {src ? (
                       <img src={src} alt="" className="h-40 w-full object-cover" />
                     ) : (
-                      <div className="grid h-40 place-items-center bg-paper text-sm text-mute">Без фото</div>
+                      <div className="grid h-40 place-items-center bg-paper text-sm text-mute">{t("products.noPhoto")}</div>
                     )}
                     <div className="px-5 py-4">
-                      <p className="font-display text-[19px] font-normal">{p.name}</p>
+                      <p className="font-display text-[19px] font-normal">{localizedName(p, locale)}</p>
                       <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
                     </div>
                   </button>
@@ -374,7 +387,7 @@ export function ProductsPage() {
         </section>
       ))}
       {(products.data ?? []).length === 0 && (categories.data ?? []).length === 0 && (
-        <Empty>Меню пустое. Нажми «Добавить товар» — папку можно создать там же.</Empty>
+        <Empty>{t("products.menuEmpty")}</Empty>
       )}
 
       {editing && (
@@ -388,7 +401,7 @@ export function ProductsPage() {
           >
             <div className="flex items-start justify-between gap-4 px-6 pt-6">
               <h2 className="font-display text-[28px] font-normal leading-tight">
-                {editing.id ? "Товар" : "Новый товар"}
+                {editing.id ? t("products.editTitle") : t("products.newTitle")}
               </h2>
               <button
                 type="button"
@@ -402,7 +415,7 @@ export function ProductsPage() {
                   setAddingCat(false);
                 }}
               >
-                Закрыть
+                {t("common.close")}
               </button>
             </div>
             <div className="min-h-0 flex-1 space-y-5 overflow-auto px-6 py-5">
@@ -422,7 +435,7 @@ export function ProductsPage() {
                   }}
                 />
                 <div className="min-w-0 flex-1 space-y-3">
-                  <Field label="Название">
+                  <Field label={t("products.namePrimary")}>
                     <Input
                       value={editing.name}
                       onChange={(e) => setEditing({ ...editing, name: e.target.value })}
@@ -430,7 +443,24 @@ export function ProductsPage() {
                       autoFocus
                     />
                   </Field>
-                  <Field label="Цена, ₸">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("products.nameKk")}>
+                      <Input
+                        value={editing.name_kk}
+                        onChange={(e) => setEditing({ ...editing, name_kk: e.target.value })}
+                        placeholder="Капучино"
+                      />
+                    </Field>
+                    <Field label={t("products.nameEn")}>
+                      <Input
+                        value={editing.name_en}
+                        onChange={(e) => setEditing({ ...editing, name_en: e.target.value })}
+                        placeholder="Cappuccino"
+                      />
+                    </Field>
+                  </div>
+                  <p className="text-[12.5px] leading-snug text-mute">{t("products.nameLangHint")}</p>
+                  <Field label={t("products.price")}>
                     <Input
                       value={editing.sale_price}
                       onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
@@ -441,17 +471,17 @@ export function ProductsPage() {
                 </div>
               </div>
               <div>
-                <Field label="Категория">
+                <Field label={t("products.category")}>
                   <Select
                     value={editing.category_id ?? ""}
                     onChange={(e) =>
                       setEditing({ ...editing, category_id: e.target.value ? Number(e.target.value) : null })
                     }
                   >
-                    <option value="">Без категории</option>
+                    <option value="">{t("products.noCategory")}</option>
                     {categories.data?.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {localizedName(c, locale)}
                       </option>
                     ))}
                   </Select>
@@ -462,7 +492,7 @@ export function ProductsPage() {
                       className="min-w-0 flex-1"
                       value={catName}
                       onChange={(e) => setCatName(e.target.value)}
-                      placeholder="Кофе, чай, выпечка…"
+                      placeholder={t("products.catPh")}
                       onKeyDown={(e) => {
                         if (e.key !== "Enter") return;
                         e.preventDefault();
@@ -475,7 +505,7 @@ export function ProductsPage() {
                       disabled={!catName.trim() || addCat.isPending}
                       onClick={() => addCat.mutate()}
                     >
-                      {addCat.isPending ? "…" : "Добавить"}
+                      {addCat.isPending ? "…" : t("common.add")}
                     </Button>
                     {(categories.data ?? []).length > 0 && (
                       <Button
@@ -486,7 +516,7 @@ export function ProductsPage() {
                           setCatName("");
                         }}
                       >
-                        Отмена
+                        {t("common.cancel")}
                       </Button>
                     )}
                   </div>
@@ -496,7 +526,7 @@ export function ProductsPage() {
                     className="mt-2 text-[12.5px] text-mute hover:text-ink"
                     onClick={() => setAddingCat(true)}
                   >
-                    + новая категория
+                    {t("products.newCategory")}
                   </button>
                 )}
                 {addCat.isError && (
@@ -504,13 +534,11 @@ export function ProductsPage() {
                 )}
               </div>
               <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
-                Показывать на кассе и витрине
+                {t("products.onPos")}
               </Check>
               <details className="rounded-md bg-cream px-4 py-3">
-                <summary className="cursor-pointer text-[14.5px] font-medium">Состав со склада</summary>
-                <p className="mt-2 text-[12.5px] text-mute">
-                  Пусто — только продажа, склад не трогает. Капучино: зёрна 18 г и молоко 180 мл.
-                </p>
+                <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.recipe")}</summary>
+                <p className="mt-2 text-[12.5px] text-mute">{t("products.recipeHint")}</p>
                 <div className="mt-3 space-y-2">
                   {editing.ingredients.map((row, idx) => {
                     const item = stock.data?.find((s) => s.id === row.stock_item_id);
@@ -524,7 +552,7 @@ export function ProductsPage() {
                             setEditing({ ...editing, ingredients: next });
                           }}
                         >
-                          <option value="">Позиция…</option>
+                          <option value="">{t("products.itemPh")}</option>
                           {stock.data?.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.name} · {s.base_unit}
@@ -532,7 +560,7 @@ export function ProductsPage() {
                           ))}
                         </Select>
                         <Input
-                          placeholder={item ? item.base_unit : "кол-во"}
+                          placeholder={item ? item.base_unit : t("products.qtyPh")}
                           value={row.quantity}
                           onChange={(e) => {
                             const next = [...editing.ingredients];
@@ -550,7 +578,7 @@ export function ProductsPage() {
                             })
                           }
                         >
-                          Убрать
+                          {t("common.remove")}
                         </Button>
                       </div>
                     );
@@ -567,30 +595,32 @@ export function ProductsPage() {
                     })
                   }
                 >
-                  + позиция
+                  {t("products.addItem")}
                 </Button>
                 <p className="mt-3 font-mono text-sm">
-                  Себестоимость состава {money(
-                    editing.ingredients.reduce((sum, row) => {
-                      const item = stock.data?.find((s) => s.id === row.stock_item_id);
-                      if (!item || !row.quantity) return sum;
-                      return sum + Number(row.quantity) * Number(item.cost_per_base_unit);
-                    }, 0),
-                  )}
+                  {t("products.recipeCost", {
+                    n: money(
+                      editing.ingredients.reduce((sum, row) => {
+                        const item = stock.data?.find((s) => s.id === row.stock_item_id);
+                        if (!item || !row.quantity) return sum;
+                        return sum + Number(row.quantity) * Number(item.cost_per_base_unit);
+                      }, 0),
+                    ),
+                  })}
                 </p>
               </details>
               <details className="rounded-md bg-cream px-4 py-3">
-                <summary className="cursor-pointer text-[14.5px] font-medium">Чек ОФД</summary>
-                <p className="mt-2 text-[12.5px] text-mute">На упрощёнке оставь 0 и 0.</p>
+                <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.ofdReceipt")}</summary>
+                <p className="mt-2 text-[12.5px] text-mute">{t("products.ofdHint")}</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Field label="НДС %">
+                  <Field label={t("products.vat")}>
                     <Input
                       value={editing.tax_percent}
                       onChange={(e) => setEditing({ ...editing, tax_percent: e.target.value })}
                       inputMode="decimal"
                     />
                   </Field>
-                  <Field label="Код налога">
+                  <Field label={t("products.taxCode")}>
                     <Input
                       value={editing.tax_type}
                       onChange={(e) => setEditing({ ...editing, tax_type: e.target.value })}
@@ -603,7 +633,7 @@ export function ProductsPage() {
             </div>
             <div className="flex gap-2 border-t border-line px-6 py-4">
               <Button type="submit" className="min-w-32" disabled={save.isPending}>
-                {save.isPending ? "Сохраняем…" : "Сохранить"}
+                {save.isPending ? t("common.saving") : t("common.save")}
               </Button>
               <Button
                 type="button"
@@ -617,7 +647,7 @@ export function ProductsPage() {
                   setAddingCat(false);
                 }}
               >
-                Отмена
+                {t("common.cancel")}
               </Button>
             </div>
           </form>
@@ -640,7 +670,7 @@ export function ProductsPage() {
               <option value="">{t("products.bulkNoCategory")}</option>
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {localizedName(c, locale)}
                 </option>
               ))}
             </Select>

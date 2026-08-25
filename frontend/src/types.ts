@@ -57,7 +57,13 @@ export type Shop = {
   webkassa_has_api_key?: boolean;
 };
 
-export type Category = { id: number; shop_id: number; name: string };
+export type Category = {
+  id: number;
+  shop_id: number;
+  name: string;
+  name_kk?: string | null;
+  name_en?: string | null;
+};
 
 export type Ingredient = {
   stock_item_id: number;
@@ -71,11 +77,15 @@ export type Product = {
   shop_id: number;
   category_id: number | null;
   name: string;
+  name_kk?: string | null;
+  name_en?: string | null;
   sale_price: string;
   is_active: boolean;
   image_url: string | null;
   created_at: string;
   category_name?: string | null;
+  category_name_kk?: string | null;
+  category_name_en?: string | null;
   cost_price?: string | null;
   fiscal_position_code?: string | null;
   tax_percent?: string;
@@ -283,6 +293,8 @@ export type ReportSummary = {
 export type TopProduct = {
   product_id: number;
   name: string;
+  name_kk?: string | null;
+  name_en?: string | null;
   quantity: number;
   revenue: string;
   profit: string;

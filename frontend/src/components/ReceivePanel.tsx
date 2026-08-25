@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useT } from "../i18n";
 import { costPerPurchase, money, publicUrl, qty, stockBalance } from "../lib/utils";
 import type { StockItem } from "../types";
 import { Button, Field, Input } from "./ui";
@@ -23,6 +24,7 @@ export function ReceivePanel({
   onClose: () => void;
   initialItem?: StockItem | null;
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [lines, setLines] = useState<Line[]>(() =>
@@ -63,10 +65,8 @@ export function ReceivePanel({
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-paper p-7 text-ink shadow-soft">
-        <h2 className="font-display text-2xl font-normal">Приход</h2>
-        <p className="mt-2 text-sm text-ink-soft">
-          Как накладная: количество в пачках, сумма за строку считается сама — можно поправить, если в чеке иначе.
-        </p>
+        <h2 className="font-display text-2xl font-normal">{t("receive.title")}</h2>
+        <p className="mt-2 text-sm text-ink-soft">{t("receive.hint")}</p>
         <div className="mt-5 space-y-3">
           {lines.map((line) => {
             const preview = Number(line.qty) > 0 ? Number(line.qty) * Number(line.item.purchase_to_base) : null;
@@ -79,14 +79,15 @@ export function ReceivePanel({
                     className="text-[12.5px] text-mute hover:text-maroon"
                     onClick={() => setLines((prev) => prev.filter((l) => l.item.id !== line.item.id))}
                   >
-                    Убрать
+                    {t("common.remove")}
                   </button>
                 </div>
                 <p className="mt-1 text-[12.5px] text-mute">
-                  1 {line.item.purchase_unit} = {qty(line.item.purchase_to_base, line.item.base_unit)}
+                  {t("stock.oneEquals", { unit: line.item.purchase_unit })}{" "}
+                  {qty(line.item.purchase_to_base, line.item.base_unit)}
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Field label={`Сколько, ${line.item.purchase_unit}`}>
+                  <Field label={t("receive.qtyLabel", { unit: line.item.purchase_unit })}>
                     <Input
                       value={line.qty}
                       inputMode="decimal"
@@ -99,7 +100,7 @@ export function ReceivePanel({
                       }}
                     />
                   </Field>
-                  <Field label="Сумма за партию, ₸" hint="Считается из последней цены. Поправь, если поставщик изменил.">
+                  <Field label={t("receive.sumLabel")} hint={t("receive.sumHint")}>
                     <Input
                       value={line.price}
                       inputMode="decimal"
@@ -109,14 +110,14 @@ export function ReceivePanel({
                 </div>
                 {preview != null && (
                   <p className="mt-2 font-mono text-[11px] text-mute">
-                    на полку +{qty(preview, line.item.base_unit)}
+                    {t("receive.onShelf", { n: qty(preview, line.item.base_unit) })}
                   </p>
                 )}
               </div>
             );
           })}
         </div>
-        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">Добавить в накладную</p>
+        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">{t("receive.addLine")}</p>
         <div className="mt-2 max-h-48 overflow-auto rounded-md bg-cream">
           {(stock.data ?? [])
             .filter((item) => !lines.some((l) => l.item.id === item.id))
@@ -145,15 +146,17 @@ export function ReceivePanel({
             })}
         </div>
         {lines.length > 0 && (
-          <p className="mt-4 font-mono text-[15px] font-semibold">Итого {money(total)}</p>
+          <p className="mt-4 font-mono text-[15px] font-semibold">
+            {t("common.total")} {money(total)}
+          </p>
         )}
         {apply.isError && <p className="mt-3 text-sm text-alert">{(apply.error as Error).message}</p>}
         <div className="mt-6 flex flex-wrap gap-2">
           <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
-            Оприходовать
+            {t("receive.post")}
           </Button>
           <Button variant="ghost" onClick={onClose}>
-            Закрыть
+            {t("common.close")}
           </Button>
         </div>
       </div>
