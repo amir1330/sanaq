@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     admin,
     auth,
+    cash_registers,
     catalog,
     expenses,
     leads,
@@ -24,6 +25,7 @@ api_router.include_router(catalog.router)
 api_router.include_router(stock.router)
 api_router.include_router(revisions.router)
 api_router.include_router(staff.router)
+api_router.include_router(cash_registers.router)
 api_router.include_router(shifts.router)
 api_router.include_router(sales.router)
 api_router.include_router(expenses.router)

@@ -165,9 +165,20 @@ export type StockItem = {
   is_low: boolean;
 };
 
+export type CashRegister = {
+  id: number;
+  shop_id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  has_open_shift: boolean;
+};
+
 export type Shift = {
   id: number;
   shop_id: number;
+  cash_register_id: number;
+  cash_register_name?: string | null;
   barista_id: number;
   barista_name?: string | null;
   status: "open" | "closed";

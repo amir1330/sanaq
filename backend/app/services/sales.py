@@ -28,11 +28,55 @@ from app.services.revisions import assert_no_open_revision
 from app.services.stock import add_lot, consume_fifo, record_stock_movement
 
 
-async def get_open_shift(session: AsyncSession, shop_id: int) -> Shift | None:
-    result = await session.execute(
-        select(Shift).where(Shift.shop_id == shop_id, Shift.status == ShiftStatus.open)
-    )
+async def get_open_shift(
+    session: AsyncSession, shop_id: int, cash_register_id: int | None = None
+) -> Shift | None:
+    query = select(Shift).where(Shift.shop_id == shop_id, Shift.status == ShiftStatus.open)
+    if cash_register_id is not None:
+        query = query.where(Shift.cash_register_id == cash_register_id)
+    result = await session.execute(query.order_by(Shift.id.desc()).limit(1))
     return result.scalar_one_or_none()
+
+
+async def resolve_cash_register(
+    session: AsyncSession, shop_id: int, cash_register_id: int | None
+) -> "CashRegister":
+    from app.models import CashRegister
+
+    if cash_register_id is not None:
+        reg = await session.get(CashRegister, cash_register_id)
+        if reg is None or reg.shop_id != shop_id or not reg.is_active:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Касса не найдена")
+        return reg
+    result = await session.execute(
+        select(CashRegister)
+        .where(CashRegister.shop_id == shop_id, CashRegister.is_active.is_(True))
+        .order_by(CashRegister.sort_order, CashRegister.id)
+        .limit(1)
+    )
+    reg = result.scalar_one_or_none()
+    if reg is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "У точки нет кассы — добавь в настройках")
+    return reg
+
+
+async def ensure_default_cash_register(session: AsyncSession, shop_id: int) -> "CashRegister":
+    from app.models import CashRegister
+
+    existing = (
+        await session.execute(
+            select(CashRegister)
+            .where(CashRegister.shop_id == shop_id)
+            .order_by(CashRegister.sort_order, CashRegister.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return existing
+    reg = CashRegister(shop_id=shop_id, name="Касса 1", sort_order=0, is_active=True)
+    session.add(reg)
+    await session.flush()
+    return reg
 
 
 async def resolve_seller(session: AsyncSession, shop_id: int, user: User, barista_id: int | None) -> User:
@@ -54,10 +98,12 @@ async def create_sale(
     items: list[SaleItemIn],
     payment_type: PaymentType,
     barista_id: int | None = None,
+    cash_register_id: int | None = None,
 ) -> tuple[Sale, list[StockAlert]]:
-    shift = await get_open_shift(session, shop_id)
+    register = await resolve_cash_register(session, shop_id, cash_register_id)
+    shift = await get_open_shift(session, shop_id, register.id)
     if shift is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No open shift")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Смена на этой кассе не открыта")
     await assert_no_open_revision(session, shop_id)
     seller = await resolve_seller(session, shop_id, user, barista_id)
 

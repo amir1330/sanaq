@@ -14,6 +14,7 @@ from app.schemas.catalog import (
     CategoryUpdate,
     IngredientIn,
     IngredientOut,
+    ProductBulkCreate,
     ProductCreate,
     ProductOut,
     ProductUpdate,
@@ -166,6 +167,50 @@ async def create_product(
     await _replace_ingredients(session, shop_id, product, body.ingredients)
     await session.commit()
     return await _reload_product(session, product.id)
+
+
+@router.post("/shops/{shop_id}/products/bulk", response_model=list[ProductOut], status_code=201)
+async def create_products_bulk(
+    shop_id: int,
+    body: ProductBulkCreate,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    if body.category_id is not None:
+        category = await session.get(Category, body.category_id)
+        if category is None or category.shop_id != shop_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Категория не найдена")
+
+    created_ids: list[int] = []
+    for item in body.items:
+        name = item.name.strip()
+        if not name:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название в списке")
+        product = Product(
+            shop_id=shop_id,
+            name=name,
+            sale_price=item.sale_price,
+            category_id=body.category_id,
+            is_active=True,
+            tax_percent=Decimal("0"),
+            tax_type=0,
+        )
+        session.add(product)
+        await session.flush()
+        created_ids.append(product.id)
+
+    await session.commit()
+    result = await session.execute(
+        select(Product)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
+        )
+        .where(Product.id.in_(created_ids))
+        .order_by(Product.id)
+    )
+    return [_product_out(p) for p in result.scalars().unique().all()]
 
 
 @router.patch("/shops/{shop_id}/products/{product_id}", response_model=ProductOut)

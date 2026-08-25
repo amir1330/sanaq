@@ -4,11 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { ShopBrand } from "../components/ShopBrand";
+import { useLocale, useT } from "../i18n";
 import { money, publicUrl } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
 import type { Product } from "../types";
 
 export function VitrinePage() {
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
   const { user, shopId } = useAuth();
   const sid = shopId ?? user?.shop_id ?? 0;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -41,6 +44,7 @@ export function VitrinePage() {
   });
 
   const shop = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
+  const otherLabel = t("vitrine.other");
   const columns = useMemo(() => {
     const active = (products.data ?? []).filter((p) => p.is_active);
     const cats = categories.data ?? [];
@@ -52,9 +56,9 @@ export function VitrinePage() {
       }))
       .filter((b) => b.items.length > 0);
     const rest = active.filter((p) => !p.category_id || !cats.some((c) => c.id === p.category_id));
-    if (rest.length) blocks.push({ id: 0, name: "Ещё", items: rest });
+    if (rest.length) blocks.push({ id: 0, name: otherLabel, items: rest });
     return blocks;
-  }, [products.data, categories.data]);
+  }, [products.data, categories.data, otherLabel]);
 
   async function toggleFull() {
     if (document.fullscreenElement) {
@@ -64,15 +68,16 @@ export function VitrinePage() {
     await rootRef.current?.requestFullscreen();
   }
 
-  const time = now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const timeLocale = locale === "en" ? "en-GB" : locale === "kk" ? "kk-KZ" : "ru-RU";
+  const time = now.toLocaleTimeString(timeLocale, { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div ref={rootRef} className="flex min-h-screen flex-col bg-paper text-ink">
       <header className="px-8 pt-7 md:px-12">
         <div className="flex items-end justify-between gap-6">
           <div className="min-w-0">
-            <ShopBrand shop={shop} fallback="Меню" size="md" markClass="h-6 w-8 text-maroon" />
-            <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.22em] text-faint">Меню</p>
+            <ShopBrand shop={shop} fallback={t("vitrine.menu")} size="md" markClass="h-6 w-8 text-maroon" />
+            <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.22em] text-faint">{t("vitrine.menu")}</p>
           </div>
           <p className="shrink-0 font-mono text-[28px] tabular-nums text-gold md:text-[34px]">{time}</p>
         </div>
@@ -95,16 +100,16 @@ export function VitrinePage() {
           </section>
         ))}
         {products.isSuccess && columns.length === 0 && (
-          <p className="font-display text-2xl text-mute">Меню пока пустое.</p>
+          <p className="font-display text-2xl text-mute">{t("vitrine.empty")}</p>
         )}
       </main>
 
       <footer className="mt-auto flex items-center justify-between gap-4 px-8 py-4 md:px-12">
         <Link to={homePath(user?.role)} className="text-[12.5px] text-faint hover:text-ink">
-          Назад
+          {t("vitrine.back")}
         </Link>
         <button type="button" className="text-[12.5px] text-faint hover:text-ink" onClick={() => void toggleFull()}>
-          {full ? "Свернуть" : "На весь экран"}
+          {full ? t("vitrine.exitFullscreen") : t("vitrine.fullscreen")}
         </button>
       </footer>
     </div>

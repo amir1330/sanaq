@@ -15,6 +15,9 @@ class Shift(Base):
     shop_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False
     )
+    cash_register_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("cash_registers.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
     barista_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     status: Mapped[ShiftStatus] = mapped_column(
         Enum(ShiftStatus, name="shift_status", native_enum=True),
@@ -33,6 +36,7 @@ class Shift(Base):
     z_report_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     barista: Mapped["User"] = relationship()  # noqa: F821
+    cash_register: Mapped["CashRegister"] = relationship(back_populates="shifts")  # noqa: F821
     cash_movements: Mapped[list["ShiftCashMovement"]] = relationship(
         back_populates="shift", cascade="all, delete-orphan"
     )

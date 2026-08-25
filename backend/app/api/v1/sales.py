@@ -67,6 +67,7 @@ async def post_sale(
         items=body.items,
         payment_type=body.payment_type,
         barista_id=body.barista_id,
+        cash_register_id=body.cash_register_id,
     )
     await session.commit()
     if sale.fiscal_status == FiscalStatus.pending:

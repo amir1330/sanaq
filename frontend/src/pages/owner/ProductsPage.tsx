@@ -1,11 +1,26 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
-import { Button, Check, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
+import { Button, Check, Dialog, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
+import { parseBulkProductLines } from "../../lib/bulkProducts";
 import { money, publicUrl } from "../../lib/utils";
+import { useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import type { Product } from "../../types";
+
+type ViewMode = "list" | "tiles";
+const VIEW_KEY = "sanaq-products-view";
+
+function readViewMode(): ViewMode {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    if (v === "tiles" || v === "list") return v;
+  } catch {
+    /* ignore */
+  }
+  return "list";
+}
 
 type IngRow = { stock_item_id: number | ""; quantity: string };
 
@@ -22,6 +37,7 @@ type Draft = {
 };
 
 export function ProductsPage() {
+  const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const products = useQuery({ queryKey: ["products", shopId], queryFn: () => api.products(shopId) });
@@ -35,6 +51,23 @@ export function ProductsPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [dropPhoto, setDropPhoto] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkCategoryId, setBulkCategoryId] = useState<number | "">("");
+  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
+
+  function setView(next: ViewMode) {
+    setViewMode(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const bulkParsed = useMemo(() => parseBulkProductLines(bulkText), [bulkText]);
+  const bulkOk = bulkParsed.filter((r) => r.ok);
+  const bulkBad = bulkParsed.filter((r) => !r.ok);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -107,6 +140,28 @@ export function ProductsPage() {
     },
   });
 
+  const bulkSave = useMutation({
+    mutationFn: () =>
+      api.createProductsBulk(shopId, {
+        category_id: bulkCategoryId === "" ? null : Number(bulkCategoryId),
+        items: bulkOk.map((r) => ({ name: r.name, sale_price: r.sale_price })),
+      }),
+    onSuccess: (created) => {
+      setBulkOpen(false);
+      setBulkText("");
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+      if (bulkCategoryId !== "") setFilterCat(Number(bulkCategoryId));
+      return created;
+    },
+  });
+
+  function openBulk() {
+    setBulkText("");
+    setBulkCategoryId(filterCat === "all" ? "" : filterCat);
+    bulkSave.reset();
+    setBulkOpen(true);
+  }
+
   function open(p?: Product, categoryId?: number | null) {
     setPhotoFile(null);
     setPhotoPreview(null);
@@ -142,35 +197,64 @@ export function ProductsPage() {
   return (
     <div>
       <PageTitle
-        kicker="Меню"
-        title="Товары"
-        hint="Папки сверху. Новую заводишь в окне товара."
+        kicker={t("products.kicker")}
+        title={t("products.title")}
+        hint={t("products.hint")}
         action={
-          <Button onClick={() => open(undefined, filterCat === "all" ? null : filterCat)}>Добавить товар</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="foam" onClick={openBulk}>
+              {t("products.addBulk")}
+            </Button>
+            <Button onClick={() => open(undefined, filterCat === "all" ? null : filterCat)}>
+              {t("products.addOne")}
+            </Button>
+          </div>
         }
       />
-      <div className="mb-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setFilterCat("all")}
-          className={`${pill} ${
-            filterCat === "all" ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
-          }`}
-        >
-          Все
-        </button>
-        {(categories.data ?? []).map((c) => (
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
           <button
-            key={c.id}
             type="button"
-            onClick={() => setFilterCat(c.id)}
+            onClick={() => setFilterCat("all")}
             className={`${pill} ${
-              filterCat === c.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
+              filterCat === "all" ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
             }`}
           >
-            {c.name}
+            Все
           </button>
-        ))}
+          {(categories.data ?? []).map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setFilterCat(c.id)}
+              className={`${pill} ${
+                filterCat === c.id ? "border-ink bg-ink text-paper" : "border-line-2 text-ink-soft hover:border-ink"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 rounded-md border border-line-2 p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className={`rounded px-3 py-1.5 text-[12.5px] ${
+              viewMode === "list" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {t("products.viewList")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("tiles")}
+            className={`rounded px-3 py-1.5 text-[12.5px] ${
+              viewMode === "tiles" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {t("products.viewTiles")}
+          </button>
+        </div>
       </div>
       {groups.map((group) => (
         <section key={group.id ?? "none"} className="mb-8">
@@ -196,6 +280,15 @@ export function ProductsPage() {
                   <MoreMenu
                     items={[
                       { label: "Добавить товар", onClick: () => open(undefined, group.id) },
+                      {
+                        label: "Добавить списком",
+                        onClick: () => {
+                          setBulkCategoryId(group.id!);
+                          setBulkText("");
+                          bulkSave.reset();
+                          setBulkOpen(true);
+                        },
+                      },
                       { label: "Переименовать", onClick: () => setRename({ id: group.id!, name: group.name }) },
                       { label: "Удалить", danger: true, onClick: () => dropCat.mutate(group.id!) },
                     ]}
@@ -208,6 +301,49 @@ export function ProductsPage() {
             <p className="rounded-lg bg-cream px-5 py-8 text-sm text-mute shadow-soft">
               В этой категории пусто. Меню ⋯ справа — добавить товар.
             </p>
+          ) : viewMode === "list" ? (
+            <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
+              <table className="w-full text-sm">
+                <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
+                  <tr className="border-b border-line text-left">
+                    <th className="px-5 py-3">{t("products.colName")}</th>
+                    <th className="pr-4">{t("products.colPrice")}</th>
+                    <th className="pr-5 text-right">{t("products.colStatus")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.items.map((p) => {
+                    const src = publicUrl(p.image_url);
+                    return (
+                      <tr
+                        key={p.id}
+                        className={`cursor-pointer border-b border-line last:border-0 hover:bg-paper/60 ${
+                          p.is_active ? "" : "opacity-55"
+                        }`}
+                        onClick={() => open(p)}
+                      >
+                        <td className="px-5 py-2.5">
+                          <div className="flex items-center gap-3">
+                            {src ? (
+                              <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                            ) : (
+                              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-paper font-mono text-[8px] uppercase tracking-wide text-mute">
+                                —
+                              </div>
+                            )}
+                            <span className="font-medium">{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="pr-4 font-mono font-semibold">{money(p.sale_price)}</td>
+                        <td className="pr-5 text-right text-[12.5px] text-mute">
+                          {p.is_active ? t("products.active") : t("products.hidden")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((p) => {
@@ -434,7 +570,7 @@ export function ProductsPage() {
                   + позиция
                 </Button>
                 <p className="mt-3 font-mono text-sm">
-                  Себестоимость {money(
+                  Себестоимость состава {money(
                     editing.ingredients.reduce((sum, row) => {
                       const item = stock.data?.find((s) => s.id === row.stock_item_id);
                       if (!item || !row.quantity) return sum;
@@ -487,6 +623,78 @@ export function ProductsPage() {
           </form>
         </div>
       )}
+
+      <Dialog
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title={t("products.bulkTitle")}
+        hint={t("products.bulkHint")}
+        wide
+      >
+        <div className="space-y-4">
+          <Field label={t("products.bulkCategory")}>
+            <Select
+              value={bulkCategoryId === "" ? "" : String(bulkCategoryId)}
+              onChange={(e) => setBulkCategoryId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">{t("products.bulkNoCategory")}</option>
+              {cats.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("products.bulkList")}>
+            <textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              rows={10}
+              placeholder={"Капучино 1500\nЛатте — 1600\nЧизкейк\t2200"}
+              className="w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-[13px] font-mono text-[13.5px] leading-relaxed text-ink outline-none placeholder:text-faint focus:border-ink"
+            />
+          </Field>
+          {bulkParsed.length > 0 && (
+            <div className="rounded-md bg-cream px-4 py-3 text-sm shadow-soft">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
+                {t("products.bulkReady")}: {bulkOk.length}
+                {bulkBad.length ? ` · ${t("products.bulkErrors")}: ${bulkBad.length}` : ""}
+              </p>
+              <ul className="mt-2 max-h-40 space-y-1 overflow-auto">
+                {bulkParsed.map((row, i) => (
+                  <li
+                    key={`${row.raw}-${i}`}
+                    className={row.ok ? "flex justify-between gap-3" : "text-alert"}
+                  >
+                    {row.ok ? (
+                      <>
+                        <span className="truncate">{row.name}</span>
+                        <span className="shrink-0 font-mono">{money(row.sale_price)}</span>
+                      </>
+                    ) : (
+                      <span>
+                        {row.raw} — {row.error}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {bulkSave.isError && <p className="text-sm text-alert">{(bulkSave.error as Error).message}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="ghost" onClick={() => setBulkOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={bulkOk.length === 0 || bulkBad.length > 0 || bulkSave.isPending}
+              onClick={() => bulkSave.mutate()}
+            >
+              {bulkSave.isPending ? t("products.bulkCreating") : t("products.bulkCreate", { n: bulkOk.length })}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

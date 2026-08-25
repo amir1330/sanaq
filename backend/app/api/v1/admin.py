@@ -75,9 +75,12 @@ async def create_shop(
     if body.owner and body.existing_owner_email:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Укажи нового владельца или почту существующего, не обоих")
     data = body.model_dump(exclude={"owner", "existing_owner_email"})
+    from app.services.sales import ensure_default_cash_register
+
     shop = Shop(**data)
     session.add(shop)
     await session.flush()
+    await ensure_default_cash_register(session, shop.id)
     if body.existing_owner_email:
         owner = (
             await session.execute(

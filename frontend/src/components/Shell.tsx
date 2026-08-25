@@ -1,30 +1,13 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { useT } from "../i18n";
 import { useAuth, useAuthSessionReady } from "../store/auth";
 import { Brand } from "./Mark";
 import { ShopBrand } from "./ShopBrand";
 
-const ownerLinks = [
-  { to: "/owner", label: "Отчёты" },
-  { to: "/owner/products", label: "Товары" },
-  { to: "/owner/stock", label: "Склад" },
-  { to: "/owner/stock/revisions", label: "Ревизии" },
-  { to: "/owner/staff", label: "Сотрудники" },
-  { to: "/owner/expenses", label: "Расходы" },
-  { to: "/owner/shifts", label: "Смены" },
-  { to: "/pos", label: "Касса" },
-  { to: "/owner/settings", label: "Настройки" },
-];
-
-const adminLinks = [
-  { to: "/admin", label: "Точки" },
-  { to: "/admin/users", label: "Пользователи" },
-  { to: "/admin/leads", label: "Заявки" },
-  { to: "/admin/settings", label: "Настройки" },
-];
-
 export function Shell({ kind }: { kind: "owner" | "admin" }) {
+  const t = useT();
   const { shopId, setShopId } = useAuth();
   const sessionReady = useAuthSessionReady();
   const navigate = useNavigate();
@@ -35,7 +18,25 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
     enabled: kind === "owner" && sessionReady,
   });
   const currentShop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
-  const links = kind === "owner" ? ownerLinks : adminLinks;
+  const links =
+    kind === "owner"
+      ? [
+          { to: "/owner", label: t("nav.reports") },
+          { to: "/owner/products", label: t("nav.products") },
+          { to: "/owner/stock", label: t("nav.stock") },
+          { to: "/owner/stock/revisions", label: t("nav.revisions") },
+          { to: "/owner/staff", label: t("nav.staff") },
+          { to: "/owner/expenses", label: t("nav.expenses") },
+          { to: "/owner/shifts", label: t("nav.shifts") },
+          { to: "/pos", label: t("nav.till") },
+          { to: "/owner/settings", label: t("nav.settings") },
+        ]
+      : [
+          { to: "/admin", label: t("nav.shops") },
+          { to: "/admin/users", label: t("nav.users") },
+          { to: "/admin/leads", label: t("nav.leads") },
+          { to: "/admin/settings", label: t("nav.settings") },
+        ];
 
   return (
     <div className="min-h-screen bg-paper">
@@ -45,7 +46,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
             {kind === "admin" ? (
               <Brand className="text-[17px]" markClass="h-[18px] w-[25px]" />
             ) : (
-              <ShopBrand shop={currentShop} fallback="Точка" />
+              <ShopBrand shop={currentShop} fallback={t("nav.pointFallback")} />
             )}
           </button>
           <nav className="flex flex-wrap gap-1 rounded-full bg-cream p-1">
@@ -69,7 +70,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
           <div className="flex items-center gap-4 text-[12.5px] text-faint">
             {kind === "owner" && (shops.data?.length ?? 0) > 1 && (
               <label className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em]">Филиал</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em]">{t("nav.branch")}</span>
                 <select
                   className="max-w-48 rounded-full border-[1.5px] border-line-2 bg-transparent px-3 py-1 text-ink outline-none"
                   value={shopId ?? ""}

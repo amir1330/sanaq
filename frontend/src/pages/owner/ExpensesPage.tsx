@@ -6,7 +6,7 @@ import { Button, Card, Empty, Field, Input, PageTitle, Select } from "../../comp
 import { money } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 
-/** Операционные траты (ОПиУ). Закупка товара и порча — не сюда: склад. */
+/** Операционные траты. Закупка товара и порча — склад. */
 const cats = ["аренда", "зарплата", "коммуналка", "реклама", "прочее"] as const;
 
 export function ExpensesPage() {
@@ -43,7 +43,7 @@ export function ExpensesPage() {
       <PageTitle
         kicker="Деньги"
         title="Расходы"
-        hint="Аренда, зарплата, реклама — то, что платишь мимо кассы и попадает в «чистыми». Молоко и стаканы — Приход на складе. Бой и пролив — Списать в карточке позиции, не сюда."
+        hint="Сюда — аренда, зарплата, реклама, коммуналка. Закупку молока и стаканов пиши как Приход на складе. Порчу — Списать в карточке позиции."
       />
 
       <Card className="mb-4 space-y-4">
@@ -79,11 +79,11 @@ export function ExpensesPage() {
         {add.isError && <p className="text-sm text-rust">{(add.error as Error).message}</p>}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[13px] text-mute">
-            Порча и брак —{" "}
+            Товар и порча — на{" "}
             <Link className="underline hover:text-ink" to="/owner/stock">
-              склад
+              складе
             </Link>
-            , не эта страница.
+            .
           </p>
           <Button disabled={!canSave || add.isPending} onClick={() => add.mutate()}>
             {add.isPending ? "Пишем…" : "Записать"}
@@ -107,7 +107,7 @@ export function ExpensesPage() {
       )}
 
       {rows.length === 0 ? (
-        <Empty>Расходов пока нет. Аренду и зарплату запиши сверху — закупки и списания товара идут через склад.</Empty>
+        <Empty>Пока пусто. Запиши аренду или зарплату сверху.</Empty>
       ) : (
         <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
           <table className="w-full text-sm">

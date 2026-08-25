@@ -11,6 +11,7 @@ class ShiftOpenRequest(BaseModel):
     shop_id: int
     opening_cash: Decimal = Field(ge=0)
     barista_id: int | None = None
+    cash_register_id: int | None = None
 
 
 class SellerTotal(BaseModel):
@@ -54,6 +55,8 @@ class ShiftSaleOut(ORMModel):
 class ShiftOut(ORMModel):
     id: int
     shop_id: int
+    cash_register_id: int
+    cash_register_name: str | None = None
     barista_id: int
     barista_name: str | None = None
     status: ShiftStatus
@@ -86,6 +89,7 @@ class SaleCreate(BaseModel):
     items: list[SaleItemIn] = Field(min_length=1)
     payment_type: PaymentType
     barista_id: int | None = None
+    cash_register_id: int | None = None
 
 
 class SaleRefundIn(BaseModel):

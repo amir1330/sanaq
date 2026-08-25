@@ -4,11 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { SessionCard } from "../../components/SessionCard";
 import { Button, Card, Check, Field, Input, PageTitle, Select } from "../../components/ui";
+import { useT } from "../../i18n";
 import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Shop } from "../../types";
 
 export function SettingsPage() {
+  const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -65,9 +67,9 @@ export function SettingsPage() {
   return (
     <div>
       <PageTitle
-        kicker="Точка"
-        title="Настройки"
-        hint="Имя, тема и выход — сверху. Ниже — точка, логотип и касса ОФД."
+        kicker={t("settings.kicker")}
+        title={t("settings.title")}
+        hint={t("settings.hint")}
       />
 
       <SessionCard />
@@ -75,20 +77,20 @@ export function SettingsPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Название">
+            <Field label={t("settings.shopName")}>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Field>
-            <Field label="Адрес">
+            <Field label={t("settings.address")}>
               <Input
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="улица, город"
+                placeholder={t("settings.addressPh")}
               />
             </Field>
-            <Field label="Часовой пояс">
+            <Field label={t("settings.timezone")}>
               <Select
                 value={form.timezone}
                 onChange={(e) => setForm({ ...form, timezone: e.target.value })}
@@ -103,23 +105,23 @@ export function SettingsPage() {
           </div>
           <div className="flex justify-end">
             <Button disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>
-              {save.isSuccess && !save.isPending ? "Сохранено" : "Сохранить"}
+              {save.isSuccess && !save.isPending ? t("settings.saved") : t("common.save")}
             </Button>
           </div>
         </Card>
 
         <Card>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-mute">Логотип</p>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.logo")}</p>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             className="mt-3 flex h-40 w-full items-center justify-center border border-dashed border-line bg-paper hover:border-ink"
           >
             {logoSrc ? (
-              <img src={logoSrc} alt="Логотип точки" className="max-h-32 max-w-full object-contain" />
+              <img src={logoSrc} alt="" className="max-h-32 max-w-full object-contain" />
             ) : (
               <span className="px-4 text-center text-sm text-mute">
-                Нажми и выбери PNG, JPG, WEBP или SVG
+                {t("settings.logoHint")}
               </span>
             )}
           </button>
@@ -138,11 +140,11 @@ export function SettingsPage() {
           />
           <div className="mt-3 flex gap-2">
             <Button variant="foam" className="flex-1" onClick={() => fileRef.current?.click()} disabled={busy}>
-              {logoSrc ? "Заменить" : "Загрузить"}
+              {logoSrc ? t("settings.replace") : t("settings.upload")}
             </Button>
             {shop?.logo_url && (
               <Button variant="ghost" onClick={() => removeLogo.mutate()} disabled={busy}>
-                Убрать
+                {t("settings.removeLogo")}
               </Button>
             )}
           </div>
@@ -152,20 +154,140 @@ export function SettingsPage() {
       {error && <p className="mt-3 text-sm text-rust">{error}</p>}
 
       <Card className="mt-4">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">Витрина</p>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.vitrine")}</p>
         <p className="mt-2 max-w-xl text-sm text-mute">
           Меню на телевизоре у стойки: фото, название, цена. Открой на ТВ и нажми «На весь экран».
         </p>
         <div className="mt-4">
           <Link to="/vitrine">
-            <Button variant="quiet">Открыть витрину</Button>
+            <Button variant="quiet">{t("settings.openVitrine")}</Button>
           </Link>
         </div>
       </Card>
 
+      <CashRegistersCard shopId={shopId} />
       <BranchesCard shopId={shopId} shops={shops.data ?? []} />
       <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />
     </div>
+  );
+}
+
+function CashRegistersCard({ shopId }: { shopId: number }) {
+  const qc = useQueryClient();
+  const registers = useQuery({
+    queryKey: ["cash-registers", shopId, "all"],
+    queryFn: () => api.cashRegisters(shopId, true),
+  });
+  const [name, setName] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+
+  function refresh() {
+    void qc.invalidateQueries({ queryKey: ["cash-registers", shopId] });
+  }
+
+  const create = useMutation({
+    mutationFn: () => api.createCashRegister(shopId, name.trim()),
+    onSuccess: () => {
+      setName("");
+      refresh();
+    },
+  });
+  const patch = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: object }) => api.patchCashRegister(shopId, id, body),
+    onSuccess: () => {
+      setEditingId(null);
+      refresh();
+    },
+  });
+
+  const error =
+    (create.error as Error | null)?.message || (patch.error as Error | null)?.message;
+
+  return (
+    <Card className="mt-4 space-y-4">
+      <div>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">Кассы</p>
+        <p className="mt-2 max-w-xl text-sm text-mute">
+          Если в точке два ящика — добавь «Касса 2». На каждой кассе своя смена: открыл / закрыл / деньги в ящике.
+          На кассе в POS выбирают, за какой ящик работают.
+        </p>
+      </div>
+      <ul className="divide-y divide-line border border-line">
+        {(registers.data ?? []).map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+            {editingId === r.id ? (
+              <>
+                <Input
+                  className="max-w-xs flex-1"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  autoFocus
+                />
+                <Button
+                  disabled={!editName.trim() || patch.isPending}
+                  onClick={() => patch.mutate({ id: r.id, body: { name: editName.trim() } })}
+                >
+                  Сохранить
+                </Button>
+                <Button variant="ghost" onClick={() => setEditingId(null)}>
+                  Отмена
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className={`flex-1 ${r.is_active ? "" : "text-mute line-through"}`}>{r.name}</span>
+                {r.has_open_shift && (
+                  <span className="text-[11px] uppercase tracking-wide text-gold">смена открыта</span>
+                )}
+                {!r.is_active && <span className="text-[11px] text-mute">выключена</span>}
+                <button
+                  type="button"
+                  className="underline text-mute hover:text-ink"
+                  onClick={() => {
+                    setEditingId(r.id);
+                    setEditName(r.name);
+                  }}
+                >
+                  Переименовать
+                </button>
+                {r.is_active ? (
+                  <button
+                    type="button"
+                    className="underline text-mute hover:text-ink"
+                    onClick={() => patch.mutate({ id: r.id, body: { is_active: false } })}
+                    disabled={patch.isPending}
+                  >
+                    Выключить
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="underline text-mute hover:text-ink"
+                    onClick={() => patch.mutate({ id: r.id, body: { is_active: true } })}
+                    disabled={patch.isPending}
+                  >
+                    Включить
+                  </button>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          className="max-w-xs flex-1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Касса 2"
+        />
+        <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
+          Добавить кассу
+        </Button>
+      </div>
+      {error && <p className="text-sm text-rust">{error}</p>}
+    </Card>
   );
 }
 

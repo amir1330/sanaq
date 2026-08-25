@@ -4,30 +4,8 @@ import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { Brand } from "../components/Mark";
 import { Button, Field, Input } from "../components/ui";
+import { useT } from "../i18n";
 import { homePath, useAuth } from "../store/auth";
-
-const features = [
-  {
-    glyph: "kassa" as const,
-    title: "Касса",
-    note: "Нал и безнал, вход сотрудника по почте, чек за два касания.",
-  },
-  {
-    glyph: "sklad" as const,
-    title: "Склад",
-    note: "Капучино — по составу. Печенье — готовой штукой. Без состава склад не трогает.",
-  },
-  {
-    glyph: "smeny" as const,
-    title: "Смены",
-    note: "Открытие, инкассация — касса сходится каждый раз.",
-  },
-  {
-    glyph: "dengi" as const,
-    title: "Деньги",
-    note: "Прибыль и себестоимость день в день, без таблиц.",
-  },
-];
 
 const empty = {
   shop_name: "",
@@ -40,11 +18,19 @@ const empty = {
 };
 
 export function LandingPage() {
+  const t = useT();
   const user = useAuth((s) => s.user);
   const [form, setForm] = useState(empty);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  const features = [
+    { glyph: "kassa" as const, title: t("landing.featTill"), note: t("landing.featTillNote") },
+    { glyph: "sklad" as const, title: t("landing.featStock"), note: t("landing.featStockNote") },
+    { glyph: "smeny" as const, title: t("landing.featShifts"), note: t("landing.featShiftsNote") },
+    { glyph: "dengi" as const, title: t("landing.featMoney"), note: t("landing.featMoneyNote") },
+  ];
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -58,7 +44,7 @@ export function LandingPage() {
       setDone(true);
       setForm(empty);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не отправилось. Попробуй ещё раз.");
+      setError(err instanceof Error ? err.message : t("landing.submitFail"));
     } finally {
       setPending(false);
     }
@@ -70,18 +56,18 @@ export function LandingPage() {
         <Brand />
         <nav className="flex items-center gap-3.5 text-[13.5px]">
           <a href="#features" className="px-1 py-2 text-ink-soft hover:text-ink">
-            Возможности
+            {t("landing.featuresNav")}
           </a>
           {user ? (
             <Link to={homePath(user.role)}>
               <Button variant="foam" size="lg">
-                В кабинет
+                {t("landing.cabinet")}
               </Button>
             </Link>
           ) : (
             <Link to="/login">
               <Button variant="foam" size="lg">
-                Войти
+                {t("landing.signIn")}
               </Button>
             </Link>
           )}
@@ -90,22 +76,21 @@ export function LandingPage() {
 
       <section className="mx-auto max-w-[700px] px-8 pb-12 pt-[60px] text-center">
         <p className="mb-5 font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-maroon">
-          Касса и учёт для вашей точки
+          {t("landing.kicker")}
         </p>
         <h1 className="font-display text-[40px] font-normal leading-[1.2] text-ink md:text-[48px]">
-          Каждая продажа посчитана — до тиына
+          {t("landing.headline")}
         </h1>
         <p className="mx-auto mb-[34px] mt-[22px] max-w-[470px] text-base leading-[1.65] text-ink-soft">
-          Sanaq — POS для любого малого бизнеса: кофейня, магазин, сервис. Считает выручку, себестоимость и остатки сам,
-          пока продавец пробивает чек.
+          {t("landing.lead")}
         </p>
         <div className="flex justify-center gap-3.5">
           <a href="#request">
-            <Button size="lg">Оставить заявку</Button>
+            <Button size="lg">{t("landing.ctaRequest")}</Button>
           </a>
           <a href="#features">
             <Button variant="ghost" size="lg">
-              Как это работает
+              {t("landing.ctaHow")}
             </Button>
           </a>
         </div>
@@ -132,39 +117,45 @@ export function LandingPage() {
         <div className="mx-auto max-w-[440px] rounded-lg bg-roast p-10">
           {done ? (
             <>
-              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">Заявка</p>
-              <h3 className="mb-4 font-display text-[28px] font-normal text-cream">Приняли</h3>
-              <p className="text-sm leading-relaxed text-cream-soft">
-                Напишем или позвоним. Обычно в тот же день. Оплата позже — сейчас только запрос.
+              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">
+                {t("landing.requestDoneKicker")}
               </p>
+              <h3 className="mb-4 font-display text-[28px] font-normal text-cream">
+                {t("landing.requestDoneTitle")}
+              </h3>
+              <p className="text-sm leading-relaxed text-cream-soft">{t("landing.requestDoneBody")}</p>
               <Button variant="gold" size="lg" className="mt-8 w-full" onClick={() => setDone(false)}>
-                Отправить ещё одну
+                {t("landing.requestAgain")}
               </Button>
             </>
           ) : (
             <form onSubmit={(e) => void submit(e)}>
-              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">Подключить точку</p>
-              <h3 className="mb-[30px] font-display text-[28px] font-normal text-cream">Оставить заявку</h3>
+              <p className="mb-2.5 font-mono text-[10.5px] uppercase tracking-[0.13em] text-gold">
+                {t("landing.connectKicker")}
+              </p>
+              <h3 className="mb-[30px] font-display text-[28px] font-normal text-cream">
+                {t("landing.requestTitle")}
+              </h3>
               <div className="space-y-[18px]">
-                <Field label="Название точки" tone="dark">
+                <Field label={t("landing.fieldShop")} tone="dark">
                   <Input
                     tone="dark"
                     required
                     value={form.shop_name}
                     onChange={(e) => setForm({ ...form, shop_name: e.target.value })}
-                    placeholder="Например, «Дастархан маркет»"
+                    placeholder={t("landing.fieldShopPh")}
                   />
                 </Field>
-                <Field label="Город" tone="dark">
+                <Field label={t("landing.fieldCity")} tone="dark">
                   <Input
                     tone="dark"
                     required
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Алматы"
+                    placeholder={t("landing.fieldCityPh")}
                   />
                 </Field>
-                <Field label="Телефон*" tone="dark">
+                <Field label={t("landing.fieldPhone")} tone="dark">
                   <Input
                     tone="dark"
                     required
@@ -184,7 +175,7 @@ export function LandingPage() {
                 </div>
                 {error && <p className="text-sm text-maroon">{error}</p>}
                 <Button variant="gold" size="lg" className="mt-2 w-full" disabled={pending}>
-                  {pending ? "Отправляем…" : "Отправить"}
+                  {pending ? t("landing.submitting") : t("landing.submit")}
                 </Button>
               </div>
             </form>
@@ -197,30 +188,30 @@ export function LandingPage() {
           <div>
             <Brand className="text-cream" markClass="text-gold" />
             <p className="mt-3 max-w-[260px] text-[13px] leading-relaxed text-cream-soft">
-              Касса и учёт для точки. Код открытый, лицензия MIT.
+              {t("landing.footerBlurb")}
             </p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-[13.5px] text-cream-soft">
             <a href="#features" className="hover:text-cream">
-              Возможности
+              {t("landing.featuresNav")}
             </a>
             <a href="#request" className="hover:text-cream">
-              Заявка
+              {t("landing.requestKicker")}
             </a>
             <Link to="/login" className="hover:text-cream">
-              Войти
+              {t("landing.signIn")}
             </Link>
             <a href="https://github.com/amir1330/sanaq" className="hover:text-cream">
               GitHub
             </a>
             <a href="https://github.com/amir1330/sanaq/blob/main/LICENSE" className="hover:text-cream">
-              Лицензия
+              {t("landing.license")}
             </a>
           </nav>
         </div>
         <div className="mx-auto mt-10 flex max-w-[960px] flex-wrap items-center justify-between gap-3 border-t border-line-dark pt-6 font-mono text-[10.5px] uppercase tracking-[0.13em] text-cream-soft">
           <span>© 2026 Sanaq</span>
-          <span>MIT License</span>
+          <span>AGPLv3</span>
         </div>
       </footer>
     </div>

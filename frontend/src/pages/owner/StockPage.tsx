@@ -122,7 +122,7 @@ export function StockPage() {
       <PageTitle
         kicker="Склад"
         title="Остатки"
-        hint="Строка — карточка. Ревизия открывается отдельным окном и ставит кассу на паузу."
+        hint="Себестоимость — сколько стоила закупка за единицу. Сумма на складе — сколько денег заморожено в этом остатке (количество × себестоимость)."
         action={
           <div className="flex flex-wrap gap-2">
             {hasDraft ? (
@@ -277,7 +277,7 @@ export function StockPage() {
           {rows.length} {rows.length === 1 ? "позиция" : "позиций"}
           {lowCount ? ` · заканчивается ${lowCount}` : ""}
           {" · "}
-          на полке {money(shelfTotal)}
+          сумма на складе {money(shelfTotal)}
         </p>
       </div>
       <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
@@ -287,9 +287,9 @@ export function StockPage() {
               <th className="px-5 py-3.5">Позиция</th>
               <th>Сейчас</th>
               <th>Минимум</th>
-              <th>Себест.</th>
-              <th className="text-right">Сумма</th>
-              <th className="pr-5 text-right">Приход</th>
+              <th>Себестоимость</th>
+              <th className="text-right">Сумма на складе</th>
+              <th className="pr-5 text-right">Последний приход</th>
             </tr>
           </thead>
           <tbody>

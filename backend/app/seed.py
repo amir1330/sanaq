@@ -57,6 +57,9 @@ async def seed_demo(session) -> None:
     )
     session.add(shop)
     await session.flush()
+    from app.services.sales import ensure_default_cash_register
+
+    await ensure_default_cash_register(session, shop.id)
 
     existing_admin = await session.execute(select(User).where(User.email == ADMIN_EMAIL))
     if existing_admin.scalar_one_or_none() is None:

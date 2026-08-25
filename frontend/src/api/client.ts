@@ -4,6 +4,7 @@ import { useAuth } from "../store/auth";
 import type {
   AdminStats,
   AdminUser,
+  CashRegister,
   Category,
   CrewMember,
   DailyPoint,
@@ -73,10 +74,6 @@ const json = (body: unknown) => JSON.stringify(body);
 export const api = {
   login: (login: string, password: string) =>
     request<TokenPair>("/auth/login", { method: "POST", body: json({ login, password }) }),
-  loginPin: (shop_id: number, pin_code: string) =>
-    request<TokenPair>("/auth/login-pin", { method: "POST", body: json({ shop_id, pin_code }) }),
-  identifyPin: (shop_id: number, pin_code: string) =>
-    request<CrewMember>("/auth/identify-pin", { method: "POST", body: json({ shop_id, pin_code }) }),
   me: () => request<User>("/auth/me"),
   createLead: (body: {
     shop_name: string;
@@ -157,6 +154,10 @@ export const api = {
   products: (shopId: number) => request<Product[]>(`/shops/${shopId}/products`),
   createProduct: (shopId: number, body: object) =>
     request<Product>(`/shops/${shopId}/products`, { method: "POST", body: json(body) }),
+  createProductsBulk: (
+    shopId: number,
+    body: { category_id: number | null; items: { name: string; sale_price: string }[] },
+  ) => request<Product[]>(`/shops/${shopId}/products/bulk`, { method: "POST", body: json(body) }),
   patchProduct: (shopId: number, id: number, body: object) =>
     request<Product>(`/shops/${shopId}/products/${id}`, { method: "PATCH", body: json(body) }),
   deleteProduct: (shopId: number, id: number) =>
@@ -252,22 +253,53 @@ export const api = {
   patchStaff: (shopId: number, id: number, body: object) =>
     request<User>(`/shops/${shopId}/staff/${id}`, { method: "PATCH", body: json(body) }),
 
-  currentShift: (shopId: number) =>
-    request<Shift | null>(`/shifts/current?shop_id=${shopId}`),
-  openShift: (shopId: number, opening_cash: number, barista_id?: number) =>
-    request<Shift>("/shifts/open", { method: "POST", body: json({ shop_id: shopId, opening_cash, barista_id }) }),
+  currentShift: (shopId: number, cash_register_id?: number) => {
+    const q = new URLSearchParams({ shop_id: String(shopId) });
+    if (cash_register_id != null) q.set("cash_register_id", String(cash_register_id));
+    return request<Shift | null>(`/shifts/current?${q}`);
+  },
+  openShift: (
+    shopId: number,
+    opening_cash: number,
+    barista_id?: number,
+    cash_register_id?: number,
+  ) =>
+    request<Shift>("/shifts/open", {
+      method: "POST",
+      body: json({ shop_id: shopId, opening_cash, barista_id, cash_register_id }),
+    }),
   closeShift: (id: number, closing_cash: number, force = false) =>
     request<Shift>(`/shifts/${id}/close`, { method: "POST", body: json({ closing_cash, force }) }),
   cashMove: (id: number, body: object) =>
     request(`/shifts/${id}/cash-movements`, { method: "POST", body: json(body) }),
   shifts: (shopId: number) => request<Shift[]>(`/shops/${shopId}/shifts`),
 
+  cashRegisters: (shopId: number, include_inactive = false) =>
+    request<CashRegister[]>(
+      `/shops/${shopId}/cash-registers${include_inactive ? "?include_inactive=true" : ""}`,
+    ),
+  createCashRegister: (shopId: number, name: string) =>
+    request<CashRegister>(`/shops/${shopId}/cash-registers`, {
+      method: "POST",
+      body: json({ name }),
+    }),
+  patchCashRegister: (shopId: number, id: number, body: object) =>
+    request<CashRegister>(`/shops/${shopId}/cash-registers/${id}`, {
+      method: "PATCH",
+      body: json(body),
+    }),
+
   createSale: (
     shopId: number,
     items: { product_id: number; quantity: number }[],
     payment_type: "cash" | "card",
     barista_id?: number,
-  ) => request<Sale>("/sales", { method: "POST", body: json({ shop_id: shopId, items, payment_type, barista_id }) }),
+    cash_register_id?: number,
+  ) =>
+    request<Sale>("/sales", {
+      method: "POST",
+      body: json({ shop_id: shopId, items, payment_type, barista_id, cash_register_id }),
+    }),
   refundSale: (shopId: number, saleId: number, restore_stock = false) =>
     request<Sale>(`/sales/${saleId}/refund`, {
       method: "POST",

@@ -26,13 +26,14 @@ export function ShiftsPage() {
       <PageTitle
         kicker="Касса"
         title="Смены"
-        hint="Смена — ящик. Выручка внутри считается по каждому, кто пробивал чеки."
+        hint="Смена = один ящик. Если касс несколько — у каждой своя смена. Старт + нал − изъятия = сколько должно лежать. Изъятие делают на кассе, пока смена открыта."
       />
       <div className="border border-line">
         <table className="w-full text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-mute">
             <tr className="border-b border-line text-left">
               <th className="px-4 py-3">Когда</th>
+              <th>Касса</th>
               <th>Открыл</th>
               <th>Кто продал</th>
               <th>{payLabel("cash")}</th>
@@ -52,6 +53,7 @@ export function ShiftsPage() {
                     {new Date(s.opened_at).toLocaleString("ru-RU")}
                     <div className="text-mute">{s.status === "open" ? "открыта" : "закрыта"}</div>
                   </td>
+                  <td className="py-3">{s.cash_register_name ?? "—"}</td>
                   <td className="py-3">{s.barista_name}</td>
                   <td className="py-3">
                     {(s.sellers ?? []).length === 0 && <span className="text-mute">нет чеков</span>}

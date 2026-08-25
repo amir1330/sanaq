@@ -121,13 +121,13 @@ export function DashboardPage() {
         <Tile label="Выручка" value={money(s?.revenue)} />
         <Tile label="Прибыль" value={money(s?.profit)} profit />
         <Tile label="Расходы" value={money(s?.expenses)} />
-        <Tile label="Чистыми" value={money(s?.net_profit)} />
+        <Tile label="Чистая прибыль" value={money(s?.net_profit)} />
       </div>
       {s && (
         <p className="mb-5 text-sm leading-relaxed text-mute">
-          Прибыль = выручка − себестоимость чеков (FIFO). Чистыми = прибыль − операционные расходы (аренда, зарплата) −
-          недостачи по ревизии (−{money(s.revision_shortage || 0)}). Закупки и порча на складе — не «Расходы»: закупки
-          сидят в себестоимости, списания и ревизия уменьшают остаток отдельно.
+          Выручка — сколько пробили на кассе. Себестоимость — во сколько обошлись проданные товары по цене закупки.
+          Прибыль = выручка − себестоимость. Чистая прибыль = прибыль − расходы (аренда, зарплата…) − недостачи по
+          ревизии (−{money(s.revision_shortage || 0)}).
         </p>
       )}
 

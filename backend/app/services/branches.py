@@ -105,9 +105,12 @@ async def create_branch(
         if copy_from_shop_id not in allowed:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет доступа к исходной точке")
 
+    from app.services.sales import ensure_default_cash_register
+
     shop = Shop(name=name.strip(), address=(address or "").strip() or None, timezone=timezone)
     session.add(shop)
     await session.flush()
+    await ensure_default_cash_register(session, shop.id)
 
     await attach_owner(session, user, shop.id)
     if copy_from_shop_id is not None:

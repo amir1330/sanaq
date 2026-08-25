@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useT } from "../i18n";
 import { cn } from "../lib/utils";
 
 export function Button({
@@ -149,6 +150,30 @@ export function Dialog({
       onClick={onClose}
       role="presentation"
     >
+      <DialogBody title={title} hint={hint} onClose={onClose} wide={wide} dark={dark}>
+        {children}
+      </DialogBody>
+    </div>
+  );
+}
+
+function DialogBody({
+  title,
+  hint,
+  onClose,
+  children,
+  wide,
+  dark,
+}: {
+  title: string;
+  hint?: string;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+  dark?: boolean;
+}) {
+  const t = useT();
+  return (
       <div
         role="dialog"
         aria-modal="true"
@@ -170,12 +195,11 @@ export function Dialog({
             className={cn("font-mono text-[10px] uppercase tracking-[0.08em]", dark ? "text-cream-soft" : "text-faint")}
             onClick={onClose}
           >
-            Закрыть
+            {t("common.close")}
           </button>
         </div>
         {children}
       </div>
-    </div>
   );
 }
 

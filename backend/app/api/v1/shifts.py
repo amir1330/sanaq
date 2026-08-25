@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -7,7 +8,17 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, roles
 from app.database import get_session
-from app.models import FiscalStatus, Sale, Shift, ShiftCashMovement, ShiftStatus, Shop, User, UserRole
+from app.models import (
+    CashMovementType,
+    FiscalStatus,
+    Sale,
+    Shift,
+    ShiftCashMovement,
+    ShiftStatus,
+    Shop,
+    User,
+    UserRole,
+)
 from app.schemas.shift import (
     CashMovementCreate,
     CashMovementOut,
@@ -18,7 +29,7 @@ from app.schemas.shift import (
 )
 from app.services.access import assert_shop_access, shop_crew
 from app.services.revisions import open_revision_id
-from app.services.sales import get_open_shift, seller_totals, shift_totals
+from app.services.sales import get_open_shift, resolve_cash_register, seller_totals, shift_totals
 from app.services.webkassa import send_z_report, shop_ready
 
 router = APIRouter(tags=["shifts"])
@@ -42,6 +53,8 @@ def _shift_out(
     return ShiftOut(
         id=shift.id,
         shop_id=shift.shop_id,
+        cash_register_id=shift.cash_register_id,
+        cash_register_name=shift.cash_register.name if shift.cash_register else None,
         barista_id=shift.barista_id,
         barista_name=shift.barista.full_name if shift.barista else None,
         status=shift.status,
@@ -74,6 +87,7 @@ async def _load_shift(session: AsyncSession, shift_id: int) -> Shift:
         select(Shift)
         .options(
             selectinload(Shift.barista),
+            selectinload(Shift.cash_register),
             selectinload(Shift.sales).selectinload(Sale.barista),
             selectinload(Shift.cash_movements),
         )
@@ -91,19 +105,22 @@ async def list_shifts(
     user: User = Depends(manage),
     session: AsyncSession = Depends(get_session),
     limit: int = Query(50, le=200),
+    cash_register_id: int | None = None,
 ):
     await assert_shop_access(session, user, shop_id)
-    result = await session.execute(
+    query = (
         select(Shift)
         .options(
             selectinload(Shift.barista),
+            selectinload(Shift.cash_register),
             selectinload(Shift.sales).selectinload(Sale.barista),
             selectinload(Shift.cash_movements),
         )
         .where(Shift.shop_id == shop_id)
-        .order_by(Shift.opened_at.desc())
-        .limit(limit)
     )
+    if cash_register_id is not None:
+        query = query.where(Shift.cash_register_id == cash_register_id)
+    result = await session.execute(query.order_by(Shift.opened_at.desc()).limit(limit))
     shifts = result.scalars().unique().all()
     return [_shift_out(s, s.sales, s.cash_movements) for s in shifts]
 
@@ -111,11 +128,13 @@ async def list_shifts(
 @router.get("/shifts/current", response_model=ShiftOut | None)
 async def current_shift(
     shop_id: int,
+    cash_register_id: int | None = None,
     user: User = Depends(pos_roles),
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id)
-    open_shift = await get_open_shift(session, shop_id)
+    register = await resolve_cash_register(session, shop_id, cash_register_id)
+    open_shift = await get_open_shift(session, shop_id, register.id)
     if open_shift is None:
         return None
     shift = await _load_shift(session, open_shift.id)
@@ -130,9 +149,10 @@ async def open_shift(
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, body.shop_id, write=True)
-    existing = await get_open_shift(session, body.shop_id)
+    register = await resolve_cash_register(session, body.shop_id, body.cash_register_id)
+    existing = await get_open_shift(session, body.shop_id, register.id)
     if existing:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A shift is already open")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "На этой кассе смена уже открыта")
     opener_id = user.id
     if body.barista_id and body.barista_id != user.id:
         crew = {member.id for member in await shop_crew(session, body.shop_id)}
@@ -141,6 +161,7 @@ async def open_shift(
         opener_id = body.barista_id
     shift = Shift(
         shop_id=body.shop_id,
+        cash_register_id=register.id,
         barista_id=opener_id,
         opening_cash=body.opening_cash,
         status=ShiftStatus.open,
@@ -214,7 +235,16 @@ async def add_cash_movement(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shift not found")
     await assert_shop_access(session, user, shift.shop_id, write=True)
     if shift.status != ShiftStatus.open:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Shift is closed")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Смена уже закрыта — изъятие и внесение только пока открыта")
+    if body.type == CashMovementType.withdrawal:
+        shift = await _load_shift(session, shift_id)
+        totals = shift_totals(shift, shift.sales, shift.cash_movements)
+        expected = Decimal(str(totals["expected_cash"]))
+        if body.amount > expected:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"В ящике сейчас {expected} ₸ — нельзя изъять больше",
+            )
     movement = ShiftCashMovement(
         shift_id=shift.id,
         type=body.type,

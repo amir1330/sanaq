@@ -224,15 +224,15 @@ export function StockItemPage() {
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[28px] font-semibold leading-none">{stockBalance(item)}</p>
           <p className="mt-2 text-sm text-mute">
-            на полке {money(shelfValue(item))}
+            сумма на складе {money(shelfValue(item))}
             {" · "}
             минимум {qty(item.min_quantity, item.base_unit)}
             {" · "}
-            {unitCost(costPerPurchase(item.cost_per_base_unit, item.purchase_to_base), item.purchase_unit)}
+            себестоимость {unitCost(costPerPurchase(item.cost_per_base_unit, item.purchase_to_base), item.purchase_unit)}
             {Number(item.purchase_to_base) !== 1 || item.purchase_unit !== item.base_unit
               ? ` · ${unitCost(item.cost_per_base_unit, item.base_unit)}`
               : ""}
-            {item.last_income_at ? ` · приход ${shortDay(item.last_income_at)}` : ""}
+            {item.last_income_at ? ` · последний приход ${shortDay(item.last_income_at)}` : ""}
           </p>
           {item.is_low && <p className="mt-2 text-sm text-alert">Заканчивается — пора закупать.</p>}
         </div>
@@ -294,8 +294,8 @@ export function StockItemPage() {
       {panel === "writeoff" && (
         <Modal title={`Списать · ${item.name}`} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">
-            По факту, в {item.base_unit}. Уйдёт с остатка по FIFO. Это не «Расход» (аренда/зарплата) — порча и брак
-            живут здесь, в истории позиции.
+            По факту, в {item.base_unit}. Уйдёт с остатка по цене закупки (сначала старые партии). Это не страница
+            «Расходы» — там аренда и зарплата; порча и брак списывают здесь.
           </p>
           <Field label={`Сколько, ${item.base_unit}`}>
             <Input

@@ -3,9 +3,11 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { Brand } from "../components/Mark";
 import { Button, Field, Input } from "../components/ui";
+import { useT } from "../i18n";
 import { homePath, useAuth } from "../store/auth";
 
 export function LoginPage() {
+  const t = useT();
   const { user, setSession } = useAuth();
   const navigate = useNavigate();
   const [login, setLogin] = useState("");
@@ -24,7 +26,7 @@ export function LoginPage() {
       setSession(pair.access_token, pair.refresh_token, pair.user);
       navigate(homePath(pair.user.role));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Неверный логин или пароль");
+      setError(err instanceof Error ? err.message : t("login.fail"));
     } finally {
       setPending(false);
     }
@@ -38,13 +40,13 @@ export function LoginPage() {
         </Link>
       </header>
       <div className="mx-auto max-w-[420px] px-6 pt-16">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">Аккаунт</p>
-        <h1 className="mt-3 font-display text-[40px] font-normal">Вход</h1>
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">{t("login.kicker")}</p>
+        <h1 className="mt-3 font-display text-[40px] font-normal">{t("login.title")}</h1>
         <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
-          <Field label="Почта или телефон">
+          <Field label={t("login.fieldLogin")}>
             <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
           </Field>
-          <Field label="Пароль">
+          <Field label={t("login.fieldPassword")}>
             <Input
               type="password"
               value={password}
@@ -54,7 +56,7 @@ export function LoginPage() {
           </Field>
           {error && <p className="text-sm text-alert">{error}</p>}
           <Button className="w-full" size="lg" disabled={pending || !login || !password}>
-            {pending ? "Входим…" : "Войти"}
+            {pending ? t("login.submitting") : t("login.submit")}
           </Button>
         </form>
       </div>

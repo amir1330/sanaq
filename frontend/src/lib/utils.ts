@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { t } from "../i18n";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -38,11 +39,11 @@ export function shelfValue(item: {
 }
 
 export function payLabel(type: "cash" | "card"): string {
-  return type === "cash" ? "Наличными" : "Безналично";
+  return type === "cash" ? t("pay.cash") : t("pay.card");
 }
 
 export function payAction(type: "cash" | "card"): string {
-  return type === "cash" ? "Наличными" : "Безналично";
+  return payLabel(type);
 }
 
 export function qty(value: string | number, unit?: string): string {

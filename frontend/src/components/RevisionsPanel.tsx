@@ -60,7 +60,7 @@ export function RevisionsHistory({ shopId }: { shopId: number }) {
               <th>Статус</th>
               <th>Посчитано</th>
               <th>Недостача / излишек</th>
-              <th>На сумму</th>
+              <th>На сумму (себестоимость)</th>
               <th>Кто</th>
               <th></th>
             </tr>
@@ -249,7 +249,7 @@ export function RevisionWorkspace({
               <th>Система</th>
               <th>Факт</th>
               <th>Δ</th>
-              <th>На сумму</th>
+              <th>На сумму (себестоимость)</th>
               <th>Заметка</th>
             </tr>
           </thead>

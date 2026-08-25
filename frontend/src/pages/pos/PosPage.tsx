@@ -6,12 +6,14 @@ import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
+import { useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import type { CrewMember, Product, ShiftSale } from "../../types";
 
 type Line = { product: Product; quantity: number };
 
 export function PosPage() {
+  const t = useT();
   const { user, shopId } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -28,6 +30,7 @@ export function PosPage() {
   const [restoreStock, setRestoreStock] = useState(false);
   const [seller, setSeller] = useState<{ id: number; name: string } | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [registerId, setRegisterId] = useState<number | null>(null);
 
   const shops = useQuery({
     queryKey: ["shops"],
@@ -35,6 +38,11 @@ export function PosPage() {
     enabled: Boolean(user) && sid > 0,
   });
   const currentShop = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
+  const registers = useQuery({
+    queryKey: ["cash-registers", sid],
+    queryFn: () => api.cashRegisters(sid),
+    enabled: Boolean(user) && sid > 0,
+  });
   const products = useQuery({
     queryKey: ["products", sid],
     queryFn: () => api.products(sid),
@@ -46,9 +54,9 @@ export function PosPage() {
     enabled: Boolean(user) && sid > 0,
   });
   const shift = useQuery({
-    queryKey: ["shift", sid],
-    queryFn: () => api.currentShift(sid),
-    enabled: Boolean(user) && sid > 0,
+    queryKey: ["shift", sid, registerId],
+    queryFn: () => api.currentShift(sid, registerId ?? undefined),
+    enabled: Boolean(user) && sid > 0 && registerId != null,
     refetchInterval: 20_000,
   });
   const crew = useQuery({
@@ -74,6 +82,25 @@ export function PosPage() {
     }
     setSeller({ id: user.id, name: user.full_name });
   }, [user, sid]);
+
+  useEffect(() => {
+    const list = registers.data;
+    if (!list?.length) return;
+    const raw = localStorage.getItem(`coffeeos-register-${sid}`);
+    const saved = raw ? Number(raw) : NaN;
+    if (Number.isFinite(saved) && list.some((r) => r.id === saved)) {
+      setRegisterId(saved);
+      return;
+    }
+    setRegisterId(list[0].id);
+  }, [registers.data, sid]);
+
+  function pickRegister(id: number) {
+    setRegisterId(id);
+    localStorage.setItem(`coffeeos-register-${sid}`, String(id));
+    setCart([]);
+    setPanel("none");
+  }
 
   function pickSeller(next: { id: number; name: string }) {
     setSeller(next);
@@ -133,6 +160,7 @@ export function PosPage() {
         cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
         payment_type,
         seller?.id,
+        registerId ?? undefined,
       ),
     onSuccess: (sale) => {
       const extra = sale.alerts.length
@@ -153,17 +181,18 @@ export function PosPage() {
         tone: sale.alerts.length || sale.fiscal_status === "failed" ? "warn" : "ok",
         text: `Чек пробит · ${money(sale.total_amount)} · ${payLabel(sale.payment_type)}.${extra}${fiscal}`,
       });
-      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     },
     onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
   });
 
   const openShift = useMutation({
-    mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id),
+    mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id, registerId ?? undefined),
     onSuccess: () => {
       setPanel("none");
       setNotice({ tone: "ok", text: "Смена открыта. Можно продавать." });
-      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
+      void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
     },
   });
   const closeShift = useMutation({
@@ -179,7 +208,8 @@ export function PosPage() {
             ? `Смена закрыта. Касса сошлась: ${money(s.closing_cash)}.${z}`
             : `Смена закрыта. В ящике должно быть ${money(s.expected_cash)}, пересчитали ${money(s.closing_cash)}. Расхождение ${money(s.cash_difference)}.${z}`,
       });
-      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
+      void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
     },
   });
   const refund = useMutation({
@@ -191,10 +221,10 @@ export function PosPage() {
       setNotice({
         tone: "ok",
         text: restore
-          ? `Чек ${sale.id} возвращён, остаток вернулся на склад.`
-          : `Чек ${sale.id} возвращён. Склад не трогали — товар уже отдали.`,
+          ? t("pos.refundOkRestored", { id: sale.id })
+          : t("pos.refundOkKept", { id: sale.id }),
       });
-      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
       void qc.invalidateQueries({ queryKey: ["stock", sid] });
     },
     onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
@@ -214,13 +244,16 @@ export function PosPage() {
         tone: "ok",
         text: moveType === "deposit" ? "Наличные внесены в ящик." : "Наличные изъяты из ящика.",
       });
-      void qc.invalidateQueries({ queryKey: ["shift", sid] });
+      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     },
   });
 
   if (!user) return <Navigate to="/login" replace />;
 
   const isBarista = user.role === "barista";
+  const registerList = registers.data ?? [];
+  const currentRegister = registerList.find((r) => r.id === registerId) ?? registerList[0];
+  const multiTill = registerList.length > 1;
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-paper text-ink lg:grid-cols-[224px_1fr_340px] lg:gap-px">
@@ -230,6 +263,33 @@ export function PosPage() {
         </div>
         {currentShop?.address && (
           <p className="-mt-3 px-3.5 text-[11px] text-ink-soft">{currentShop.address}</p>
+        )}
+        {multiTill && (
+          <div className="space-y-1.5">
+            <p className="px-1 text-[10px] font-mono uppercase tracking-wider text-ink-soft">Касса</p>
+            <div className="flex flex-col gap-1">
+              {registerList.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => pickRegister(r.id)}
+                  className={`rounded-md px-3.5 py-2.5 text-left text-[13px] ${
+                    r.id === registerId
+                      ? "bg-paper-2 font-semibold text-ink"
+                      : "text-ink-soft hover:bg-paper-2/60"
+                  }`}
+                >
+                  <span className="block">{r.name}</span>
+                  <span className="text-[11px] text-faint">
+                    {r.has_open_shift || (r.id === registerId && shift.data) ? "смена открыта" : "смена закрыта"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {!multiTill && currentRegister && (
+          <p className="-mt-2 px-3.5 text-[11px] text-ink-soft">{currentRegister.name}</p>
         )}
         {currentShop && !currentShop.webkassa_enabled && (
           <p className="px-3.5 text-[11px] text-gold">ОФД выключен — чеки не фискализируются</p>
@@ -287,6 +347,18 @@ export function PosPage() {
                   <span>Чеков</span>
                   <span className="font-mono font-semibold">{shift.data.sales_count}</span>
                 </div>
+                <div className="mt-2 border-t border-line pt-2">
+                  <div className="flex justify-between py-1">
+                    <span className="text-ink">В ящике сейчас</span>
+                    <span className="font-mono font-semibold">{money(shift.data.expected_cash)}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-faint">
+                    старт {money(shift.data.opening_cash)}
+                    {Number(shift.data.cash_revenue) ? ` + нал ${money(shift.data.cash_revenue)}` : ""}
+                    {Number(shift.data.deposits) ? ` + внесли ${money(shift.data.deposits)}` : ""}
+                    {Number(shift.data.withdrawals) ? ` − изъяли ${money(shift.data.withdrawals)}` : ""}
+                  </p>
+                </div>
               </div>
               <button
                 className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
@@ -296,13 +368,20 @@ export function PosPage() {
               </button>
               <button
                 className="w-full rounded-full border-[1.5px] border-line py-3 text-[12.5px] text-ink-soft hover:border-ink hover:bg-ink hover:text-paper"
-                onClick={() => setPanel("move")}
+                onClick={() => {
+                  setMoveType("withdrawal");
+                  setMoveAmount("");
+                  setPanel("move");
+                }}
               >
-                Внести / изъять
+                Ящик · изъять / внести
               </button>
               <button
                 className="w-full rounded-full border-[1.5px] border-gold py-3 text-[12.5px] text-gold hover:bg-gold hover:text-roast"
-                onClick={() => setPanel("close")}
+                onClick={() => {
+                  setCashClose("");
+                  setPanel("close");
+                }}
               >
                 Закрыть смену
               </button>
@@ -440,7 +519,14 @@ export function PosPage() {
               <>
                 <h2 className="font-display text-2xl font-normal">Открыть смену</h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  Пересчитай купюры в ящике и впиши сумму. Это стартовая касса.
+                  {currentRegister ? (
+                    <>
+                      Касса: <span className="text-ink">{currentRegister.name}</span>. Пересчитай купюры в этом
+                      ящике и впиши сумму. Это старт только для выбранной кассы.
+                    </>
+                  ) : (
+                    <>Пересчитай купюры в ящике и впиши сумму.</>
+                  )}
                 </p>
                 <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                   Наличные в ящике, ₸
@@ -467,10 +553,44 @@ export function PosPage() {
               <>
                 <h2 className="font-display text-2xl font-normal">Закрыть смену</h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  По продажам в ящике должно быть {money(shift.data?.expected_cash)}. Пересчитай факт.
+                  Пересчитай купюры, которые <span className="text-ink">сейчас лежат в ящике</span>. Если уже унёс
+                  деньги в сейф — сначала запиши изъятие, потом закрывай.
                 </p>
-                <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-                  Сколько наличных насчитал, ₸
+                <div className="mt-4 rounded-md bg-paper-2 px-4 py-3 text-sm">
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-ink-soft">Старт смены</span>
+                    <span className="font-mono">{money(shift.data?.opening_cash)}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-ink-soft">+ продажи налом</span>
+                    <span className="font-mono">{money(shift.data?.cash_revenue)}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-ink-soft">+ внесли</span>
+                    <span className="font-mono">{money(shift.data?.deposits)}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-ink-soft">− изъяли в сейф</span>
+                    <span className="font-mono">{money(shift.data?.withdrawals)}</span>
+                  </div>
+                  <div className="mt-2 flex justify-between border-t border-line pt-2 font-medium">
+                    <span>Должно остаться в ящике</span>
+                    <span className="font-mono">{money(shift.data?.expected_cash)}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="mt-3 text-left text-[13px] text-ink-soft underline hover:text-ink"
+                  onClick={() => {
+                    setMoveType("withdrawal");
+                    setMoveAmount("");
+                    setPanel("move");
+                  }}
+                >
+                  Сначала изъять в сейф…
+                </button>
+                <label className="mt-4 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                  Сколько насчитал в ящике, ₸
                   <input
                     className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
                     value={cashClose}
@@ -487,7 +607,11 @@ export function PosPage() {
                 )}
                 {closeShift.isError && <p className="mt-3 text-sm text-alert">{(closeShift.error as Error).message}</p>}
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <Button className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper" onClick={() => closeShift.mutate(false)}>
+                  <Button
+                    className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
+                    disabled={cashClose.trim() === "" || closeShift.isPending}
+                    onClick={() => closeShift.mutate(false)}
+                  >
                     Закрыть смену
                   </Button>
                   <Button variant="ghost" className="text-ink-soft" onClick={() => setPanel("none")}>
@@ -566,20 +690,43 @@ export function PosPage() {
             )}
             {panel === "receipts" && refundTarget && (
               <>
-                <h2 className="font-display text-2xl font-normal">Вернуть чек №{refundTarget.id}</h2>
+                <h2 className="font-display text-2xl font-normal">
+                  {t("pos.refundTitle", { id: refundTarget.id })}
+                </h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. Если уже отдали —
-                  склад не трогаем, иначе на бумаге появится то, чего нет.
+                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. {t("pos.refundAlwaysMoney")}
                 </p>
-                <label className="mt-5 flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={restoreStock}
-                    onChange={(e) => setRestoreStock(e.target.checked)}
-                  />
-                  <span>Товар не отдали, вернуть на склад</span>
-                </label>
+                <fieldset className="mt-5 space-y-3">
+                  <legend className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">
+                    {t("pos.refundAsk")}
+                  </legend>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line-2 px-3 py-3 has-[:checked]:border-ink">
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      name="refund-stock"
+                      checked={!restoreStock}
+                      onChange={() => setRestoreStock(false)}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">{t("pos.refundGiven")}</span>
+                      <span className="mt-0.5 block text-[13px] text-ink-soft">{t("pos.refundGivenNote")}</span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line-2 px-3 py-3 has-[:checked]:border-ink">
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      name="refund-stock"
+                      checked={restoreStock}
+                      onChange={() => setRestoreStock(true)}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium">{t("pos.refundKept")}</span>
+                      <span className="mt-0.5 block text-[13px] text-ink-soft">{t("pos.refundKeptNote")}</span>
+                    </span>
+                  </label>
+                </fieldset>
                 {refund.isError && <p className="mt-3 text-sm text-alert">{(refund.error as Error).message}</p>}
                 {salesFrozen && (
                   <p className="mt-3 text-sm text-alert">
@@ -592,7 +739,7 @@ export function PosPage() {
                     disabled={refund.isPending || salesFrozen}
                     onClick={() => refund.mutate(restoreStock)}
                   >
-                    Вернуть
+                    {refund.isPending ? t("pos.refundPending") : t("pos.refundSubmit")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -602,25 +749,34 @@ export function PosPage() {
                       setRestoreStock(false);
                     }}
                   >
-                    Назад
+                    {t("common.back")}
                   </Button>
                 </div>
               </>
             )}
             {panel === "move" && (
               <>
-                <h2 className="font-display text-2xl font-normal">Наличные в ящике</h2>
+                <h2 className="font-display text-2xl font-normal">
+                  {moveType === "withdrawal" ? "Изъять из ящика" : "Внести в ящик"}
+                </h2>
                 <p className="mt-2 text-sm text-ink-soft">
-                  Внести — положил размен. Изъять — забрал в сейф.
+                  {moveType === "withdrawal"
+                    ? "Унёс купюры в сейф или инкассацию — запиши здесь, пока смена открыта. После записи «в ящике» станет меньше."
+                    : "Положил размен или вернул из сейфа — запиши. «В ящике» станет больше."}
+                </p>
+                <p className="mt-3 rounded-md bg-paper-2 px-3 py-2 font-mono text-[13px]">
+                  Сейчас в ящике: {money(shift.data?.expected_cash)}
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-px border border-line bg-line">
                   <button
+                    type="button"
                     className={`py-3 text-[12.5px] ${moveType === "deposit" ? "bg-ink text-paper" : "bg-paper text-ink-soft"}`}
                     onClick={() => setMoveType("deposit")}
                   >
                     Внести
                   </button>
                   <button
+                    type="button"
                     className={`py-3 text-[12.5px] ${moveType === "withdrawal" ? "bg-ink text-paper" : "bg-paper text-ink-soft"}`}
                     onClick={() => setMoveType("withdrawal")}
                   >
@@ -634,15 +790,35 @@ export function PosPage() {
                     value={moveAmount}
                     onChange={(e) => setMoveAmount(e.target.value)}
                     inputMode="decimal"
+                    autoFocus
                   />
                 </label>
+                {Number(moveAmount) > 0 && (
+                  <p className="mt-3 text-sm text-ink-soft">
+                    После записи в ящике будет{" "}
+                    <span className="font-mono text-ink">
+                      {money(
+                        Number(shift.data?.expected_cash ?? 0) +
+                          (moveType === "deposit" ? Number(moveAmount) : -Number(moveAmount)),
+                      )}
+                    </span>
+                    .
+                  </p>
+                )}
+                {cashMove.isError && (
+                  <p className="mt-3 text-sm text-alert">{(cashMove.error as Error).message}</p>
+                )}
                 <div className="mt-6 flex gap-3">
                   <Button
                     className="flex-1 border-ink bg-transparent text-ink hover:bg-ink hover:text-paper"
-                    disabled={!moveAmount}
+                    disabled={!moveAmount || Number(moveAmount) <= 0 || cashMove.isPending}
                     onClick={() => cashMove.mutate()}
                   >
-                    Записать
+                    {cashMove.isPending
+                      ? "Пишем…"
+                      : moveType === "withdrawal"
+                        ? "Изъять"
+                        : "Внести"}
                   </Button>
                   <Button variant="ghost" className="text-ink-soft" onClick={() => setPanel("none")}>
                     Назад
