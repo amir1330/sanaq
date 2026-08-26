@@ -35,6 +35,7 @@ class Product(Base):
     name_kk: Mapped[str | None] = mapped_column(Text)
     name_en: Mapped[str | None] = mapped_column(Text)
     sku: Mapped[str | None] = mapped_column(Text)
+    barcode: Mapped[str | None] = mapped_column(Text)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

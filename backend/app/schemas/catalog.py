@@ -44,6 +44,7 @@ class ProductCreate(BaseModel):
     name_kk: str | None = None
     name_en: str | None = None
     sku: str | None = None
+    barcode: str | None = None
     sale_price: Decimal = Field(gt=0)
     category_id: int | None = None
     is_active: bool = True
@@ -69,6 +70,7 @@ class ProductUpdate(BaseModel):
     name_kk: str | None = None
     name_en: str | None = None
     sku: str | None = None
+    barcode: str | None = None
     sale_price: Decimal | None = Field(default=None, gt=0)
     category_id: int | None = None
     is_active: bool | None = None
@@ -86,6 +88,7 @@ class ProductOut(ORMModel):
     name_kk: str | None = None
     name_en: str | None = None
     sku: str | None = None
+    barcode: str | None = None
     sale_price: Decimal
     is_active: bool
     is_service: bool = False

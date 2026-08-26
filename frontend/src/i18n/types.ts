@@ -312,6 +312,8 @@ export type Messages = {
     tabCart: string;
     tabShift: string;
     searchProducts: string;
+    scanNotFound: string;
+    scanAdded: string;
     discountReceipt: string;
     discountItem: string;
     discountAdd: string;
@@ -364,6 +366,9 @@ export type Messages = {
     sku: string;
     skuPh: string;
     skuHint: string;
+    barcode: string;
+    barcodePh: string;
+    barcodeHint: string;
     category: string;
     catPh: string;
     newCategory: string;

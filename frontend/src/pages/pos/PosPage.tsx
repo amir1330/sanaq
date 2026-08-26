@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
@@ -12,16 +12,15 @@ import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
-import { SCALE_ZOOM, useUiScale, type UiScale } from "../../store/uiScale";
+import { SCALE_ZOOM, SCALES, useUiScale } from "../../store/uiScale";
 import type { CrewMember, Product, ShiftSale } from "../../types";
 
 type Line = { product: Product; quantity: number; discount?: Discount | null };
 type MobileTab = "products" | "cart" | "shift";
 type DiscountDraft = { type: Discount["type"]; value: string };
 
-const SCALES: UiScale[] = ["sm", "md", "lg", "xl"];
-const CASH_NOTES = [10_000, 5_000, 1_000] as const;
 const PRODUCT_PAGE = 60;
+const CASH_NOTES = [10_000, 5_000, 1_000] as const;
 
 function DiscountEditor({
   draft,
@@ -248,6 +247,57 @@ export function PosPage() {
       return [...prev, { product, quantity: 1 }];
     });
   }
+
+  const scanLock = useRef(false);
+  async function scanCode(raw: string, { soft = false }: { soft?: boolean } = {}) {
+    const code = raw.trim();
+    if (!code || sid <= 0 || scanLock.current) return;
+    scanLock.current = true;
+    try {
+      const product = await api.productByCode(sid, code);
+      add(product);
+      setProductSearch("");
+      setNotice({
+        tone: "ok",
+        text: t("pos.scanAdded", { name: localizedName(product, locale) }),
+      });
+      setMobileTab("cart");
+    } catch {
+      if (!soft) setNotice({ tone: "warn", text: t("pos.scanNotFound", { code }) });
+    } finally {
+      scanLock.current = false;
+    }
+  }
+  const scanCodeRef = useRef(scanCode);
+  scanCodeRef.current = scanCode;
+
+  useEffect(() => {
+    let buf = "";
+    let lastAt = 0;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inField = Boolean(
+        target?.closest("input, textarea, select, [contenteditable='true']"),
+      );
+      if (inField) return;
+      if (e.key === "Enter") {
+        if (buf.length >= 3) {
+          e.preventDefault();
+          void scanCodeRef.current(buf);
+        }
+        buf = "";
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const now = Date.now();
+        if (now - lastAt > 80) buf = "";
+        buf += e.key;
+        lastAt = now;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function changeQty(id: number, delta: number) {
     setCart((prev) =>
@@ -607,8 +657,8 @@ export function PosPage() {
   );
 
   const categoriesBlock = (
-    <div className="border-t border-line pt-4">
-      <div className="max-h-[55vh] space-y-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="space-y-1 pb-2">
         <button
           type="button"
           className={`min-h-11 w-full rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
@@ -641,7 +691,7 @@ export function PosPage() {
   );
 
   const shiftOpsBlock = shift.data ? (
-    <div className="sticky bottom-0 space-y-2.5 border-t border-line bg-paper pt-3 text-[12.5px]">
+    <div className="space-y-2.5 text-[12.5px]">
       <button
         type="button"
         onClick={() => setFinanceOpen((v) => !v)}
@@ -687,10 +737,12 @@ export function PosPage() {
   ) : null;
 
   const leftColumn = (
-    <aside className="flex h-full flex-col gap-4 overflow-y-auto px-[18px] py-6">
-      {headerBlock}
-      {categoriesBlock}
-      {shiftOpsBlock}
+    <aside className="flex h-full flex-col gap-3 overflow-hidden px-[18px] py-6">
+      <div className="shrink-0 space-y-3">
+        {headerBlock}
+        {shiftOpsBlock}
+      </div>
+      <div className="min-h-0 flex-1 border-t border-line pt-3">{categoriesBlock}</div>
     </aside>
   );
 
@@ -701,7 +753,17 @@ export function PosPage() {
           className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-4 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const code = productSearch.trim();
+            if (!code) return;
+            // Exact barcode/SKU → cart; plain text search stays as filter
+            void scanCode(code, { soft: !/^[0-9A-Za-z._-]{4,64}$/.test(code) });
+          }}
           placeholder={t("pos.searchProducts")}
+          autoComplete="off"
+          enterKeyHint="done"
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 sm:pt-3">

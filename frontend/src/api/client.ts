@@ -177,6 +177,8 @@ export const api = {
   },
   product: (shopId: number, id: number) =>
     request<Product>(`/shops/${shopId}/products/${id}`),
+  productByCode: (shopId: number, code: string) =>
+    request<Product>(`/shops/${shopId}/products/lookup?code=${encodeURIComponent(code.trim())}`),
   createProduct: (shopId: number, body: object) =>
     request<Product>(`/shops/${shopId}/products`, { method: "POST", body: json(body) }),
   createProductsBulk: (

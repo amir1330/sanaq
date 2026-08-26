@@ -34,6 +34,13 @@ def _norm_sku(raw: str | None) -> str | None:
     return value or None
 
 
+def _norm_barcode(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    value = raw.strip()
+    return value or None
+
+
 async def _assert_product_sku_free(
     session: AsyncSession,
     shop_id: int,
@@ -48,6 +55,22 @@ async def _assert_product_sku_free(
         q = q.where(Product.id != exclude_id)
     if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул уже занят: {sku}")
+
+
+async def _assert_product_barcode_free(
+    session: AsyncSession,
+    shop_id: int,
+    barcode: str | None,
+    *,
+    exclude_id: int | None = None,
+) -> None:
+    if not barcode:
+        return
+    q = select(Product.id).where(Product.shop_id == shop_id, Product.barcode == barcode)
+    if exclude_id is not None:
+        q = q.where(Product.id != exclude_id)
+    if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод уже занят: {barcode}")
 
 
 def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductOut:
@@ -76,6 +99,7 @@ def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductO
         name_kk=product.name_kk,
         name_en=product.name_en,
         sku=getattr(product, "sku", None),
+        barcode=getattr(product, "barcode", None),
         sale_price=product.sale_price,
         is_active=product.is_active,
         is_service=bool(getattr(product, "is_service", False)),
@@ -196,6 +220,7 @@ async def list_products(
                 Product.name_kk.ilike(like),
                 Product.name_en.ilike(like),
                 Product.sku.ilike(like),
+                Product.barcode.ilike(like),
                 Product.id.in_(sku_match),
             )
         )
@@ -223,6 +248,40 @@ async def list_products(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/shops/{shop_id}/products/lookup", response_model=ProductOut)
+async def lookup_product(
+    shop_id: int,
+    code: str = Query(..., min_length=1),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Exact match by barcode or SKU — for barcode scanners on POS."""
+    await assert_shop_access(session, user, shop_id)
+    needle = code.strip()
+    if not needle:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
+
+    options = [
+        selectinload(Product.category),
+        selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
+        selectinload(Product.image),
+    ]
+    active = [Product.is_active.is_(True)] if user.role == UserRole.barista else []
+
+    for column in (Product.barcode, Product.sku):
+        result = await session.execute(
+            select(Product)
+            .options(*options)
+            .where(Product.shop_id == shop_id, column == needle, *active)
+            .limit(1)
+        )
+        product = result.scalar_one_or_none()
+        if product is not None:
+            return _product_out(product, with_ingredients=True)
+
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
 
 
 @router.get("/shops/{shop_id}/products/{product_id}", response_model=ProductOut)
@@ -256,13 +315,16 @@ async def create_product(
 ):
     await assert_shop_access(session, user, shop_id, write=True)
     sku = _norm_sku(body.sku)
+    barcode = _norm_barcode(body.barcode)
     await _assert_product_sku_free(session, shop_id, sku)
+    await _assert_product_barcode_free(session, shop_id, barcode)
     product = Product(
         shop_id=shop_id,
         name=body.name.strip(),
         name_kk=(body.name_kk or "").strip() or None,
         name_en=(body.name_en or "").strip() or None,
         sku=sku,
+        barcode=barcode,
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=body.is_active,
@@ -341,6 +403,10 @@ async def update_product(
         sku = _norm_sku(changes["sku"])
         await _assert_product_sku_free(session, shop_id, sku, exclude_id=product.id)
         changes["sku"] = sku
+    if "barcode" in changes:
+        barcode = _norm_barcode(changes["barcode"])
+        await _assert_product_barcode_free(session, shop_id, barcode, exclude_id=product.id)
+        changes["barcode"] = barcode
     for key, value in changes.items():
         if key in ("name_kk", "name_en"):
             value = (value or "").strip() or None

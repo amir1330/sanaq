@@ -96,6 +96,7 @@ export type Product = {
   name_kk?: string | null;
   name_en?: string | null;
   sku?: string | null;
+  barcode?: string | null;
   sale_price: string;
   is_active: boolean;
   is_service?: boolean;

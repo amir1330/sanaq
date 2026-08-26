@@ -40,6 +40,7 @@ type Draft = {
   name_kk: string;
   name_en: string;
   sku: string;
+  barcode: string;
   sale_price: string;
   category_id: number | null;
   is_active: boolean;
@@ -119,6 +120,7 @@ export function ProductsPage() {
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
           sku: editing.sku.trim() || null,
+          barcode: editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id,
           is_active: editing.is_active,
@@ -133,6 +135,7 @@ export function ProductsPage() {
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
           sku: editing.sku.trim() || null,
+          barcode: editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
           is_active: editing.is_active,
@@ -211,6 +214,7 @@ export function ProductsPage() {
       name_kk: p.name_kk ?? "",
       name_en: p.name_en ?? "",
       sku: p.sku ?? "",
+      barcode: p.barcode ?? "",
       sale_price: p.sale_price ?? "",
       category_id: p.category_id ?? categoryId ?? null,
       is_active: p.is_active ?? true,
@@ -249,6 +253,7 @@ export function ProductsPage() {
       name_kk: "",
       name_en: "",
       sku: "",
+      barcode: "",
       sale_price: "",
       category_id: categoryId ?? null,
       is_active: true,
@@ -414,12 +419,17 @@ export function ProductsPage() {
             </p>
           ) : viewMode === "list" ? (
             <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm">
+                <colgroup>
+                  <col className="w-auto" />
+                  <col className="w-[7.5rem]" />
+                  <col className="w-[6.5rem]" />
+                </colgroup>
                 <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
                   <tr className="border-b border-line text-left">
                     <th className="px-5 py-3">{t("products.colName")}</th>
-                    <th className="pr-4">{t("products.colPrice")}</th>
-                    <th className="pr-5 text-right">{t("products.colStatus")}</th>
+                    <th className="px-2 py-3 text-right">{t("products.colPrice")}</th>
+                    <th className="pr-5 py-3 text-right">{t("products.colStatus")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,7 +444,7 @@ export function ProductsPage() {
                         onClick={() => void open(p)}
                       >
                         <td className="px-5 py-2.5">
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
                             {src ? (
                               <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
                             ) : (
@@ -442,14 +452,16 @@ export function ProductsPage() {
                                 —
                               </div>
                             )}
-                            <span className="font-medium">
+                            <span className="truncate font-medium">
                               {localizedName(p, locale)}
                               {openingId === p.id ? ` · ${t("common.loading")}` : ""}
                             </span>
                           </div>
                         </td>
-                        <td className="pr-4 font-mono font-semibold">{money(p.sale_price)}</td>
-                        <td className="pr-5 text-right text-[12.5px] text-mute">
+                        <td className="px-2 py-2.5 text-right font-mono font-semibold tabular-nums">
+                          {money(p.sale_price)}
+                        </td>
+                        <td className="pr-5 py-2.5 text-right text-[12.5px] text-mute">
                           {p.is_active ? t("products.active") : t("products.hidden")}
                         </td>
                       </tr>
@@ -586,6 +598,15 @@ export function ProductsPage() {
                       value={editing.sku}
                       onChange={(e) => setEditing({ ...editing, sku: e.target.value })}
                       placeholder={t("products.skuPh")}
+                    />
+                  </Field>
+                  <Field label={t("products.barcode")} hint={t("products.barcodeHint")}>
+                    <Input
+                      value={editing.barcode}
+                      onChange={(e) => setEditing({ ...editing, barcode: e.target.value })}
+                      placeholder={t("products.barcodePh")}
+                      inputMode="numeric"
+                      autoComplete="off"
                     />
                   </Field>
                 </div>
