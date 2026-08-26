@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
-import { useT } from "../../i18n";
+import { useLocale, useT } from "../../i18n";
 import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
@@ -56,6 +56,7 @@ const emptyCreate = {
 
 export function StockPage() {
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -136,14 +137,6 @@ export function StockPage() {
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
-  const startRevision = useMutation({
-    mutationFn: () => api.createStockRevision(shopId),
-    onSuccess: (rev) => {
-      void qc.invalidateQueries({ queryKey: ["stock-revisions", shopId] });
-      void qc.invalidateQueries({ queryKey: ["shift", shopId] });
-      navigate(`/owner/stock/revisions/${rev.id}`);
-    },
-  });
 
   function setUnits(patch: Partial<typeof create>) {
     const next = { ...create, ...patch };
@@ -180,23 +173,6 @@ export function StockPage() {
         hint={t("stock.hint")}
         action={
           <div className="flex flex-wrap gap-2">
-            {hasDraft ? (
-              <Button
-                onClick={() => {
-                  const draft = (revisions.data ?? []).find((r) => r.status === "draft");
-                  if (draft) navigate(`/owner/stock/revisions/${draft.id}`);
-                }}
-              >
-                {t("stock.openRevision")}
-              </Button>
-            ) : (
-              <Button variant="quiet" onClick={() => startRevision.mutate()} disabled={startRevision.isPending}>
-                {t("stock.revision")}
-              </Button>
-            )}
-            <Link to="/owner/stock/revisions">
-              <Button variant="quiet">{t("stock.recounts")}</Button>
-            </Link>
             <Button variant="quiet" onClick={() => setReceive("open")} disabled={hasDraft}>
               {t("stock.income")}
             </Button>
@@ -218,9 +194,6 @@ export function StockPage() {
           </div>
         }
       />
-      {startRevision.isError && (
-        <p className="mb-4 text-sm text-alert">{(startRevision.error as Error).message}</p>
-      )}
       {hasDraft && (
         <Card className="mb-4 border border-maroon/30 bg-maroon/5">
           <p className="font-medium text-maroon">{t("stock.revisionPause")}</p>
@@ -491,7 +464,7 @@ export function StockPage() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="quiet"
-              onClick={() => void api.downloadStockImportTemplate(shopId)}
+              onClick={() => void api.downloadStockImportTemplate(shopId, locale)}
             >
               {t("stock.importTemplate")}
             </Button>

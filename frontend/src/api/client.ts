@@ -200,11 +200,12 @@ export const api = {
       method: "POST",
       body: json(body),
     }),
-  downloadStockImportTemplate: async (shopId: number) => {
+  downloadStockImportTemplate: async (shopId: number, lang?: string) => {
     const { accessToken, refreshToken, setSession, logout } = useAuth.getState();
     const headers = new Headers();
     if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
-    const url = `${BASE}/shops/${shopId}/stock-items/import-template`;
+    const qs = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+    const url = `${BASE}/shops/${shopId}/stock-items/import-template${qs}`;
     let res = await fetch(url, { headers });
     if (res.status === 401 && refreshToken) {
       const refreshed = await fetch(`${BASE}/auth/refresh`, {

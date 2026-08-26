@@ -115,11 +115,12 @@ async def list_stock(
 @router.get("/shops/{shop_id}/stock-items/import-template")
 async def stock_import_template(
     shop_id: int,
+    lang: str = Query("ru"),
     user: User = Depends(manage),
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id)
-    data = build_stock_import_template()
+    data = build_stock_import_template(lang)
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

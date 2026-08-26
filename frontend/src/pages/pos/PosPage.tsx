@@ -495,11 +495,14 @@ export function PosPage() {
   ];
 
   const headerBlock = (
-    <div className="rounded-md bg-paper-2 p-2.5">
-      <div className="flex items-center gap-2.5 px-1.5 py-1">
+    <div className="space-y-2 rounded-md bg-paper-2 p-2.5">
+      <div className="px-1.5 py-1">
         <ShopBrand shop={currentShop} fallback={t("pos.tillFallback")} size="sm" markClass="h-4 w-5 text-gold" />
+        {currentShop?.address && (
+          <p className="mt-1 truncate text-[12px] text-ink-soft">{currentShop.address}</p>
+        )}
       </div>
-      <div className="mt-1 flex items-center gap-1">
+      <div className="flex items-center gap-1">
         {!isBarista ? (
           <button
             type="button"
@@ -527,10 +530,7 @@ export function PosPage() {
         </button>
       </div>
       {headerOpen && (
-        <div className="mt-1.5 space-y-2 border-t border-line px-1.5 pt-2">
-          {currentShop?.address && (
-            <p className="text-[11px] text-ink-soft">{currentShop.address}</p>
-          )}
+        <div className="space-y-2 border-t border-line px-1.5 pt-2">
           {multiTill ? (
             <div className="space-y-1">
               <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
@@ -572,6 +572,25 @@ export function PosPage() {
           )}
         </div>
       )}
+      <div className="flex items-center gap-2 pt-0.5">
+        {shift.data ? (
+          <Button
+            variant="confirm"
+            className="min-w-0 flex-1"
+            onClick={() => {
+              setCashClose("");
+              setPanel("close");
+            }}
+          >
+            {t("pos.closeShift")}
+          </Button>
+        ) : (
+          <Button variant="confirm" className="min-w-0 flex-1" onClick={() => setPanel("open")}>
+            {t("pos.openShift")}
+          </Button>
+        )}
+        <MoreMenu label="⋮" items={moreItems} />
+      </div>
     </div>
   );
 
@@ -609,75 +628,51 @@ export function PosPage() {
     </div>
   );
 
-  const shiftOpsBlock = (
+  const shiftOpsBlock = shift.data ? (
     <div className="sticky bottom-0 space-y-2.5 border-t border-line bg-paper pt-3 text-[12.5px]">
-      {shift.data ? (
-        <>
-          <button
-            type="button"
-            onClick={() => setFinanceOpen((v) => !v)}
-            className="flex w-full items-center justify-between rounded-md bg-paper-2 px-4 py-2.5 text-left"
-          >
-            <span className="flex items-center gap-2">
-              <span className="text-ink-soft">{t("pos.cashNow")}</span>
-              <span className="font-mono font-semibold text-ink">{money(shift.data.expected_cash)}</span>
-            </span>
-            <span className="text-ink-soft" aria-hidden>
-              {financeOpen ? "▲" : "▼"}
-            </span>
-          </button>
-          {financeOpen && (
-            <div className="rounded-md bg-paper-2 px-4 py-3.5">
-              <div className="flex justify-between py-1">
-                <span>{t("pay.cash")}</span>
-                <span className="font-mono font-semibold text-gold">{money(shift.data.cash_revenue)}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span>{t("pay.card")}</span>
-                <span className="font-mono font-semibold text-turq">{money(shift.data.card_revenue)}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span>{t("pos.receipts")}</span>
-                <span className="font-mono font-semibold">{shift.data.sales_count}</span>
-              </div>
-              <div className="mt-2 border-t border-line pt-2">
-                <div className="flex justify-between py-1">
-                  <span className="text-ink">{t("pos.cashNow")}</span>
-                  <span className="font-mono font-semibold">{money(shift.data.expected_cash)}</span>
-                </div>
-                <p className="mt-1 text-[11px] leading-snug text-faint">
-                  {t("pos.start", { n: money(shift.data.opening_cash) })}
-                  {Number(shift.data.cash_revenue) ? t("pos.plusCash", { n: money(shift.data.cash_revenue) }) : ""}
-                  {Number(shift.data.deposits) ? t("pos.plusIn", { n: money(shift.data.deposits) }) : ""}
-                  {Number(shift.data.withdrawals) ? t("pos.minusOut", { n: money(shift.data.withdrawals) }) : ""}
-                </p>
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="confirm"
-              className="min-w-0 flex-1"
-              onClick={() => {
-                setCashClose("");
-                setPanel("close");
-              }}
-            >
-              {t("pos.closeShift")}
-            </Button>
-            <MoreMenu label="⋮" items={moreItems} />
+      <button
+        type="button"
+        onClick={() => setFinanceOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-md bg-paper-2 px-4 py-2.5 text-left"
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-ink-soft">{t("pos.cashNow")}</span>
+          <span className="font-mono font-semibold text-ink">{money(shift.data.expected_cash)}</span>
+        </span>
+        <span className="text-ink-soft" aria-hidden>
+          {financeOpen ? "▲" : "▼"}
+        </span>
+      </button>
+      {financeOpen && (
+        <div className="rounded-md bg-paper-2 px-4 py-3.5">
+          <div className="flex justify-between py-1">
+            <span>{t("pay.cash")}</span>
+            <span className="font-mono font-semibold text-gold">{money(shift.data.cash_revenue)}</span>
           </div>
-        </>
-      ) : (
-        <div className="flex items-center gap-2">
-          <Button variant="confirm" className="min-w-0 flex-1" onClick={() => setPanel("open")}>
-            {t("pos.openShift")}
-          </Button>
-          <MoreMenu label="⋮" items={moreItems} />
+          <div className="flex justify-between py-1">
+            <span>{t("pay.card")}</span>
+            <span className="font-mono font-semibold text-turq">{money(shift.data.card_revenue)}</span>
+          </div>
+          <div className="flex justify-between py-1">
+            <span>{t("pos.receipts")}</span>
+            <span className="font-mono font-semibold">{shift.data.sales_count}</span>
+          </div>
+          <div className="mt-2 border-t border-line pt-2">
+            <div className="flex justify-between py-1">
+              <span className="text-ink">{t("pos.cashNow")}</span>
+              <span className="font-mono font-semibold">{money(shift.data.expected_cash)}</span>
+            </div>
+            <p className="mt-1 text-[11px] leading-snug text-faint">
+              {t("pos.start", { n: money(shift.data.opening_cash) })}
+              {Number(shift.data.cash_revenue) ? t("pos.plusCash", { n: money(shift.data.cash_revenue) }) : ""}
+              {Number(shift.data.deposits) ? t("pos.plusIn", { n: money(shift.data.deposits) }) : ""}
+              {Number(shift.data.withdrawals) ? t("pos.minusOut", { n: money(shift.data.withdrawals) }) : ""}
+            </p>
+          </div>
         </div>
       )}
     </div>
-  );
+  ) : null;
 
   const leftColumn = (
     <aside className="flex h-full flex-col gap-4 overflow-y-auto px-[18px] py-6">
