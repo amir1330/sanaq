@@ -76,18 +76,23 @@ export function SessionCard() {
       <p className="mt-5 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">
         {t("account.scale")}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {SCALES.map((s) => (
-          <Button key={s} variant={scale === s ? "primary" : "quiet"} onClick={() => setScale(s)}>
-            {s === "sm"
-              ? t("account.scaleSm")
-              : s === "md"
-                ? t("account.scaleMd")
-                : s === "lg"
-                  ? t("account.scaleLg")
-                  : t("account.scaleXl")}
-          </Button>
-        ))}
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          variant="quiet"
+          className="min-w-11"
+          disabled={SCALES.indexOf(scale) <= 0}
+          onClick={() => setScale(SCALES[Math.max(0, SCALES.indexOf(scale) - 1)])}
+        >
+          −
+        </Button>
+        <Button
+          variant="quiet"
+          className="min-w-11"
+          disabled={SCALES.indexOf(scale) >= SCALES.length - 1}
+          onClick={() => setScale(SCALES[Math.min(SCALES.length - 1, SCALES.indexOf(scale) + 1)])}
+        >
+          +
+        </Button>
       </div>
 
       <div className="mt-5">

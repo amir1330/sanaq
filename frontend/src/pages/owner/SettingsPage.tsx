@@ -74,7 +74,14 @@ export function SettingsPage() {
 
       <SessionCard />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <Card className="mt-4 border border-line bg-paper-2">
+        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
+          {t("settings.mapTitle")}
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">{t("settings.mapHint")}</p>
+      </Card>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <Card className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("settings.shopName")}>
@@ -342,7 +349,7 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
           <table className="w-full text-sm">
             <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">{t("nav.pointFallback")}</th>
+                <th className="px-4 py-3">{t("settings.branchCol")}</th>
                 <th>{t("settings.address")}</th>
                 <th></th>
               </tr>

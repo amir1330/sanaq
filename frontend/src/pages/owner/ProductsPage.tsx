@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
+import { StockSearchPicker } from "../../components/StockSearchPicker";
 import { Button, Check, Dialog, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
 import { parseBulkProductLines } from "../../lib/bulkProducts";
+import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { money, publicUrl } from "../../lib/utils";
 import { localizedName } from "../../lib/i18nName";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
-import type { Product } from "../../types";
+import type { Product, StockItem } from "../../types";
 
 type ViewMode = "list" | "tiles";
 const VIEW_KEY = "sanaq-products-view";
+const PAGE_SIZE = 50;
 
 function readViewMode(): ViewMode {
   try {
@@ -23,13 +26,20 @@ function readViewMode(): ViewMode {
   return "list";
 }
 
-type IngRow = { stock_item_id: number | ""; quantity: string };
+type IngRow = {
+  stock_item_id: number | "";
+  quantity: string;
+  name?: string;
+  base_unit?: string;
+  cost_per_base_unit?: string;
+};
 
 type Draft = {
   id?: number;
   name: string;
   name_kk: string;
   name_en: string;
+  sku: string;
   sale_price: string;
   category_id: number | null;
   is_active: boolean;
@@ -45,13 +55,28 @@ export function ProductsPage() {
   const locale = useLocale((s) => s.locale);
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
-  const products = useQuery({ queryKey: ["products", shopId], queryFn: () => api.products(shopId) });
+  const [q, setQ] = useState("");
+  const debouncedQ = useDebouncedValue(q, 250);
+  const [filterCat, setFilterCat] = useState<number | "all">("all");
+  const products = useInfiniteQuery({
+    queryKey: ["products", shopId, filterCat, debouncedQ],
+    queryFn: ({ pageParam }) =>
+      api.products(shopId, {
+        q: debouncedQ.trim() || undefined,
+        category_id: filterCat === "all" ? undefined : filterCat,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
   const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [editing, setEditing] = useState<Draft | null>(null);
   const [catName, setCatName] = useState("");
   const [addingCat, setAddingCat] = useState(false);
-  const [filterCat, setFilterCat] = useState<number | "all">("all");
   const [rename, setRename] = useState<{ id: number; name: string } | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -60,6 +85,7 @@ export function ProductsPage() {
   const [bulkText, setBulkText] = useState("");
   const [bulkCategoryId, setBulkCategoryId] = useState<number | "">("");
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
+  const [openingId, setOpeningId] = useState<number | null>(null);
 
   function setView(next: ViewMode) {
     setViewMode(next);
@@ -92,6 +118,7 @@ export function ProductsPage() {
           name: editing.name.trim(),
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
+          sku: editing.sku.trim() || null,
           sale_price: price,
           category_id: editing.category_id,
           is_active: editing.is_active,
@@ -105,6 +132,7 @@ export function ProductsPage() {
           name: editing.name.trim(),
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
+          sku: editing.sku.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
           is_active: editing.is_active,
@@ -176,30 +204,85 @@ export function ProductsPage() {
     setBulkOpen(true);
   }
 
-  function open(p?: Product, categoryId?: number | null) {
+  function draftFromProduct(p: Product, categoryId?: number | null): Draft {
+    return {
+      id: p.id,
+      name: p.name ?? "",
+      name_kk: p.name_kk ?? "",
+      name_en: p.name_en ?? "",
+      sku: p.sku ?? "",
+      sale_price: p.sale_price ?? "",
+      category_id: p.category_id ?? categoryId ?? null,
+      is_active: p.is_active ?? true,
+      is_service: Boolean(p.is_service ?? !(p.ingredients?.length)),
+      tax_percent: p.tax_percent ?? "0",
+      tax_type: String(p.tax_type ?? 0),
+      image_url: p.image_url ?? null,
+      ingredients:
+        p.ingredients?.map((i) => ({
+          stock_item_id: i.stock_item_id,
+          quantity: String(i.quantity),
+          name: i.stock_item_name ?? undefined,
+          base_unit: i.unit ?? undefined,
+        })) ?? [],
+    };
+  }
+
+  async function open(p?: Product, categoryId?: number | null) {
     setPhotoFile(null);
     setPhotoPreview(null);
     setDropPhoto(false);
     setCatName("");
     setAddingCat(!p && (categories.data?.length ?? 0) === 0);
+    if (p?.id) {
+      setOpeningId(p.id);
+      try {
+        const full = await api.product(shopId, p.id);
+        setEditing(draftFromProduct(full, categoryId));
+      } finally {
+        setOpeningId(null);
+      }
+      return;
+    }
     setEditing({
-      id: p?.id,
-      name: p?.name ?? "",
-      name_kk: p?.name_kk ?? "",
-      name_en: p?.name_en ?? "",
-      sale_price: p?.sale_price ?? "",
-      category_id: p?.category_id ?? categoryId ?? null,
-      is_active: p?.is_active ?? true,
-      is_service: p ? Boolean(p.is_service ?? !(p.ingredients?.length)) : false,
-      tax_percent: p?.tax_percent ?? "0",
-      tax_type: String(p?.tax_type ?? 0),
-      image_url: p?.image_url ?? null,
-      ingredients:
-        p?.ingredients.map((i) => ({ stock_item_id: i.stock_item_id, quantity: String(i.quantity) })) ?? [],
+      name: "",
+      name_kk: "",
+      name_en: "",
+      sku: "",
+      sale_price: "",
+      category_id: categoryId ?? null,
+      is_active: true,
+      is_service: false,
+      tax_percent: "0",
+      tax_type: "0",
+      image_url: null,
+      ingredients: [],
     });
   }
 
-  const list = products.data ?? [];
+  function pickIngredient(item: StockItem) {
+    if (!editing) return;
+    if (editing.ingredients.some((r) => r.stock_item_id === item.id)) return;
+    setEditing({
+      ...editing,
+      ingredients: [
+        ...editing.ingredients,
+        {
+          stock_item_id: item.id,
+          quantity: "",
+          name: item.name,
+          base_unit: item.base_unit,
+          cost_per_base_unit: item.cost_per_base_unit,
+        },
+      ],
+    });
+  }
+
+  const list = useMemo(
+    () => products.data?.pages.flatMap((p) => p.items) ?? [],
+    [products.data],
+  );
+  const totalProducts = products.data?.pages[0]?.total ?? list.length;
   const cats = categories.data ?? [];
   const groups = (filterCat === "all" ? cats : cats.filter((c) => c.id === filterCat)).map((c) => ({
     id: c.id as number | null,
@@ -252,7 +335,14 @@ export function ProductsPage() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1 rounded-md border border-line-2 p-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("pos.searchProducts")}
+            className="max-w-xs"
+          />
+          <div className="flex gap-1 rounded-md border border-line-2 p-0.5">
           <button
             type="button"
             onClick={() => setView("list")}
@@ -271,6 +361,7 @@ export function ProductsPage() {
           >
             {t("products.viewTiles")}
           </button>
+          </div>
         </div>
       </div>
       {groups.map((group) => (
@@ -340,7 +431,7 @@ export function ProductsPage() {
                         className={`cursor-pointer border-b border-line last:border-0 hover:bg-paper/60 ${
                           p.is_active ? "" : "opacity-55"
                         }`}
-                        onClick={() => open(p)}
+                        onClick={() => void open(p)}
                       >
                         <td className="px-5 py-2.5">
                           <div className="flex items-center gap-3">
@@ -351,7 +442,10 @@ export function ProductsPage() {
                                 —
                               </div>
                             )}
-                            <span className="font-medium">{localizedName(p, locale)}</span>
+                            <span className="font-medium">
+                              {localizedName(p, locale)}
+                              {openingId === p.id ? ` · ${t("common.loading")}` : ""}
+                            </span>
                           </div>
                         </td>
                         <td className="pr-4 font-mono font-semibold">{money(p.sale_price)}</td>
@@ -372,7 +466,7 @@ export function ProductsPage() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => open(p)}
+                    onClick={() => void open(p)}
                     className={`overflow-hidden rounded-lg bg-cream text-left shadow-soft transition hover:-translate-y-0.5 ${
                       p.is_active ? "" : "opacity-55"
                     }`}
@@ -393,7 +487,19 @@ export function ProductsPage() {
           )}
         </section>
       ))}
-      {(products.data ?? []).length === 0 && (categories.data ?? []).length === 0 && (
+      {products.hasNextPage && (
+        <div className="mb-6 flex justify-center">
+          <Button
+            variant="quiet"
+            disabled={products.isFetchingNextPage}
+            onClick={() => void products.fetchNextPage()}
+          >
+            {products.isFetchingNextPage ? t("common.loading") : t("common.loadMore")}
+            {totalProducts > list.length ? ` · ${list.length}/${totalProducts}` : ""}
+          </Button>
+        </div>
+      )}
+      {list.length === 0 && (categories.data ?? []).length === 0 && (
         <Empty>{t("products.menuEmpty")}</Empty>
       )}
 
@@ -473,6 +579,13 @@ export function ProductsPage() {
                       onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
                       inputMode="decimal"
                       placeholder="1200"
+                    />
+                  </Field>
+                  <Field label={t("products.sku")} hint={t("products.skuHint")}>
+                    <Input
+                      value={editing.sku}
+                      onChange={(e) => setEditing({ ...editing, sku: e.target.value })}
+                      placeholder={t("products.skuPh")}
                     />
                   </Field>
                 </div>
@@ -564,27 +677,16 @@ export function ProductsPage() {
                 <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.recipe")}</summary>
                 <p className="mt-2 text-[12.5px] text-mute">{t("products.recipeHint")}</p>
                 <div className="mt-3 space-y-2">
-                  {editing.ingredients.map((row, idx) => {
-                    const item = stock.data?.find((s) => s.id === row.stock_item_id);
-                    return (
+                  {editing.ingredients.map((row, idx) => (
                       <div key={idx} className="grid grid-cols-[1fr_6.5rem_auto] gap-2">
-                        <Select
-                          value={row.stock_item_id}
-                          onChange={(e) => {
-                            const next = [...editing.ingredients];
-                            next[idx] = { ...row, stock_item_id: Number(e.target.value) };
-                            setEditing({ ...editing, ingredients: next });
-                          }}
-                        >
-                          <option value="">{t("products.itemPh")}</option>
-                          {stock.data?.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} · {s.base_unit}
-                            </option>
-                          ))}
-                        </Select>
+                        <div className="rounded-md border border-line bg-paper px-3 py-2 text-sm">
+                          {row.name ?? (row.stock_item_id ? `#${row.stock_item_id}` : t("products.itemPh"))}
+                          {row.base_unit ? (
+                            <span className="ml-1 text-mute">· {row.base_unit}</span>
+                          ) : null}
+                        </div>
                         <Input
-                          placeholder={item ? item.base_unit : t("products.qtyPh")}
+                          placeholder={row.base_unit ?? t("products.qtyPh")}
                           value={row.quantity}
                           onChange={(e) => {
                             const next = [...editing.ingredients];
@@ -605,29 +707,25 @@ export function ProductsPage() {
                           {t("common.remove")}
                         </Button>
                       </div>
-                    );
-                  })}
+                    ))}
                 </div>
-                <Button
-                  type="button"
-                  variant="quiet"
-                  className="mt-3"
-                  onClick={() =>
-                    setEditing({
-                      ...editing,
-                      ingredients: [...editing.ingredients, { stock_item_id: "", quantity: "" }],
-                    })
-                  }
-                >
-                  {t("products.addItem")}
-                </Button>
+                <div className="mt-3">
+                  <p className="mb-1 text-[12.5px] text-mute">{t("products.addItem")}</p>
+                  <StockSearchPicker
+                    shopId={shopId}
+                    excludeIds={editing.ingredients
+                      .map((r) => r.stock_item_id)
+                      .filter((id): id is number => typeof id === "number")}
+                    onPick={pickIngredient}
+                    placeholder={t("stock.searchPh")}
+                  />
+                </div>
                 <p className="mt-3 font-mono text-sm">
                   {t("products.recipeCost", {
                     n: money(
                       editing.ingredients.reduce((sum, row) => {
-                        const item = stock.data?.find((s) => s.id === row.stock_item_id);
-                        if (!item || !row.quantity) return sum;
-                        return sum + Number(row.quantity) * Number(item.cost_per_base_unit);
+                        if (!row.quantity || !row.cost_per_base_unit) return sum;
+                        return sum + Number(row.quantity) * Number(row.cost_per_base_unit);
                       }, 0),
                     ),
                   })}

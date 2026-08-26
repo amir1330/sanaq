@@ -1,3 +1,16 @@
+export type Page<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type StockStats = {
+  total_count: number;
+  low_count: number;
+  shelf_value: string;
+};
+
 export type Role = "super_admin" | "owner" | "barista";
 
 export type User = {
@@ -71,6 +84,7 @@ export type Ingredient = {
   stock_item_id: number;
   quantity: string;
   stock_item_name?: string | null;
+  stock_item_sku?: string | null;
   unit?: string | null;
 };
 
@@ -81,6 +95,7 @@ export type Product = {
   name: string;
   name_kk?: string | null;
   name_en?: string | null;
+  sku?: string | null;
   sale_price: string;
   is_active: boolean;
   is_service?: boolean;
@@ -164,6 +179,7 @@ export type StockItem = {
   id: number;
   shop_id: number;
   name: string;
+  sku?: string | null;
   base_unit: string;
   purchase_unit: string;
   purchase_to_base: string;

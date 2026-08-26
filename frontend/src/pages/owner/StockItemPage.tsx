@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
+import { StockSearchPicker } from "../../components/StockSearchPicker";
 import { Button, Check, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { WRITEOFF_REASONS, deltaBase, formatDelta, kindTitle, writeoffReasonLabel } from "../../lib/stock";
 import { PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
+import type { StockItem } from "../../types";
 
 export function StockItemPage() {
   const t = useT();
@@ -30,6 +32,7 @@ export function StockItemPage() {
   const [makeCategoryId, setMakeCategoryId] = useState<number | "">("");
   const [edit, setEdit] = useState({
     name: "",
+    sku: "",
     purchase_unit: "",
     purchase_to_base: "",
     min_quantity: "",
@@ -45,7 +48,6 @@ export function StockItemPage() {
     queryFn: () => api.stockItem(shopId, id),
     enabled: Number.isFinite(id),
   });
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const journal = useQuery({
@@ -54,19 +56,32 @@ export function StockItemPage() {
     enabled: Number.isFinite(id),
   });
   const item = itemQ.data;
-  const others = (stock.data ?? []).filter((s) => s.id !== id);
   const branches = (shops.data ?? []).filter((s) => s.id !== shopId);
   const destShopId = Number(transfer.shopId) || null;
-  const destStock = useQuery({
-    queryKey: ["stock", destShopId],
-    queryFn: () => api.stock(destShopId!),
-    enabled: destShopId != null,
-  });
+  const [regradeToItem, setRegradeToItem] = useState<StockItem | null>(null);
+  const [destItemPick, setDestItemPick] = useState<StockItem | null>(null);
+
+  useEffect(() => {
+    if (panel !== "regrade") setRegradeToItem(null);
+    if (panel !== "transfer") setDestItemPick(null);
+  }, [panel]);
+
+  useEffect(() => {
+    if (!item || !destShopId || transfer.itemId || panel !== "transfer") return;
+    void api.stock(destShopId, { q: item.name, limit: 5 }).then((page) => {
+      const match = page.items.find((s) => s.name === item.name);
+      if (match) {
+        setDestItemPick(match);
+        setTransfer((prev) => ({ ...prev, itemId: String(match.id) }));
+      }
+    });
+  }, [item, destShopId, transfer.itemId, panel]);
 
   useEffect(() => {
     if (!item || panel !== "edit") return;
     setEdit({
       name: item.name,
+      sku: item.sku ?? "",
       purchase_unit: item.purchase_unit,
       purchase_to_base: String(Number(item.purchase_to_base)),
       min_quantity: String(Number(item.min_quantity)),
@@ -78,14 +93,11 @@ export function StockItemPage() {
     setDropPhoto(false);
   }, [item, panel]);
 
-  useEffect(() => {
-    if (!item || !destStock.data?.length || transfer.itemId) return;
-    const match = destStock.data.find((s) => s.name === item.name);
-    if (match) setTransfer((prev) => ({ ...prev, itemId: String(match.id) }));
-  }, [item, destStock.data, transfer.itemId]);
-
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-stats", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-low", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-pick"] });
     void qc.invalidateQueries({ queryKey: ["stock-item", shopId, id] });
     void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
   }
@@ -137,6 +149,7 @@ export function StockItemPage() {
     mutationFn: async () => {
       await api.patchStock(shopId, id, {
         name: edit.name,
+        sku: edit.sku.trim() || null,
         purchase_unit: edit.purchase_unit,
         purchase_to_base: edit.purchase_to_base,
         min_quantity: edit.min_quantity,
@@ -173,8 +186,8 @@ export function StockItemPage() {
     },
   });
 
-  const destItem = destStock.data?.find((s) => String(s.id) === transfer.itemId);
-  const regradeTo = others.find((s) => String(s.id) === regrade.toId);
+  const destItem = destItemPick;
+  const regradeTo = regradeToItem;
   const needRegradeTo = Boolean(item && regradeTo && item.base_unit !== regradeTo.base_unit);
   const needTransferTo = Boolean(item && destItem && item.base_unit !== destItem.base_unit);
 
@@ -235,7 +248,7 @@ export function StockItemPage() {
               items={[
                 { label: t("stock.receive"), onClick: () => setPanel("receive") },
                 { label: t("stock.writeoff"), onClick: () => setPanel("writeoff") },
-                { label: t("stock.regrade"), onClick: () => setPanel("regrade"), disabled: others.length === 0 },
+                { label: t("stock.regrade"), onClick: () => setPanel("regrade") },
                 ...(branches.length > 0
                   ? [{ label: t("stock.transfer"), onClick: () => setPanel("transfer") }]
                   : []),
@@ -380,14 +393,33 @@ export function StockItemPage() {
         <Modal title={t("stock.regradeTitle")} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.regradeHint")}</p>
           <Field label={t("stock.to")}>
-            <Select value={regrade.toId} onChange={(e) => setRegrade({ ...regrade, toId: e.target.value })}>
-              <option value="">{t("stock.itemPh")}</option>
-              {others.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} · {s.base_unit}
-                </option>
-              ))}
-            </Select>
+            {regradeToItem ? (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-cream px-3 py-2 text-sm">
+                <span>
+                  {regradeToItem.name} · {regradeToItem.base_unit}
+                </span>
+                <button
+                  type="button"
+                  className="text-[12.5px] text-mute hover:text-maroon"
+                  onClick={() => {
+                    setRegradeToItem(null);
+                    setRegrade({ ...regrade, toId: "" });
+                  }}
+                >
+                  {t("common.remove")}
+                </button>
+              </div>
+            ) : (
+              <StockSearchPicker
+                shopId={shopId}
+                excludeIds={[id]}
+                onPick={(s) => {
+                  setRegradeToItem(s);
+                  setRegrade({ ...regrade, toId: String(s.id) });
+                }}
+                placeholder={t("stock.searchPh")}
+              />
+            )}
           </Field>
           <Field label={t("stock.leaves", { unit: item.base_unit })}>
             <Input
@@ -433,7 +465,16 @@ export function StockItemPage() {
           <Field label={t("stock.to")}>
             <Select
               value={transfer.shopId}
-              onChange={(e) => setTransfer({ shopId: e.target.value, itemId: "", qty: transfer.qty, qtyTo: "", comment: transfer.comment })}
+              onChange={(e) => {
+                setDestItemPick(null);
+                setTransfer({
+                  shopId: e.target.value,
+                  itemId: "",
+                  qty: transfer.qty,
+                  qtyTo: "",
+                  comment: transfer.comment,
+                });
+              }}
             >
               <option value="">{t("stock.shopPh")}</option>
               {branches.map((s) => (
@@ -444,22 +485,35 @@ export function StockItemPage() {
             </Select>
           </Field>
           <Field label={t("stock.destItem")}>
-            <Select
-              value={transfer.itemId}
-              onChange={(e) => setTransfer({ ...transfer, itemId: e.target.value })}
-              disabled={!destShopId}
-            >
-              <option value="">{destStock.isFetching ? t("common.loading") : t("stock.itemPh")}</option>
-              {(destStock.data ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} · {s.base_unit}
-                </option>
-              ))}
-            </Select>
+            {!destShopId ? (
+              <p className="text-sm text-mute">{t("stock.itemPh")}</p>
+            ) : destItemPick ? (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-cream px-3 py-2 text-sm">
+                <span>
+                  {destItemPick.name} · {destItemPick.base_unit}
+                </span>
+                <button
+                  type="button"
+                  className="text-[12.5px] text-mute hover:text-maroon"
+                  onClick={() => {
+                    setDestItemPick(null);
+                    setTransfer({ ...transfer, itemId: "" });
+                  }}
+                >
+                  {t("common.remove")}
+                </button>
+              </div>
+            ) : (
+              <StockSearchPicker
+                shopId={destShopId}
+                onPick={(s) => {
+                  setDestItemPick(s);
+                  setTransfer({ ...transfer, itemId: String(s.id) });
+                }}
+                placeholder={t("stock.searchPh")}
+              />
+            )}
           </Field>
-          {destShopId && destStock.data && destStock.data.length === 0 && (
-            <p className="text-sm text-alert">{t("stock.destEmpty")}</p>
-          )}
           <Field label={t("stock.leaves", { unit: item.base_unit })}>
             <Input
               value={transfer.qty}
@@ -510,6 +564,13 @@ export function StockItemPage() {
           />
           <Field label={t("stock.name")}>
             <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+          </Field>
+          <Field label={t("stock.sku")} hint={t("stock.skuHint")}>
+            <Input
+              value={edit.sku}
+              onChange={(e) => setEdit({ ...edit, sku: e.target.value })}
+              placeholder={t("stock.skuPh")}
+            />
           </Field>
           <Field label={t("stock.purchaseUnit")}>
             <Select

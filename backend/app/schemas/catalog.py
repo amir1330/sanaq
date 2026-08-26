@@ -35,6 +35,7 @@ class IngredientOut(ORMModel):
     stock_item_id: int
     quantity: Decimal
     stock_item_name: str | None = None
+    stock_item_sku: str | None = None
     unit: str | None = None
 
 
@@ -42,6 +43,7 @@ class ProductCreate(BaseModel):
     name: str
     name_kk: str | None = None
     name_en: str | None = None
+    sku: str | None = None
     sale_price: Decimal = Field(gt=0)
     category_id: int | None = None
     is_active: bool = True
@@ -66,6 +68,7 @@ class ProductUpdate(BaseModel):
     name: str | None = None
     name_kk: str | None = None
     name_en: str | None = None
+    sku: str | None = None
     sale_price: Decimal | None = Field(default=None, gt=0)
     category_id: int | None = None
     is_active: bool | None = None
@@ -82,6 +85,7 @@ class ProductOut(ORMModel):
     name: str
     name_kk: str | None = None
     name_en: str | None = None
+    sku: str | None = None
     sale_price: Decimal
     is_active: bool
     is_service: bool = False
@@ -95,3 +99,10 @@ class ProductOut(ORMModel):
     tax_percent: Decimal = Decimal("0")
     tax_type: int = 0
     ingredients: list[IngredientOut] = Field(default_factory=list)
+
+
+class ProductPage(BaseModel):
+    items: list[ProductOut]
+    total: int
+    limit: int
+    offset: int

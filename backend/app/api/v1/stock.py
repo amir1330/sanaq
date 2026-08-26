@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,18 +19,20 @@ from app.models import (
     User,
     UserRole,
 )
-from app.schemas.catalog import IngredientOut, ProductOut
+from app.schemas.catalog import ProductOut
 from app.schemas.stock import (
     MakeProductIn,
     StockImportConfirmIn,
     StockImportPreviewOut,
     StockItemCreate,
     StockItemOut,
+    StockItemPage,
     StockItemUpdate,
     StockJournalEntry,
     StockMovementCreate,
     StockMovementOut,
     StockRegradeIn,
+    StockStatsOut,
     StockTransferIn,
 )
 from app.services.access import assert_shop_access, can_receive_stock
@@ -53,6 +55,29 @@ router = APIRouter(tags=["stock"])
 manage = roles(UserRole.super_admin, UserRole.owner)
 
 
+def _norm_sku(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    value = raw.strip()
+    return value or None
+
+
+async def _assert_stock_sku_free(
+    session: AsyncSession,
+    shop_id: int,
+    sku: str | None,
+    *,
+    exclude_id: int | None = None,
+) -> None:
+    if not sku:
+        return
+    q = select(StockItem.id).where(StockItem.shop_id == shop_id, StockItem.sku == sku)
+    if exclude_id is not None:
+        q = q.where(StockItem.id != exclude_id)
+    if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул уже занят: {sku}")
+
+
 def _item_out(
     item: StockItem,
     *,
@@ -65,6 +90,7 @@ def _item_out(
         id=item.id,
         shop_id=item.shop_id,
         name=item.name,
+        sku=getattr(item, "sku", None),
         base_unit=item.base_unit,
         purchase_unit=item.purchase_unit,
         purchase_to_base=item.purchase_to_base,
@@ -81,7 +107,12 @@ def _item_out(
     )
 
 
-async def _last_income_map(session: AsyncSession, shop_id: int, item_id: int | None = None) -> dict[int, datetime]:
+async def _last_income_map(
+    session: AsyncSession,
+    shop_id: int,
+    item_id: int | None = None,
+    item_ids: list[int] | None = None,
+) -> dict[int, datetime]:
     q = (
         select(StockMovement.stock_item_id, func.max(StockMovement.created_at))
         .where(
@@ -93,24 +124,85 @@ async def _last_income_map(session: AsyncSession, shop_id: int, item_id: int | N
     )
     if item_id is not None:
         q = q.where(StockMovement.stock_item_id == item_id)
+    elif item_ids is not None:
+        if not item_ids:
+            return {}
+        q = q.where(StockMovement.stock_item_id.in_(item_ids))
     rows = (await session.execute(q)).all()
     return {item: at for item, at in rows if item is not None}
 
 
-@router.get("/shops/{shop_id}/stock-items", response_model=list[StockItemOut])
-async def list_stock(
+@router.get("/shops/{shop_id}/stock-items/stats", response_model=StockStatsOut)
+async def stock_stats(
     shop_id: int,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id)
-    result = await session.execute(
-        select(StockItem).where(StockItem.shop_id == shop_id).order_by(StockItem.name)
-    )
     hide = user.role == UserRole.barista
-    last = await _last_income_map(session, shop_id)
-    return [_item_out(i, hide_cost=hide, last_income_at=last.get(i.id)) for i in result.scalars().all()]
+    total = (
+        await session.execute(select(func.count()).select_from(StockItem).where(StockItem.shop_id == shop_id))
+    ).scalar_one()
+    low = (
+        await session.execute(
+            select(func.count())
+            .select_from(StockItem)
+            .where(
+                StockItem.shop_id == shop_id,
+                StockItem.quantity <= StockItem.min_quantity,
+            )
+        )
+    ).scalar_one()
+    shelf = Decimal("0")
+    if not hide:
+        shelf = (
+            await session.execute(
+                select(func.coalesce(func.sum(StockItem.quantity * StockItem.cost_per_base_unit), 0)).where(
+                    StockItem.shop_id == shop_id
+                )
+            )
+        ).scalar_one()
+        shelf = Decimal(str(shelf)).quantize(Decimal("0.01"))
+    return StockStatsOut(total_count=int(total), low_count=int(low), shelf_value=shelf)
 
+
+@router.get("/shops/{shop_id}/stock-items", response_model=StockItemPage)
+async def list_stock(
+    shop_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    q: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    is_low: bool | None = Query(None),
+):
+    await assert_shop_access(session, user, shop_id)
+    filters = [StockItem.shop_id == shop_id]
+    needle = (q or "").strip()
+    if needle:
+        like = f"%{needle}%"
+        filters.append(or_(StockItem.name.ilike(like), StockItem.sku.ilike(like)))
+    if is_low is True:
+        filters.append(StockItem.quantity <= StockItem.min_quantity)
+    total = (
+        await session.execute(select(func.count()).select_from(StockItem).where(*filters))
+    ).scalar_one()
+    result = await session.execute(
+        select(StockItem)
+        .where(*filters)
+        .order_by(StockItem.name, StockItem.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    items = list(result.scalars().all())
+    hide = user.role == UserRole.barista
+    last = await _last_income_map(session, shop_id, item_ids=[i.id for i in items])
+    return StockItemPage(
+        items=[_item_out(i, hide_cost=hide, last_income_at=last.get(i.id)) for i in items],
+        total=int(total),
+        limit=limit,
+        offset=offset,
+    )
 
 @router.get("/shops/{shop_id}/stock-items/import-template")
 async def stock_import_template(
@@ -153,9 +245,12 @@ async def stock_import_confirm(
     await assert_no_open_revision(session, shop_id)
     created: list[StockItem] = []
     for row in body.rows:
+        sku = _norm_sku(row.sku)
+        await _assert_stock_sku_free(session, shop_id, sku)
         item = StockItem(
             shop_id=shop_id,
             name=row.name.strip(),
+            sku=sku,
             base_unit=row.base_unit.strip(),
             purchase_unit=row.purchase_unit.strip(),
             purchase_to_base=row.purchase_to_base,
@@ -217,7 +312,10 @@ async def create_stock_item(
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id, write=True)
-    item = StockItem(shop_id=shop_id, **body.model_dump())
+    data = body.model_dump()
+    data["sku"] = _norm_sku(data.get("sku"))
+    await _assert_stock_sku_free(session, shop_id, data["sku"])
+    item = StockItem(shop_id=shop_id, **data)
     session.add(item)
     await session.flush()
     write_stock_log(
@@ -245,6 +343,9 @@ async def update_stock_item(
     if item is None or item.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Stock item not found")
     changes = body.model_dump(exclude_unset=True)
+    if "sku" in changes:
+        changes["sku"] = _norm_sku(changes["sku"])
+        await _assert_stock_sku_free(session, shop_id, changes["sku"], exclude_id=item.id)
     detail = item_update_detail(item, changes)
     for key, value in changes.items():
         setattr(item, key, value)
@@ -333,6 +434,7 @@ async def make_product_from_stock(
     product = Product(
         shop_id=shop_id,
         name=item.name,
+        sku=_norm_sku(getattr(item, "sku", None)),
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=True,
@@ -358,31 +460,9 @@ async def make_product_from_stock(
         .where(Product.id == product.id)
     )
     product = result.scalar_one()
-    return ProductOut(
-        id=product.id,
-        shop_id=product.shop_id,
-        category_id=product.category_id,
-        name=product.name,
-        name_kk=product.name_kk,
-        name_en=product.name_en,
-        sale_price=product.sale_price,
-        is_active=product.is_active,
-        is_service=bool(product.is_service),
-        image_url=product.image_url,
-        created_at=product.created_at,
-        category_name=product.category.name if product.category else None,
-        category_name_kk=product.category.name_kk if product.category else None,
-        category_name_en=product.category.name_en if product.category else None,
-        cost_price=item.cost_per_base_unit.quantize(Decimal("0.01")),
-        ingredients=[
-            IngredientOut(
-                stock_item_id=item.id,
-                quantity=Decimal("1"),
-                stock_item_name=item.name,
-                unit=item.base_unit,
-            )
-        ],
-    )
+    from app.api.v1.catalog import _product_out
+
+    return _product_out(product)
 
 
 @router.post(

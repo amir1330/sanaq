@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { ShopBrand } from "../components/ShopBrand";
@@ -9,6 +9,8 @@ import { localizedName } from "../lib/i18nName";
 import { money, publicUrl } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
 import type { Product } from "../types";
+
+const PAGE = 100;
 
 export function VitrinePage() {
   const t = useT();
@@ -31,9 +33,19 @@ export function VitrinePage() {
   }, []);
 
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops, enabled: sid > 0 });
-  const products = useQuery({
-    queryKey: ["products", sid],
-    queryFn: () => api.products(sid),
+  const products = useInfiniteQuery({
+    queryKey: ["products", "vitrine", sid],
+    queryFn: ({ pageParam }) =>
+      api.products(sid, {
+        active_only: true,
+        limit: PAGE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
     enabled: sid > 0,
     refetchInterval: 20_000,
   });
@@ -44,10 +56,20 @@ export function VitrinePage() {
     refetchInterval: 20_000,
   });
 
+  useEffect(() => {
+    if (products.hasNextPage && !products.isFetchingNextPage) {
+      void products.fetchNextPage();
+    }
+  }, [products.hasNextPage, products.isFetchingNextPage, products.data]);
+
   const shop = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
   const otherLabel = t("vitrine.other");
+  const allProducts = useMemo(
+    () => products.data?.pages.flatMap((p) => p.items) ?? [],
+    [products.data],
+  );
   const columns = useMemo(() => {
-    const active = (products.data ?? []).filter((p) => p.is_active);
+    const active = allProducts.filter((p) => p.is_active);
     const cats = categories.data ?? [];
     const blocks = cats
       .map((c) => ({
@@ -59,7 +81,7 @@ export function VitrinePage() {
     const rest = active.filter((p) => !p.category_id || !cats.some((c) => c.id === p.category_id));
     if (rest.length) blocks.push({ id: 0, name: otherLabel, items: rest });
     return blocks;
-  }, [products.data, categories.data, otherLabel, locale]);
+  }, [allProducts, categories.data, otherLabel, locale]);
 
   async function toggleFull() {
     if (document.fullscreenElement) {

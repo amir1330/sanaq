@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useT } from "../i18n";
-import { costPerPurchase, money, publicUrl, qty, stockBalance } from "../lib/utils";
+import { costPerPurchase, money, qty } from "../lib/utils";
 import type { StockItem } from "../types";
+import { StockSearchPicker } from "./StockSearchPicker";
 import { Button, Field, Input } from "./ui";
 
 type Line = { item: StockItem; qty: string; price: string; touched: boolean };
@@ -26,7 +27,6 @@ export function ReceivePanel({
 }) {
   const t = useT();
   const qc = useQueryClient();
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
   const [lines, setLines] = useState<Line[]>(() =>
     initialItem ? [{ item: initialItem, qty: "", price: "", touched: false }] : [],
   );
@@ -44,6 +44,9 @@ export function ReceivePanel({
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-stats", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-low", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-pick", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-item", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
       onClose();
@@ -118,33 +121,13 @@ export function ReceivePanel({
           })}
         </div>
         <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">{t("receive.addLine")}</p>
-        <div className="mt-2 max-h-48 overflow-auto rounded-md bg-cream">
-          {(stock.data ?? [])
-            .filter((item) => !lines.some((l) => l.item.id === item.id))
-            .map((item) => {
-              const src = publicUrl(item.image_url);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-paper"
-                  onClick={() => addItem(item)}
-                >
-                  {src ? (
-                    <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
-                  ) : (
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-paper font-mono text-[9px] uppercase text-mute">
-                      +
-                    </span>
-                  )}
-                  <span>
-                    {item.name}
-                    <span className="ml-2 text-mute">{stockBalance(item)}</span>
-                  </span>
-                </button>
-              );
-            })}
-        </div>
+        <StockSearchPicker
+          className="mt-2"
+          shopId={shopId}
+          excludeIds={lines.map((l) => l.item.id)}
+          onPick={addItem}
+          placeholder={t("stock.searchPh")}
+        />
         {lines.length > 0 && (
           <p className="mt-4 font-mono text-[15px] font-semibold">
             {t("common.total")} {money(total)}

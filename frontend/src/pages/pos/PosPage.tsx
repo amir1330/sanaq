@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
@@ -9,6 +9,7 @@ import { money, payAction, payLabel } from "../../lib/utils";
 import { storageGet, storageSet } from "../../lib/storage";
 import { cartTotals, lineGross, lineTotal, type Discount } from "../../lib/discount";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
+import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import { SCALE_ZOOM, useUiScale, type UiScale } from "../../store/uiScale";
@@ -20,6 +21,7 @@ type DiscountDraft = { type: Discount["type"]; value: string };
 
 const SCALES: UiScale[] = ["sm", "md", "lg", "xl"];
 const CASH_NOTES = [10_000, 5_000, 1_000] as const;
+const PRODUCT_PAGE = 60;
 
 function DiscountEditor({
   draft,
@@ -100,6 +102,7 @@ export function PosPage() {
   const [mobileTab, setMobileTab] = useState<MobileTab>("products");
   const [financeOpen, setFinanceOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(productSearch, 250);
   const [receiptDiscount, setReceiptDiscount] = useState<Discount | null>(null);
   const [lineDiscountEdit, setLineDiscountEdit] = useState<number | null>(null);
   const [lineDiscountDraft, setLineDiscountDraft] = useState<DiscountDraft>({ type: "percent", value: "" });
@@ -126,9 +129,21 @@ export function PosPage() {
     queryFn: () => api.cashRegisters(sid),
     enabled: Boolean(user) && sid > 0,
   });
-  const products = useQuery({
-    queryKey: ["products", sid],
-    queryFn: () => api.products(sid),
+  const products = useInfiniteQuery({
+    queryKey: ["products", sid, categoryId, debouncedSearch],
+    queryFn: ({ pageParam }) =>
+      api.products(sid, {
+        active_only: true,
+        category_id: categoryId === "all" ? undefined : categoryId,
+        q: debouncedSearch.trim() || undefined,
+        limit: PRODUCT_PAGE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
     enabled: Boolean(user) && sid > 0,
   });
   const categories = useQuery({
@@ -197,13 +212,10 @@ export function PosPage() {
     pickSeller({ id: member.id, name: member.full_name });
   }
 
-  const visible = useMemo(() => {
-    const list = (products.data ?? []).filter((p) => p.is_active);
-    const byCategory = categoryId === "all" ? list : list.filter((p) => p.category_id === categoryId);
-    const q = productSearch.trim().toLocaleLowerCase();
-    if (!q) return byCategory;
-    return byCategory.filter((p) => localizedName(p, locale).toLocaleLowerCase().includes(q));
-  }, [products.data, categoryId, productSearch, locale]);
+  const visible = useMemo(
+    () => products.data?.pages.flatMap((p) => p.items) ?? [],
+    [products.data],
+  );
 
   const totals = cartTotals(
     cart.map((l) => ({ price: l.product.sale_price, quantity: l.quantity, discount: l.discount })),
@@ -722,10 +734,24 @@ export function PosPage() {
                 )}
               </p>
               <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
+              {p.sku ? (
+                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.sku}</p>
+              ) : null}
               <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
             </button>
           ))}
         </div>
+        {products.hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="quiet"
+              disabled={products.isFetchingNextPage}
+              onClick={() => void products.fetchNextPage()}
+            >
+              {products.isFetchingNextPage ? t("common.loading") : t("common.loadMore")}
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

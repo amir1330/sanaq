@@ -11,6 +11,7 @@ export type Messages = {
     add: string;
     delete: string;
     loading: string;
+    loadMore: string;
     error: string;
     yes: string;
     no: string;
@@ -159,6 +160,8 @@ export type Messages = {
     kicker: string;
     title: string;
     hint: string;
+    mapTitle: string;
+    mapHint: string;
     shopName: string;
     address: string;
     addressPh: string;
@@ -183,6 +186,7 @@ export type Messages = {
     network: string;
     branches: string;
     branchesHint: string;
+    branchCol: string;
     branchNew: string;
     branchName: string;
     branchNamePh: string;
@@ -344,6 +348,9 @@ export type Messages = {
     editTitle: string;
     newTitle: string;
     price: string;
+    sku: string;
+    skuPh: string;
+    skuHint: string;
     category: string;
     catPh: string;
     newCategory: string;
@@ -512,6 +519,9 @@ export type Messages = {
     buy: string;
     name: string;
     namePh: string;
+    sku: string;
+    skuPh: string;
+    skuHint: string;
     baseUnit: string;
     purchaseUnit: string;
     oneEquals: string;

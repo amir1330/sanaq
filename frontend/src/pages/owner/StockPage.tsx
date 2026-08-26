@@ -1,16 +1,19 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
+import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
 type ImportPreviewRow = Awaited<ReturnType<typeof api.previewStockImport>>["rows"][number];
+
+const PAGE_SIZE = 50;
 
 function CostHint({
   purchasePrice,
@@ -46,6 +49,7 @@ function CostHint({
 
 const emptyCreate = {
   name: "",
+  sku: "",
   base_unit: "мл",
   purchase_unit: "пачка",
   purchase_to_base: "1000",
@@ -64,13 +68,6 @@ export function StockPage() {
   const [create, setCreate] = useState(emptyCreate);
   const [createPhoto, setCreatePhoto] = useState<File | null>(null);
   const [createPreview, setCreatePreview] = useState<string | null>(null);
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
-  const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
-  const revisions = useQuery({
-    queryKey: ["stock-revisions", shopId],
-    queryFn: () => api.stockRevisions(shopId),
-  });
-  const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
   const [receive, setReceive] = useState<StockItem | null | "open">(null);
   const [q, setQ] = useState("");
   const [makeFor, setMakeFor] = useState<StockItem | null>(null);
@@ -81,11 +78,48 @@ export function StockPage() {
   const [importOk, setImportOk] = useState(0);
   const [importErr, setImportErr] = useState(0);
   const importInput = useRef<HTMLInputElement>(null);
+  const debouncedQ = useDebouncedValue(q, 250);
+
+  const stock = useInfiniteQuery({
+    queryKey: ["stock", shopId, debouncedQ],
+    queryFn: ({ pageParam }) =>
+      api.stock(shopId, {
+        q: debouncedQ.trim() || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+  const stats = useQuery({
+    queryKey: ["stock-stats", shopId],
+    queryFn: () => api.stockStats(shopId),
+  });
+  const lowStock = useQuery({
+    queryKey: ["stock-low", shopId],
+    queryFn: () => api.stock(shopId, { is_low: true, limit: 40 }),
+  });
+  const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
+  const revisions = useQuery({
+    queryKey: ["stock-revisions", shopId],
+    queryFn: () => api.stockRevisions(shopId),
+  });
+  const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
+
+  function refreshStock() {
+    void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-stats", shopId] });
+    void qc.invalidateQueries({ queryKey: ["stock-low", shopId] });
+  }
 
   const add = useMutation({
     mutationFn: async () => {
       const item = await api.createStock(shopId, {
         name: create.name,
+        sku: create.sku.trim() || null,
         base_unit: create.base_unit,
         purchase_unit: create.purchase_unit,
         purchase_to_base: create.purchase_to_base,
@@ -100,7 +134,7 @@ export function StockPage() {
       setCreatePhoto(null);
       setCreatePreview(null);
       setCreating(false);
-      void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      refreshStock();
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
@@ -133,7 +167,7 @@ export function StockPage() {
     onSuccess: () => {
       setImportOpen(false);
       setImportRows(null);
-      void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      refreshStock();
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
   });
@@ -158,12 +192,14 @@ export function StockPage() {
     setCreating(true);
   }
 
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (stock.data ?? []).filter((i) => !needle || i.name.toLowerCase().includes(needle));
-  }, [stock.data, q]);
-  const shelfTotal = rows.reduce((s, i) => s + shelfValue(i), 0);
-  const lowCount = rows.filter((i) => i.is_low).length;
+  const rows = useMemo(
+    () => stock.data?.pages.flatMap((p) => p.items) ?? [],
+    [stock.data],
+  );
+  const totalCount = stock.data?.pages[0]?.total ?? stats.data?.total_count ?? 0;
+  const shelfTotal = Number(stats.data?.shelf_value ?? 0);
+  const lowCount = stats.data?.low_count ?? 0;
+  const lowItems = lowStock.data?.items ?? [];
 
   return (
     <div>
@@ -200,22 +236,23 @@ export function StockPage() {
           <p className="mt-1 text-sm text-mute">{t("stock.revisionPauseHint")}</p>
         </Card>
       )}
-      {(stock.data ?? []).some((i) => i.is_low) && (
+      {lowCount > 0 && (
         <Card className="mb-4 border border-alert/40 bg-alert/10">
           <p className="font-semibold text-alert">{t("stock.buy")}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {stock.data
-              ?.filter((i) => i.is_low)
-              .map((i) => (
-                <button
-                  key={i.id}
-                  type="button"
-                  className="underline decoration-maroon/40 underline-offset-4 hover:text-maroon"
-                  onClick={() => navigate(`/owner/stock/item/${i.id}`)}
-                >
-                  {i.name} · {stockBalance(i)}
-                </button>
-              ))}
+            {lowItems.map((i) => (
+              <button
+                key={i.id}
+                type="button"
+                className="underline decoration-maroon/40 underline-offset-4 hover:text-maroon"
+                onClick={() => navigate(`/owner/stock/item/${i.id}`)}
+              >
+                {i.name} · {stockBalance(i)}
+              </button>
+            ))}
+            {lowCount > lowItems.length && (
+              <span className="text-mute">+{lowCount - lowItems.length}</span>
+            )}
           </div>
         </Card>
       )}
@@ -240,6 +277,13 @@ export function StockPage() {
             placeholder={t("stock.namePh")}
             value={create.name}
             onChange={(e) => setCreate({ ...create, name: e.target.value })}
+          />
+        </Field>
+        <Field label={t("stock.sku")} hint={t("stock.skuHint")}>
+          <Input
+            placeholder={t("stock.skuPh")}
+            value={create.sku}
+            onChange={(e) => setCreate({ ...create, sku: e.target.value })}
           />
         </Field>
         <Field label={t("stock.baseUnit")}>
@@ -319,7 +363,10 @@ export function StockPage() {
           className="max-w-xs"
         />
         <p className="font-mono text-[12.5px] text-mute">
-          {rows.length === 1 ? t("stock.nItems", { n: rows.length }) : t("stock.nItemsMany", { n: rows.length })}
+          {totalCount === 1
+            ? t("stock.nItems", { n: totalCount })
+            : t("stock.nItemsMany", { n: totalCount })}
+          {rows.length < totalCount ? ` · ${rows.length}` : ""}
           {lowCount ? ` · ${t("stock.runningLow", { n: lowCount })}` : ""}
           {" · "}
           {t("stock.shelfSum", { n: money(shelfTotal) })}
@@ -356,7 +403,12 @@ export function StockPage() {
                         {t("common.photo")}
                       </div>
                     )}
-                    <span className="font-medium">{i.name}</span>
+                    <div>
+                      <span className="font-medium">{i.name}</span>
+                      {i.sku ? (
+                        <span className="mt-0.5 block font-mono text-[11px] text-mute">{i.sku}</span>
+                      ) : null}
+                    </div>
                   </div>
                 </td>
                 <td className="font-mono">{stockBalance(i)}</td>
@@ -394,12 +446,23 @@ export function StockPage() {
             })}
           </tbody>
         </table>
-        {rows.length === 0 && (
+        {rows.length === 0 && !stock.isLoading && (
           <p className="px-5 py-8 text-center text-sm text-mute">
             {q.trim() ? t("stock.emptySearch") : t("stock.empty")}
           </p>
         )}
       </div>
+      {stock.hasNextPage && (
+        <div className="mt-3 flex justify-center">
+          <Button
+            variant="quiet"
+            disabled={stock.isFetchingNextPage}
+            onClick={() => void stock.fetchNextPage()}
+          >
+            {stock.isFetchingNextPage ? t("common.loading") : t("common.loadMore")}
+          </Button>
+        </div>
+      )}
       {receive != null && (
         <ReceivePanel
           shopId={shopId}

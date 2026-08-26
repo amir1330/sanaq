@@ -16,6 +16,7 @@ class StockItem(Base):
         BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    sku: Mapped[str | None] = mapped_column(Text)
     base_unit: Mapped[str] = mapped_column(Text, nullable=False)
     purchase_unit: Mapped[str] = mapped_column(Text, nullable=False)
     purchase_to_base: Mapped[Decimal] = mapped_column(

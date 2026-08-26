@@ -75,3 +75,15 @@ class WebkassaTestOut(BaseModel):
 
 class Money(BaseModel):
     amount: Decimal
+
+
+class PageParams:
+    """Shared pagination clamps."""
+
+    @staticmethod
+    def clamp(limit: int | None, offset: int | None, *, default: int = 50, max_limit: int = 100) -> tuple[int, int]:
+        lim = default if limit is None else int(limit)
+        off = 0 if offset is None else int(offset)
+        lim = max(1, min(lim, max_limit))
+        off = max(0, off)
+        return lim, off

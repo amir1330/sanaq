@@ -21,10 +21,12 @@ from app.services.uploads import delete_upload
 
 _UPDATE_LABELS = {
     "name": "название",
+    "sku": "артикул",
     "purchase_unit": "закупка",
     "purchase_to_base": "сколько в базовой",
     "min_quantity": "минимум",
     "cost_per_base_unit": "себестоимость",
+    "is_ingredient": "ингредиент",
 }
 
 

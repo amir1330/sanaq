@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,7 @@ from app.schemas.catalog import (
     ProductBulkCreate,
     ProductCreate,
     ProductOut,
+    ProductPage,
     ProductUpdate,
 )
 from app.services.access import assert_shop_access
@@ -26,20 +27,47 @@ router = APIRouter(tags=["catalog"])
 manage = roles(UserRole.super_admin, UserRole.owner)
 
 
-def _product_out(product: Product) -> ProductOut:
-    cost = Decimal("0")
+def _norm_sku(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    value = raw.strip()
+    return value or None
+
+
+async def _assert_product_sku_free(
+    session: AsyncSession,
+    shop_id: int,
+    sku: str | None,
+    *,
+    exclude_id: int | None = None,
+) -> None:
+    if not sku:
+        return
+    q = select(Product.id).where(Product.shop_id == shop_id, Product.sku == sku)
+    if exclude_id is not None:
+        q = q.where(Product.id != exclude_id)
+    if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул уже занят: {sku}")
+
+
+def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductOut:
+    cost: Decimal | None = None
     ingredients: list[IngredientOut] = []
-    for ing in product.ingredients:
-        item = ing.stock_item
-        cost += ing.quantity * (item.cost_per_base_unit if item else Decimal("0"))
-        ingredients.append(
-            IngredientOut(
-                stock_item_id=ing.stock_item_id,
-                quantity=ing.quantity,
-                stock_item_name=item.name if item else None,
-                unit=item.base_unit if item else None,
+    if with_ingredients:
+        cost = Decimal("0")
+        for ing in product.ingredients:
+            item = ing.stock_item
+            cost += ing.quantity * (item.cost_per_base_unit if item else Decimal("0"))
+            ingredients.append(
+                IngredientOut(
+                    stock_item_id=ing.stock_item_id,
+                    quantity=ing.quantity,
+                    stock_item_name=item.name if item else None,
+                    stock_item_sku=getattr(item, "sku", None) if item else None,
+                    unit=item.base_unit if item else None,
+                )
             )
-        )
+        cost = cost.quantize(Decimal("0.01"))
     return ProductOut(
         id=product.id,
         shop_id=product.shop_id,
@@ -47,6 +75,7 @@ def _product_out(product: Product) -> ProductOut:
         name=product.name,
         name_kk=product.name_kk,
         name_en=product.name_en,
+        sku=getattr(product, "sku", None),
         sale_price=product.sale_price,
         is_active=product.is_active,
         is_service=bool(getattr(product, "is_service", False)),
@@ -55,7 +84,7 @@ def _product_out(product: Product) -> ProductOut:
         category_name=product.category.name if product.category else None,
         category_name_kk=product.category.name_kk if product.category else None,
         category_name_en=product.category.name_en if product.category else None,
-        cost_price=cost.quantize(Decimal("0.01")),
+        cost_price=cost,
         fiscal_position_code=product.fiscal_position_code,
         tax_percent=product.tax_percent,
         tax_type=product.tax_type,
@@ -135,29 +164,88 @@ async def delete_category(
     await session.commit()
 
 
-@router.get("/shops/{shop_id}/products", response_model=list[ProductOut])
+@router.get("/shops/{shop_id}/products", response_model=ProductPage)
 async def list_products(
     shop_id: int,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
+    q: str | None = Query(None),
+    category_id: int | None = Query(None),
     active_only: bool = False,
+    include_ingredients: bool = False,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
     await assert_shop_access(session, user, shop_id)
-    query = (
+    filters = [Product.shop_id == shop_id]
+    if active_only or user.role == UserRole.barista:
+        filters.append(Product.is_active.is_(True))
+    if category_id is not None:
+        filters.append(Product.category_id == category_id)
+    needle = (q or "").strip()
+    if needle:
+        like = f"%{needle}%"
+        sku_match = (
+            select(ProductIngredient.product_id)
+            .join(StockItem, StockItem.id == ProductIngredient.stock_item_id)
+            .where(StockItem.shop_id == shop_id, StockItem.sku.ilike(like))
+        )
+        filters.append(
+            or_(
+                Product.name.ilike(like),
+                Product.name_kk.ilike(like),
+                Product.name_en.ilike(like),
+                Product.sku.ilike(like),
+                Product.id.in_(sku_match),
+            )
+        )
+
+    total = (
+        await session.execute(select(func.count()).select_from(Product).where(*filters))
+    ).scalar_one()
+
+    options = [selectinload(Product.category)]
+    if include_ingredients:
+        options.append(selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item))
+
+    result = await session.execute(
+        select(Product)
+        .options(*options)
+        .where(*filters)
+        .order_by(Product.name, Product.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    products = list(result.scalars().unique().all())
+    return ProductPage(
+        items=[_product_out(p, with_ingredients=include_ingredients) for p in products],
+        total=int(total),
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/shops/{shop_id}/products/{product_id}", response_model=ProductOut)
+async def get_product(
+    shop_id: int,
+    product_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    result = await session.execute(
         select(Product)
         .options(
             selectinload(Product.category),
             selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
+            selectinload(Product.image),
         )
-        .where(Product.shop_id == shop_id)
-        .order_by(Product.name)
+        .where(Product.id == product_id, Product.shop_id == shop_id)
     )
-    if active_only or user.role == UserRole.barista:
-        query = query.where(Product.is_active.is_(True))
-    result = await session.execute(query)
-    products = result.scalars().unique().all()
-    return [_product_out(p) for p in products]
-
+    product = result.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+    return _product_out(product, with_ingredients=True)
 
 @router.post("/shops/{shop_id}/products", response_model=ProductOut, status_code=201)
 async def create_product(
@@ -167,11 +255,14 @@ async def create_product(
     session: AsyncSession = Depends(get_session),
 ):
     await assert_shop_access(session, user, shop_id, write=True)
+    sku = _norm_sku(body.sku)
+    await _assert_product_sku_free(session, shop_id, sku)
     product = Product(
         shop_id=shop_id,
         name=body.name.strip(),
         name_kk=(body.name_kk or "").strip() or None,
         name_en=(body.name_en or "").strip() or None,
+        sku=sku,
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=body.is_active,
@@ -245,7 +336,12 @@ async def update_product(
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
-    for key, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    if "sku" in changes:
+        sku = _norm_sku(changes["sku"])
+        await _assert_product_sku_free(session, shop_id, sku, exclude_id=product.id)
+        changes["sku"] = sku
+    for key, value in changes.items():
         if key in ("name_kk", "name_en"):
             value = (value or "").strip() or None
         elif key == "name" and isinstance(value, str):

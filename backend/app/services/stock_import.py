@@ -20,7 +20,7 @@ REQUIRED_FIELDS = (
     "quantity",
     "cost_per_base_unit",
 )
-OPTIONAL_FIELDS = ("min_quantity", "is_ingredient")
+OPTIONAL_FIELDS = ("min_quantity", "is_ingredient", "sku")
 ALL_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
 
 # Human-readable headers per locale (also accepted when re-uploading).
@@ -34,6 +34,7 @@ LABELS: dict[str, dict[str, str]] = {
         "cost_per_base_unit": "Себестоимость за 1 ед. остатка",
         "min_quantity": "Минимум (ед. остатка)",
         "is_ingredient": "Только ингредиент (да/нет)",
+        "sku": "Артикул",
     },
     "en": {
         "name": "Name",
@@ -44,6 +45,7 @@ LABELS: dict[str, dict[str, str]] = {
         "cost_per_base_unit": "Cost per stock unit",
         "min_quantity": "Min stock (stock units)",
         "is_ingredient": "Ingredient only (yes/no)",
+        "sku": "SKU",
     },
     "kk": {
         "name": "Атауы",
@@ -54,6 +56,7 @@ LABELS: dict[str, dict[str, str]] = {
         "cost_per_base_unit": "1 қалдық бірлігінің өзіндік құны",
         "min_quantity": "Минимум (қалдық)",
         "is_ingredient": "Тек ингредиент (иә/жоқ)",
+        "sku": "Артикул",
     },
 }
 
@@ -72,6 +75,7 @@ GUIDE: dict[str, dict[str, Any]] = {
             "Себестоимость за 1 ед. остатка — цена одной мл/г/шт.",
             "Минимум — порог «мало» в ед. остатка (необязательно).",
             "Только ингредиент — да/нет: не предлагать «сделать товаром» на кассе.",
+            "Артикул — код для поиска на кассе (необязательно, уникален в точке).",
             "Строки 2–3 на листе «Склад» — примеры: удалите или замените своими данными.",
         ],
     },
@@ -89,6 +93,7 @@ GUIDE: dict[str, dict[str, Any]] = {
             "Cost per stock unit — cost of one ml/g/pc.",
             "Min stock — low-stock threshold in stock units (optional).",
             "Ingredient only — yes/no: hide from “sell on till”.",
+            "SKU — code for till search (optional, unique per shop).",
             "Rows 2–3 on the Stock sheet are examples — delete or replace them.",
         ],
     },
@@ -106,6 +111,7 @@ GUIDE: dict[str, dict[str, Any]] = {
             "1 қалдық бірлігінің өзіндік құны — бір мл/г/дана бағасы.",
             "Минимум — «аз» шегі қалдық бірлігінде (міндетті емес).",
             "Тек ингредиент — иә/жоқ: кассаға «тауарға айналдыру» ұсынбау.",
+            "Артикул — кассада іздеу коды (міндетті емес, нүктеде бірегей).",
             "«Қойма» парағындағы 2–3 жол — мысал: жойыңыз немесе өз деректеріңізбен ауыстырыңыз.",
         ],
     },
@@ -170,6 +176,7 @@ def build_stock_import_template(lang: str | None = "ru") -> bytes:
         "cost_per_base_unit": 0.45,
         "min_quantity": 2000,
         "is_ingredient": yes,
+        "sku": "MLK-32",
     }
     example2 = {
         "name": "Вода 0.5л" if locale != "en" else "Water 0.5L",
@@ -180,6 +187,7 @@ def build_stock_import_template(lang: str | None = "ru") -> bytes:
         "cost_per_base_unit": 80,
         "min_quantity": 12,
         "is_ingredient": no,
+        "sku": "WTR-05",
     }
     for col, field in enumerate(ALL_FIELDS, start=1):
         ws.cell(2, col, example[field])
@@ -303,6 +311,7 @@ def parse_stock_import_xlsx(content: bytes) -> StockImportPreviewOut:
                 min_qty = parsed_min
 
         is_ing = _parse_bool(cell("is_ingredient")) if "is_ingredient" in index else False
+        sku_raw = cell("sku").strip() or None
 
         if factor is not None and factor <= 0:
             errors.append(f"{labels['purchase_to_base']}: должно быть > 0")
@@ -323,6 +332,7 @@ def parse_stock_import_xlsx(content: bytes) -> StockImportPreviewOut:
                 cost_per_base_unit=cost,
                 min_quantity=min_qty,
                 is_ingredient=is_ing,
+                sku=sku_raw,
             )
         rows.append(StockImportPreviewRow(row=r_idx, ok=ok, errors=errors, data=data))
 

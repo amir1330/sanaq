@@ -9,6 +9,7 @@ from app.schemas.common import ORMModel
 
 class StockItemCreate(BaseModel):
     name: str
+    sku: str | None = None
     base_unit: str
     purchase_unit: str
     purchase_to_base: Decimal = Field(default=Decimal("1"), gt=0)
@@ -20,6 +21,7 @@ class StockItemCreate(BaseModel):
 
 class StockItemUpdate(BaseModel):
     name: str | None = None
+    sku: str | None = None
     base_unit: str | None = None
     purchase_unit: str | None = None
     purchase_to_base: Decimal | None = Field(default=None, gt=0)
@@ -32,6 +34,7 @@ class StockItemOut(ORMModel):
     id: int
     shop_id: int
     name: str
+    sku: str | None = None
     base_unit: str
     purchase_unit: str
     purchase_to_base: Decimal
@@ -45,6 +48,19 @@ class StockItemOut(ORMModel):
     last_income_at: datetime | None = None
     is_low: bool = False
     is_ingredient: bool = False
+
+
+class StockItemPage(BaseModel):
+    items: list[StockItemOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class StockStatsOut(BaseModel):
+    total_count: int
+    low_count: int
+    shelf_value: Decimal = Decimal("0")
 
 
 class MakeProductIn(BaseModel):
@@ -61,6 +77,7 @@ class StockImportRowIn(BaseModel):
     cost_per_base_unit: Decimal = Field(ge=0)
     min_quantity: Decimal = Field(default=Decimal("0"), ge=0)
     is_ingredient: bool = False
+    sku: str | None = None
 
 
 class StockImportPreviewRow(BaseModel):

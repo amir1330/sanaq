@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Empty, PageTitle, Select, pill } from "../../components/ui";
+import { StockSearchPicker } from "../../components/StockSearchPicker";
+import { Button, Empty, PageTitle, pill } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { MOVE_KINDS, deltaBase, formatDelta, kindTitle } from "../../lib/stock";
@@ -51,14 +52,20 @@ export function StockMovesPage() {
   const [params, setParams] = useSearchParams();
   const logItem = params.get("item") ?? "";
   const [logKind, setLogKind] = useState("moves");
-  const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const [pickOpen, setPickOpen] = useState(false);
+  const itemId = logItem ? Number(logItem) : null;
+  const selectedItemQ = useQuery({
+    queryKey: ["stock-item", shopId, itemId],
+    queryFn: () => api.stockItem(shopId, itemId!),
+    enabled: itemId != null && Number.isFinite(itemId),
+  });
   const journal = useQuery({
     queryKey: ["stock-journal", shopId, logItem],
     queryFn: () => api.stockJournal(shopId, logItem ? Number(logItem) : undefined),
   });
 
   const kindFilter = MOVE_TABS.find((f) => f.id === logKind) ?? MOVE_TABS[0];
-  const selectedItem = (stock.data ?? []).find((i) => String(i.id) === logItem) ?? null;
+  const selectedItem = selectedItemQ.data ?? null;
   const ledger = useMemo(() => {
     const rows = (journal.data ?? []).filter((row) => kindFilter.kinds.includes(row.kind));
     const lines: { row: StockJournalEntry; delta: number | null; after?: number }[] = rows.map((row) => ({
@@ -90,6 +97,7 @@ export function StockMovesPage() {
     if (id) next.set("item", id);
     else next.delete("item");
     setParams(next, { replace: true });
+    setPickOpen(false);
   }
 
   return (
@@ -118,15 +126,23 @@ export function StockMovesPage() {
             {t(f.labelKey)}
           </button>
         ))}
-        <Select value={logItem} onChange={(e) => setItem(e.target.value)} className="h-10 min-w-44 py-0">
-          <option value="">{t("stock.allItems")}</option>
-          {(stock.data ?? []).map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.name}
-            </option>
-          ))}
-        </Select>
+        <Button variant="quiet" onClick={() => setPickOpen((v) => !v)}>
+          {selectedItem ? selectedItem.name : t("stock.allItems")}
+        </Button>
       </div>
+      {pickOpen && (
+        <div className="mb-4 max-w-md rounded-lg bg-cream p-3 shadow-soft">
+          <button type="button" className="mb-2 text-sm underline" onClick={() => setItem("")}>
+            {t("stock.showAll")}
+          </button>
+          <StockSearchPicker
+            shopId={shopId}
+            selectedId={itemId}
+            onPick={(s) => setItem(String(s.id))}
+            placeholder={t("stock.searchPh")}
+          />
+        </div>
+      )}
       {selectedItem && (
         <p className="mb-4 rounded-md bg-cream px-5 py-3 text-sm shadow-soft">
           <span className="font-medium">{selectedItem.name}</span>
@@ -159,7 +175,7 @@ export function StockMovesPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-[13.5px] font-medium text-ink">
                           {kindTitle(line.row.kind, d)}
-                      {kindFilter.id !== "cards" && logItem === "" ? (
+                          {kindFilter.id !== "cards" && logItem === "" ? (
                             <span className="font-normal text-ink-soft"> · {line.row.item_name}</span>
                           ) : null}
                         </p>

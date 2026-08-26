@@ -13,6 +13,7 @@ import type {
   FiscalReceipt,
   Lead,
   LeadStatus,
+  Page,
   Product,
   ReportSummary,
   Sale,
@@ -22,6 +23,7 @@ import type {
   StockItem,
   StockJournalEntry,
   StockRevision,
+  StockStats,
   TokenPair,
   TopProduct,
   User,
@@ -152,7 +154,29 @@ export const api = {
   deleteCategory: (shopId: number, id: number) =>
     request<void>(`/shops/${shopId}/categories/${id}`, { method: "DELETE" }),
 
-  products: (shopId: number) => request<Product[]>(`/shops/${shopId}/products`),
+  products: (
+    shopId: number,
+    params?: {
+      q?: string;
+      category_id?: number | null;
+      active_only?: boolean;
+      include_ingredients?: boolean;
+      limit?: number;
+      offset?: number;
+    },
+  ) => {
+    const sp = new URLSearchParams();
+    if (params?.q) sp.set("q", params.q);
+    if (params?.category_id != null) sp.set("category_id", String(params.category_id));
+    if (params?.active_only) sp.set("active_only", "true");
+    if (params?.include_ingredients) sp.set("include_ingredients", "true");
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    if (params?.offset != null) sp.set("offset", String(params.offset));
+    const qs = sp.toString();
+    return request<Page<Product>>(`/shops/${shopId}/products${qs ? `?${qs}` : ""}`);
+  },
+  product: (shopId: number, id: number) =>
+    request<Product>(`/shops/${shopId}/products/${id}`),
   createProduct: (shopId: number, body: object) =>
     request<Product>(`/shops/${shopId}/products`, { method: "POST", body: json(body) }),
   createProductsBulk: (
@@ -176,7 +200,19 @@ export const api = {
   deleteProductImage: (shopId: number, id: number) =>
     request<Product>(`/shops/${shopId}/products/${id}/image`, { method: "DELETE" }),
 
-  stock: (shopId: number) => request<StockItem[]>(`/shops/${shopId}/stock-items`),
+  stock: (
+    shopId: number,
+    params?: { q?: string; limit?: number; offset?: number; is_low?: boolean },
+  ) => {
+    const sp = new URLSearchParams();
+    if (params?.q) sp.set("q", params.q);
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    if (params?.offset != null) sp.set("offset", String(params.offset));
+    if (params?.is_low) sp.set("is_low", "true");
+    const qs = sp.toString();
+    return request<Page<StockItem>>(`/shops/${shopId}/stock-items${qs ? `?${qs}` : ""}`);
+  },
+  stockStats: (shopId: number) => request<StockStats>(`/shops/${shopId}/stock-items/stats`),
   stockItem: (shopId: number, id: number) => request<StockItem>(`/shops/${shopId}/stock-items/${id}`),
   createStock: (shopId: number, body: object) =>
     request<StockItem>(`/shops/${shopId}/stock-items`, { method: "POST", body: json(body) }),
@@ -243,6 +279,7 @@ export const api = {
           cost_per_base_unit: string;
           min_quantity: string;
           is_ingredient: boolean;
+          sku: string | null;
         } | null;
       }[];
       ok_count: number;
