@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
-import { Button, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
+import { Button, Check, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { WRITEOFF_REASONS, deltaBase, formatDelta, kindTitle, writeoffReasonLabel } from "../../lib/stock";
@@ -20,18 +20,21 @@ export function StockItemPage() {
   const id = Number(itemId);
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [panel, setPanel] = useState<"receive" | "writeoff" | "regrade" | "transfer" | "edit" | "remove" | null>(
+  const [panel, setPanel] = useState<"receive" | "writeoff" | "regrade" | "transfer" | "edit" | "remove" | "makeProduct" | null>(
     null,
   );
   const [writeoff, setWriteoff] = useState({ qty: "", comment: "" });
   const [regrade, setRegrade] = useState({ toId: "", qtyFrom: "", qtyTo: "", comment: "" });
   const [transfer, setTransfer] = useState({ shopId: "", itemId: "", qty: "", qtyTo: "", comment: "" });
+  const [makePrice, setMakePrice] = useState("");
+  const [makeCategoryId, setMakeCategoryId] = useState<number | "">("");
   const [edit, setEdit] = useState({
     name: "",
     purchase_unit: "",
     purchase_to_base: "",
     min_quantity: "",
     cost_per_purchase: "",
+    is_ingredient: false,
   });
   const [editPhoto, setEditPhoto] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function StockItemPage() {
     enabled: Number.isFinite(id),
   });
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const journal = useQuery({
     queryKey: ["stock-journal", shopId, String(id)],
@@ -67,6 +71,7 @@ export function StockItemPage() {
       purchase_to_base: String(Number(item.purchase_to_base)),
       min_quantity: String(Number(item.min_quantity)),
       cost_per_purchase: costPerPurchase(item.cost_per_base_unit, item.purchase_to_base),
+      is_ingredient: Boolean(item.is_ingredient),
     });
     setEditPhoto(null);
     setEditPreview(null);
@@ -136,6 +141,7 @@ export function StockItemPage() {
         purchase_to_base: edit.purchase_to_base,
         min_quantity: edit.min_quantity,
         cost_per_base_unit: costPerBase(edit.cost_per_purchase, edit.purchase_to_base),
+        is_ingredient: edit.is_ingredient,
       });
       if (dropPhoto && !editPhoto) await api.deleteStockImage(shopId, id);
       if (editPhoto) await api.uploadStockImage(shopId, id, editPhoto);
@@ -143,6 +149,19 @@ export function StockItemPage() {
     onSuccess: () => {
       setPanel(null);
       refresh();
+    },
+  });
+  const makeProduct = useMutation({
+    mutationFn: () =>
+      api.makeProductFromStock(shopId, id, {
+        sale_price: makePrice,
+        category_id: makeCategoryId === "" ? null : Number(makeCategoryId),
+      }),
+    onSuccess: () => {
+      setPanel(null);
+      setMakePrice("");
+      setMakeCategoryId("");
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
   const drop = useMutation({
@@ -219,6 +238,19 @@ export function StockItemPage() {
                 { label: t("stock.regrade"), onClick: () => setPanel("regrade"), disabled: others.length === 0 },
                 ...(branches.length > 0
                   ? [{ label: t("stock.transfer"), onClick: () => setPanel("transfer") }]
+                  : []),
+                ...(!item.is_ingredient
+                  ? [
+                      {
+                        label: t("stock.makeProduct"),
+                        onClick: () => {
+                          setMakePrice("");
+                          setMakeCategoryId("");
+                          makeProduct.reset();
+                          setPanel("makeProduct");
+                        },
+                      },
+                    ]
                   : []),
                 { label: t("stock.edit"), onClick: () => setPanel("edit") },
                 { label: t("common.delete"), danger: true, onClick: () => setPanel("remove") },
@@ -519,9 +551,56 @@ export function StockItemPage() {
               inputMode="decimal"
             />
           </Field>
+          <Check
+            checked={edit.is_ingredient}
+            onChange={(is_ingredient) => setEdit({ ...edit, is_ingredient })}
+          >
+            {t("stock.isIngredient")}
+          </Check>
           {saveEdit.isError && <p className="text-sm text-alert">{(saveEdit.error as Error).message}</p>}
           <div className="flex gap-2">
             <Button onClick={() => saveEdit.mutate()} disabled={!edit.name || saveEdit.isPending}>
+              {t("common.save")}
+            </Button>
+            <Button variant="ghost" onClick={() => setPanel(null)}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {panel === "makeProduct" && (
+        <Modal title={t("stock.makeProductTitle")} onClose={() => setPanel(null)}>
+          <p className="text-sm text-mute">{t("stock.makeProductHint")}</p>
+          <Field label={t("products.price")}>
+            <Input
+              value={makePrice}
+              onChange={(e) => setMakePrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+            />
+          </Field>
+          <Field label={t("products.category")}>
+            <Select
+              value={makeCategoryId === "" ? "" : String(makeCategoryId)}
+              onChange={(e) => setMakeCategoryId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">{t("products.bulkNoCategory")}</option>
+              {(categories.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {makeProduct.isError && (
+            <p className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => makeProduct.mutate()}
+              disabled={!makePrice || Number(makePrice) <= 0 || makeProduct.isPending}
+            >
               {t("common.save")}
             </Button>
             <Button variant="ghost" onClick={() => setPanel(null)}>

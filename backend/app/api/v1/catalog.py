@@ -49,6 +49,7 @@ def _product_out(product: Product) -> ProductOut:
         name_en=product.name_en,
         sale_price=product.sale_price,
         is_active=product.is_active,
+        is_service=bool(getattr(product, "is_service", False)),
         image_url=product.image_url,
         created_at=product.created_at,
         category_name=product.category.name if product.category else None,
@@ -174,13 +175,16 @@ async def create_product(
         sale_price=body.sale_price,
         category_id=body.category_id,
         is_active=body.is_active,
+        is_service=body.is_service,
         fiscal_position_code=body.fiscal_position_code,
         tax_percent=body.tax_percent,
         tax_type=body.tax_type,
     )
     session.add(product)
     await session.flush()
-    await _replace_ingredients(session, shop_id, product, body.ingredients)
+    await _replace_ingredients(
+        session, shop_id, product, [] if body.is_service else body.ingredients
+    )
     await session.commit()
     return await _reload_product(session, product.id)
 
@@ -247,6 +251,8 @@ async def update_product(
         elif key == "name" and isinstance(value, str):
             value = value.strip()
         setattr(product, key, value)
+    if body.is_service is True:
+        await _replace_ingredients(session, shop_id, product, [])
     await session.commit()
     return await _reload_product(session, product.id)
 

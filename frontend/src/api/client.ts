@@ -191,6 +191,68 @@ export const api = {
   },
   deleteStockImage: (shopId: number, id: number) =>
     request<StockItem>(`/shops/${shopId}/stock-items/${id}/image`, { method: "DELETE" }),
+  makeProductFromStock: (
+    shopId: number,
+    id: number,
+    body: { sale_price: string; category_id?: number | null },
+  ) =>
+    request<Product>(`/shops/${shopId}/stock-items/${id}/make-product`, {
+      method: "POST",
+      body: json(body),
+    }),
+  downloadStockImportTemplate: async (shopId: number) => {
+    const { accessToken, refreshToken, setSession, logout } = useAuth.getState();
+    const headers = new Headers();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+    const url = `${BASE}/shops/${shopId}/stock-items/import-template`;
+    let res = await fetch(url, { headers });
+    if (res.status === 401 && refreshToken) {
+      const refreshed = await fetch(`${BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!refreshed.ok) {
+        logout();
+        throw new ApiError(401, t("common.sessionExpired"));
+      }
+      const pair = (await refreshed.json()) as TokenPair;
+      setSession(pair.access_token, pair.refresh_token, pair.user);
+      headers.set("Authorization", `Bearer ${pair.access_token}`);
+      res = await fetch(url, { headers });
+    }
+    if (!res.ok) throw new ApiError(res.status, t("errors.downloadReport"));
+    const blob = await res.blob();
+    downloadBlob(blob, "stock-import-template.xlsx");
+  },
+  previewStockImport: (shopId: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<{
+      rows: {
+        row: number;
+        ok: boolean;
+        errors: string[];
+        data: {
+          name: string;
+          base_unit: string;
+          purchase_unit: string;
+          purchase_to_base: string;
+          quantity: string;
+          cost_per_base_unit: string;
+          min_quantity: string;
+          is_ingredient: boolean;
+        } | null;
+      }[];
+      ok_count: number;
+      error_count: number;
+    }>(`/shops/${shopId}/stock-items/import/preview`, { method: "POST", body });
+  },
+  confirmStockImport: (shopId: number, rows: object[]) =>
+    request<StockItem[]>(`/shops/${shopId}/stock-items/import/confirm`, {
+      method: "POST",
+      body: json({ rows }),
+    }),
   stockMove: (shopId: number, id: number, body: object) =>
     request(`/shops/${shopId}/stock-items/${id}/movements`, { method: "POST", body: json(body) }),
   stockRegrade: (shopId: number, id: number, body: object) =>

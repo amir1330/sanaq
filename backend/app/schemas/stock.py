@@ -15,6 +15,7 @@ class StockItemCreate(BaseModel):
     quantity: Decimal = Decimal("0")
     min_quantity: Decimal = Decimal("0")
     cost_per_base_unit: Decimal = Decimal("0")
+    is_ingredient: bool = False
 
 
 class StockItemUpdate(BaseModel):
@@ -24,6 +25,7 @@ class StockItemUpdate(BaseModel):
     purchase_to_base: Decimal | None = Field(default=None, gt=0)
     min_quantity: Decimal | None = None
     cost_per_base_unit: Decimal | None = None
+    is_ingredient: bool | None = None
 
 
 class StockItemOut(ORMModel):
@@ -42,6 +44,40 @@ class StockItemOut(ORMModel):
     updated_at: datetime
     last_income_at: datetime | None = None
     is_low: bool = False
+    is_ingredient: bool = False
+
+
+class MakeProductIn(BaseModel):
+    sale_price: Decimal = Field(gt=0)
+    category_id: int | None = None
+
+
+class StockImportRowIn(BaseModel):
+    name: str
+    base_unit: str
+    purchase_unit: str
+    purchase_to_base: Decimal = Field(gt=0)
+    quantity: Decimal = Field(ge=0)
+    cost_per_base_unit: Decimal = Field(ge=0)
+    min_quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    is_ingredient: bool = False
+
+
+class StockImportPreviewRow(BaseModel):
+    row: int
+    ok: bool
+    errors: list[str] = Field(default_factory=list)
+    data: StockImportRowIn | None = None
+
+
+class StockImportPreviewOut(BaseModel):
+    rows: list[StockImportPreviewRow]
+    ok_count: int
+    error_count: int
+
+
+class StockImportConfirmIn(BaseModel):
+    rows: list[StockImportRowIn] = Field(min_length=1)
 
 
 class StockMovementCreate(BaseModel):

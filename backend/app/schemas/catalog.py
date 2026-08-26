@@ -45,6 +45,7 @@ class ProductCreate(BaseModel):
     sale_price: Decimal = Field(gt=0)
     category_id: int | None = None
     is_active: bool = True
+    is_service: bool = False
     fiscal_position_code: str | None = None
     tax_percent: Decimal = Decimal("0")
     tax_type: int = 0
@@ -68,6 +69,7 @@ class ProductUpdate(BaseModel):
     sale_price: Decimal | None = Field(default=None, gt=0)
     category_id: int | None = None
     is_active: bool | None = None
+    is_service: bool | None = None
     fiscal_position_code: str | None = None
     tax_percent: Decimal | None = None
     tax_type: int | None = None
@@ -82,6 +84,7 @@ class ProductOut(ORMModel):
     name_en: str | None = None
     sale_price: Decimal
     is_active: bool
+    is_service: bool = False
     image_url: str | None
     created_at: datetime
     category_name: str | None = None

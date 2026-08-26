@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
-import { Banner, Button } from "../../components/ui";
+import { Banner, Button, MoreMenu } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { storageGet, storageSet } from "../../lib/storage";
 import { cartTotals, lineGross, lineTotal, type Discount } from "../../lib/discount";
@@ -19,6 +19,7 @@ type MobileTab = "products" | "cart" | "shift";
 type DiscountDraft = { type: Discount["type"]; value: string };
 
 const SCALES: UiScale[] = ["sm", "md", "lg", "xl"];
+const CASH_NOTES = [10_000, 5_000, 1_000] as const;
 
 function DiscountEditor({
   draft,
@@ -109,6 +110,9 @@ export function PosPage() {
   });
   const [findReceiptId, setFindReceiptId] = useState("");
   const [findReceiptError, setFindReceiptError] = useState<string | null>(null);
+  const [cashPayOpen, setCashPayOpen] = useState(false);
+  const [tendered, setTendered] = useState(0);
+  const [printReceipts, setPrintReceipts] = useState(true);
 
   const shops = useQuery({
     queryKey: ["shops"],
@@ -314,6 +318,8 @@ export function PosPage() {
       setReceiptDiscount(null);
       setLineDiscountEdit(null);
       setReceiptDiscountEdit(false);
+      setCashPayOpen(false);
+      setTendered(0);
       setNotice({
         tone: sale.alerts.length || sale.fiscal_status === "failed" ? "warn" : "ok",
         text: parts.join(" "),
@@ -322,6 +328,24 @@ export function PosPage() {
     },
     onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
   });
+
+  const changeDue = Math.max(0, Math.round((tendered - total) * 100) / 100);
+  const tenderEnough = tendered + 1e-9 >= total && total > 0;
+
+  function openCashPay() {
+    setCashPayOpen(true);
+    setTendered(0);
+    setMobileTab("cart");
+  }
+
+  function addNote(n: number) {
+    setTendered((prev) => Math.round((prev + n) * 100) / 100);
+  }
+
+  function resetTender() {
+    setCashPayOpen(false);
+    setTendered(0);
+  }
 
   const openShift = useMutation({    mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id, registerId ?? undefined),
     onSuccess: () => {
@@ -417,12 +441,24 @@ export function PosPage() {
         <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
           {t("account.scale")}
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          {SCALES.map((s) => (
-            <Button key={s} variant={scale === s ? "primary" : "quiet"} onClick={() => setScale(s)}>
-              {scaleLabels[s]}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="quiet"
+            className="min-w-11"
+            disabled={SCALES.indexOf(scale) <= 0}
+            onClick={() => setScale(SCALES[Math.max(0, SCALES.indexOf(scale) - 1)])}
+          >
+            −
+          </Button>
+          <span className="min-w-[2.5rem] text-center text-[13px] font-semibold">{scaleLabels[scale]}</span>
+          <Button
+            variant="quiet"
+            className="min-w-11"
+            disabled={SCALES.indexOf(scale) >= SCALES.length - 1}
+            onClick={() => setScale(SCALES[Math.min(SCALES.length - 1, SCALES.indexOf(scale) + 1)])}
+          >
+            +
+          </Button>
         </div>
       </div>
       {multiTill && (
@@ -550,62 +586,87 @@ export function PosPage() {
               </div>
             </div>
           )}
-          <Button variant="quiet" className="w-full" onClick={() => setPanel("receipts")}>
-            {t("pos.receipts")}
-          </Button>
-          <Button
-            variant="quiet"
-            className="w-full"
-            onClick={() => {
-              setMoveType("withdrawal");
-              setMoveAmount("");
-              setPanel("move");
-            }}
-          >
-            {t("pos.drawer")}
-          </Button>
-          <Button
-            variant="confirm"
-            className="w-full"
-            onClick={() => {
-              setCashClose("");
-              setPanel("close");
-            }}
-          >
-            {t("pos.closeShift")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="confirm"
+              className="min-w-0 flex-1"
+              onClick={() => {
+                setCashClose("");
+                setPanel("close");
+              }}
+            >
+              {t("pos.closeShift")}
+            </Button>
+            <MoreMenu
+              label="⋮"
+              items={[
+                {
+                  label: t("pos.receipts"),
+                  onClick: () => setPanel("receipts"),
+                },
+                {
+                  label: t("pos.drawer"),
+                  onClick: () => {
+                    setMoveType("withdrawal");
+                    setMoveAmount("");
+                    setPanel("move");
+                  },
+                },
+                ...((user.role !== "barista" || user.can_receive_stock)
+                  ? [
+                      {
+                        label: t("pos.receive"),
+                        disabled: salesFrozen,
+                        onClick: () => {
+                          if (salesFrozen) {
+                            setNotice({
+                              tone: "warn",
+                              text: t("pos.receiveBlocked", { id: revisionId! }),
+                            });
+                            return;
+                          }
+                          setReceiveOpen(true);
+                        },
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
         </>
       ) : (
-        <Button variant="confirm" className="w-full" onClick={() => setPanel("open")}>
-          {t("pos.openShift")}
-        </Button>
-      )}
-      <div className="space-y-2 border-t border-line pt-2.5">
-        {(user.role !== "barista" || user.can_receive_stock) && (
-          <Button
-            variant="quiet"
-            className="w-full"
-            onClick={() => {
-              if (salesFrozen) {
-                setNotice({
-                  tone: "warn",
-                  text: t("pos.receiveBlocked", { id: revisionId! }),
-                });
-                return;
-              }
-              setReceiveOpen(true);
-            }}
-            disabled={salesFrozen}
-          >
-            {t("pos.receive")}
+        <>
+          <Button variant="confirm" className="w-full" onClick={() => setPanel("open")}>
+            {t("pos.openShift")}
           </Button>
-        )}
-        {user.role !== "barista" && (
+          {(user.role !== "barista" || user.can_receive_stock) && (
+            <Button
+              variant="quiet"
+              className="w-full"
+              onClick={() => {
+                if (salesFrozen) {
+                  setNotice({
+                    tone: "warn",
+                    text: t("pos.receiveBlocked", { id: revisionId! }),
+                  });
+                  return;
+                }
+                setReceiveOpen(true);
+              }}
+              disabled={salesFrozen}
+            >
+              {t("pos.receive")}
+            </Button>
+          )}
+        </>
+      )}
+      {user.role !== "barista" && (
+        <div className="border-t border-line pt-2.5">
           <Button variant="ghost" className="w-full justify-start px-0" onClick={() => navigate("/owner")}>
             {t("pos.toCabinet")}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -774,18 +835,6 @@ export function PosPage() {
         })}
       </div>
       <div className="sticky bottom-0 mt-3.5 border-t border-line bg-paper pt-4">
-        {totals.discountTotal > 0 && (
-          <div className="mb-2 space-y-1 text-[12.5px] text-ink-soft">
-            <div className="flex justify-between">
-              <span>{t("pos.subtotal")}</span>
-              <span className="font-mono">{money(totals.subtotal)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{t("pos.discountItem")}</span>
-              <span className="font-mono">−{money(totals.discountTotal)}</span>
-            </div>
-          </div>
-        )}
         {canDiscount && (
           <div className="mb-3">
             <div className="mb-1 flex items-center justify-between text-[12.5px]">
@@ -838,30 +887,108 @@ export function PosPage() {
             )}
           </div>
         )}
-        <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-ink-soft">
-          <span>{t("pos.toPay")}</span>
-          <b className="font-mono text-[25px] font-semibold text-ink">{money(total)}</b>
+        <div className="mb-3 space-y-1.5 rounded-md border border-line bg-paper-2 px-3 py-3 font-mono text-[13px]">
+          <div className="flex justify-between text-ink-soft">
+            <span>{t("pos.subtotal")}</span>
+            <span>{money(totals.subtotal)}</span>
+          </div>
+          {totals.discountTotal > 0 && (
+            <div className="flex justify-between text-ink-soft">
+              <span>{t("pos.discountItem")}</span>
+              <span>−{money(totals.discountTotal)}</span>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between text-ink">
+            <span>{t("pos.toPay")}</span>
+            <b className="text-[22px] font-semibold">{money(total)}</b>
+          </div>
+          <div className="flex justify-between text-ink-soft">
+            <span>{t("pos.amountReceived")}</span>
+            <span>{money(cashPayOpen || tendered > 0 ? tendered : 0)}</span>
+          </div>
+          <div className="flex justify-between text-ink-soft">
+            <span>{t("pos.changeDue")}</span>
+            <span className={changeDue > 0 ? "font-semibold text-ink" : ""}>{money(changeDue)}</span>
+          </div>
+          <label className="mt-1 flex cursor-pointer items-center gap-2 font-sans text-[12.5px] text-ink-soft">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-maroon"
+              checked={printReceipts}
+              onChange={(e) => setPrintReceipts(e.target.checked)}
+            />
+            <span>{t("pos.printReceipts")}</span>
+          </label>
         </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <Button
-            variant="confirm"
-            size="lg"
-            className="w-full"
-            disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
-            onClick={() => sell.mutate("cash")}
-          >
-            {payAction("cash")}
-          </Button>
-          <Button
-            variant="sky"
-            size="lg"
-            className="w-full"
-            disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
-            onClick={() => sell.mutate("card")}
-          >
-            {payAction("card")}
-          </Button>
-        </div>
+
+        {cashPayOpen ? (
+          <div className="mb-3 space-y-2.5 rounded-md border border-line bg-cream px-3 py-3">
+            <p className="font-sans text-[12.5px] text-ink-soft">{t("pos.tenderHint")}</p>
+            <input
+              className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-3 py-2.5 font-mono text-[18px] text-ink outline-none focus:border-ink"
+              value={tendered ? String(tendered) : ""}
+              onChange={(e) => {
+                const raw = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
+                const n = Number(raw);
+                setTendered(Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0);
+              }}
+              inputMode="decimal"
+              placeholder="0"
+              autoFocus
+            />
+            <div className="grid grid-cols-3 gap-2">
+              {CASH_NOTES.map((n) => (
+                <Button key={n} variant="quiet" className="w-full font-mono" onClick={() => addNote(n)}>
+                  +{n.toLocaleString("ru-RU")}
+                </Button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="quiet" onClick={() => setTendered(total)} disabled={total <= 0}>
+                {t("pos.tenderExact")}
+              </Button>
+              <Button variant="ghost" onClick={() => setTendered(0)}>
+                {t("pos.tenderClear")}
+              </Button>
+            </div>
+            <Button
+              variant="confirm"
+              size="lg"
+              className="w-full"
+              disabled={!shiftOpen || salesFrozen || !tenderEnough || sell.isPending}
+              onClick={() => sell.mutate("cash")}
+            >
+              {sell.isPending ? t("pos.writing") : t("pos.confirmCash")}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={resetTender}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Button
+              variant="confirm"
+              size="lg"
+              className="w-full"
+              disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
+              onClick={openCashPay}
+            >
+              {payAction("cash")}
+            </Button>
+            <Button
+              variant="sky"
+              size="lg"
+              className="w-full"
+              disabled={!shiftOpen || salesFrozen || cart.length === 0 || sell.isPending}
+              onClick={() => {
+                resetTender();
+                sell.mutate("card");
+              }}
+            >
+              {payAction("card")}
+            </Button>
+          </div>
+        )}
         {cart.length > 0 && (
           <Button
             variant="ghost"
@@ -869,6 +996,7 @@ export function PosPage() {
             onClick={() => {
               setCart([]);
               setReceiptDiscount(null);
+              resetTender();
             }}
           >
             {t("pos.clearCart")}

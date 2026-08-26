@@ -33,6 +33,7 @@ type Draft = {
   sale_price: string;
   category_id: number | null;
   is_active: boolean;
+  is_service: boolean;
   tax_percent: string;
   tax_type: string;
   image_url: string | null;
@@ -80,9 +81,11 @@ export function ProductsPage() {
         throw new Error(t("products.needPrice"));
       }
       const price = editing.sale_price.replace(",", ".");
-      const ingredients = (editing.ingredients ?? [])
-        .filter((i) => i.stock_item_id && i.quantity)
-        .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity }));
+      const ingredients = editing.is_service
+        ? []
+        : (editing.ingredients ?? [])
+            .filter((i) => i.stock_item_id && i.quantity)
+            .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity }));
       let id = editing.id;
       if (id) {
         await api.patchProduct(shopId, id, {
@@ -92,6 +95,7 @@ export function ProductsPage() {
           sale_price: price,
           category_id: editing.category_id,
           is_active: editing.is_active,
+          is_service: editing.is_service,
           tax_percent: editing.tax_percent || "0",
           tax_type: Number(editing.tax_type || 0),
         });
@@ -103,6 +107,8 @@ export function ProductsPage() {
           name_en: editing.name_en.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
+          is_active: editing.is_active,
+          is_service: editing.is_service,
           tax_percent: editing.tax_percent || "0",
           tax_type: Number(editing.tax_type || 0),
           ingredients,
@@ -184,6 +190,7 @@ export function ProductsPage() {
       sale_price: p?.sale_price ?? "",
       category_id: p?.category_id ?? categoryId ?? null,
       is_active: p?.is_active ?? true,
+      is_service: p ? Boolean(p.is_service ?? !(p.ingredients?.length)) : false,
       tax_percent: p?.tax_percent ?? "0",
       tax_type: String(p?.tax_type ?? 0),
       image_url: p?.image_url ?? null,
@@ -533,9 +540,26 @@ export function ProductsPage() {
                   <p className="mt-2 text-sm text-alert">{(addCat.error as Error).message}</p>
                 )}
               </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={!editing.is_service ? "primary" : "quiet"}
+                  onClick={() => setEditing({ ...editing, is_service: false })}
+                >
+                  {t("products.kindProduct")}
+                </Button>
+                <Button
+                  type="button"
+                  variant={editing.is_service ? "primary" : "quiet"}
+                  onClick={() => setEditing({ ...editing, is_service: true, ingredients: [] })}
+                >
+                  {t("products.kindService")}
+                </Button>
+              </div>
               <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
                 {t("products.onPos")}
               </Check>
+              {!editing.is_service && (
               <details className="rounded-md bg-cream px-4 py-3">
                 <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.recipe")}</summary>
                 <p className="mt-2 text-[12.5px] text-mute">{t("products.recipeHint")}</p>
@@ -609,6 +633,7 @@ export function ProductsPage() {
                   })}
                 </p>
               </details>
+              )}
               <details className="rounded-md bg-cream px-4 py-3">
                 <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.ofdReceipt")}</summary>
                 <p className="mt-2 text-[12.5px] text-mute">{t("products.ofdHint")}</p>

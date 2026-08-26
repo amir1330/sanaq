@@ -83,6 +83,7 @@ export type Product = {
   name_en?: string | null;
   sale_price: string;
   is_active: boolean;
+  is_service?: boolean;
   image_url: string | null;
   created_at: string;
   category_name?: string | null;
@@ -175,6 +176,7 @@ export type StockItem = {
   updated_at: string;
   last_income_at?: string | null;
   is_low: boolean;
+  is_ingredient?: boolean;
 };
 
 export type CashRegister = {

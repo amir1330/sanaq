@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
-import { Button, Card, Field, Input, PageTitle, Select } from "../../components/ui";
+import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
 import { useT } from "../../i18n";
 import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
+
+type ImportPreviewRow = Awaited<ReturnType<typeof api.previewStockImport>>["rows"][number];
 
 function CostHint({
   purchasePrice,
@@ -49,6 +51,7 @@ const emptyCreate = {
   purchase_to_base: "1000",
   min_quantity: "0",
   cost_per_purchase: "0",
+  is_ingredient: false,
 };
 
 export function StockPage() {
@@ -61,6 +64,7 @@ export function StockPage() {
   const [createPhoto, setCreatePhoto] = useState<File | null>(null);
   const [createPreview, setCreatePreview] = useState<string | null>(null);
   const stock = useQuery({ queryKey: ["stock", shopId], queryFn: () => api.stock(shopId) });
+  const categories = useQuery({ queryKey: ["categories", shopId], queryFn: () => api.categories(shopId) });
   const revisions = useQuery({
     queryKey: ["stock-revisions", shopId],
     queryFn: () => api.stockRevisions(shopId),
@@ -68,6 +72,14 @@ export function StockPage() {
   const hasDraft = (revisions.data ?? []).some((r) => r.status === "draft");
   const [receive, setReceive] = useState<StockItem | null | "open">(null);
   const [q, setQ] = useState("");
+  const [makeFor, setMakeFor] = useState<StockItem | null>(null);
+  const [makePrice, setMakePrice] = useState("");
+  const [makeCategoryId, setMakeCategoryId] = useState<number | "">("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportPreviewRow[] | null>(null);
+  const [importOk, setImportOk] = useState(0);
+  const [importErr, setImportErr] = useState(0);
+  const importInput = useRef<HTMLInputElement>(null);
 
   const add = useMutation({
     mutationFn: async () => {
@@ -78,6 +90,7 @@ export function StockPage() {
         purchase_to_base: create.purchase_to_base,
         min_quantity: create.min_quantity,
         cost_per_base_unit: costPerBase(create.cost_per_purchase, create.purchase_to_base),
+        is_ingredient: create.is_ingredient,
       });
       if (createPhoto) await api.uploadStockImage(shopId, item.id, createPhoto);
     },
@@ -86,6 +99,39 @@ export function StockPage() {
       setCreatePhoto(null);
       setCreatePreview(null);
       setCreating(false);
+      void qc.invalidateQueries({ queryKey: ["stock", shopId] });
+      void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
+    },
+  });
+  const makeProduct = useMutation({
+    mutationFn: () =>
+      api.makeProductFromStock(shopId, makeFor!.id, {
+        sale_price: makePrice,
+        category_id: makeCategoryId === "" ? null : Number(makeCategoryId),
+      }),
+    onSuccess: () => {
+      setMakeFor(null);
+      setMakePrice("");
+      setMakeCategoryId("");
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+  const previewImport = useMutation({
+    mutationFn: (file: File) => api.previewStockImport(shopId, file),
+    onSuccess: (res) => {
+      setImportRows(res.rows);
+      setImportOk(res.ok_count);
+      setImportErr(res.error_count);
+    },
+  });
+  const confirmImport = useMutation({
+    mutationFn: () => {
+      const rows = (importRows ?? []).filter((r) => r.ok && r.data).map((r) => r.data!);
+      return api.confirmStockImport(shopId, rows);
+    },
+    onSuccess: () => {
+      setImportOpen(false);
+      setImportRows(null);
       void qc.invalidateQueries({ queryKey: ["stock", shopId] });
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
     },
@@ -153,6 +199,18 @@ export function StockPage() {
             </Link>
             <Button variant="quiet" onClick={() => setReceive("open")} disabled={hasDraft}>
               {t("stock.income")}
+            </Button>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setImportOpen(true);
+                setImportRows(null);
+                previewImport.reset();
+                confirmImport.reset();
+              }}
+              disabled={hasDraft}
+            >
+              {t("stock.importBtn")}
             </Button>
             <Button variant={creating ? "quiet" : "primary"} onClick={toggleCreate}>
               {creating ? t("common.collapse") : t("stock.addItem")}
@@ -261,6 +319,14 @@ export function StockPage() {
             baseUnit={create.base_unit}
           />
         </Field>
+        <div className="md:col-span-3">
+          <Check
+            checked={create.is_ingredient}
+            onChange={(is_ingredient) => setCreate({ ...create, is_ingredient })}
+          >
+            {t("stock.isIngredient")}
+          </Check>
+        </div>
         <div className="flex flex-wrap items-end gap-2 md:col-span-3">
           <Button onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
             {t("common.save")}
@@ -296,6 +362,7 @@ export function StockPage() {
               <th>{t("stock.colCost")}</th>
               <th className="text-right">{t("stock.colShelf")}</th>
               <th className="pr-5 text-right">{t("stock.colLastIn")}</th>
+              <th className="pr-5 text-right" />
             </tr>
           </thead>
           <tbody>
@@ -331,6 +398,24 @@ export function StockPage() {
                 </td>
                 <td className="pr-4 text-right font-mono font-semibold">{money(shelfValue(i))}</td>
                 <td className="pr-5 text-right font-mono text-[12.5px] text-mute">{shortDay(i.last_income_at)}</td>
+                <td className="pr-5 text-right">
+                  {!i.is_ingredient && (
+                    <Button
+                      size="md"
+                      variant="quiet"
+                      className="h-8 px-3 text-[11px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMakeFor(i);
+                        setMakePrice("");
+                        setMakeCategoryId("");
+                        makeProduct.reset();
+                      }}
+                    >
+                      {t("stock.makeProduct")}
+                    </Button>
+                  )}
+                </td>
               </tr>
               );
             })}
@@ -349,6 +434,144 @@ export function StockPage() {
           onClose={() => setReceive(null)}
         />
       )}
+      <Dialog
+        open={makeFor != null}
+        title={t("stock.makeProductTitle")}
+        hint={makeFor ? `${makeFor.name}. ${t("stock.makeProductHint")}` : undefined}
+        onClose={() => setMakeFor(null)}
+      >
+        <div className="grid gap-3">
+          <Field label={t("products.price")}>
+            <Input
+              value={makePrice}
+              onChange={(e) => setMakePrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+            />
+          </Field>
+          <Field label={t("products.category")}>
+            <Select
+              value={makeCategoryId === "" ? "" : String(makeCategoryId)}
+              onChange={(e) => setMakeCategoryId(e.target.value ? Number(e.target.value) : "")}
+            >
+              <option value="">{t("products.bulkNoCategory")}</option>
+              {(categories.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {makeProduct.isError && (
+            <p className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => makeProduct.mutate()}
+              disabled={!makePrice || Number(makePrice) <= 0 || makeProduct.isPending}
+            >
+              {t("common.save")}
+            </Button>
+            <Button variant="ghost" onClick={() => setMakeFor(null)}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+      <Dialog
+        open={importOpen}
+        title={t("stock.importBtn")}
+        wide
+        onClose={() => {
+          setImportOpen(false);
+          setImportRows(null);
+        }}
+      >
+        <div className="grid gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="quiet"
+              onClick={() => void api.downloadStockImportTemplate(shopId)}
+            >
+              {t("stock.importTemplate")}
+            </Button>
+            <Button variant="quiet" onClick={() => importInput.current?.click()}>
+              {t("stock.importPreview")}
+            </Button>
+            <input
+              ref={importInput}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) previewImport.mutate(file);
+              }}
+            />
+          </div>
+          {previewImport.isError && (
+            <p className="text-sm text-alert">{(previewImport.error as Error).message}</p>
+          )}
+          {importRows && (
+            <>
+              <p className="text-sm text-mute">
+                {t("stock.importOk", { n: importOk })}
+                {importErr ? ` · ${t("stock.importErrors", { n: importErr })}` : ""}
+              </p>
+              <div className="max-h-[40vh] overflow-auto rounded-md border border-line">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="sticky top-0 bg-cream font-mono text-[10px] uppercase tracking-wide text-faint">
+                    <tr>
+                      <th className="px-3 py-2">#</th>
+                      <th className="px-3 py-2">{t("stock.name")}</th>
+                      <th className="px-3 py-2">{t("stock.colNow")}</th>
+                      <th className="px-3 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importRows.map((r) => (
+                      <tr
+                        key={r.row}
+                        className={`border-t border-line ${r.ok ? "" : "bg-alert/10"}`}
+                      >
+                        <td className="px-3 py-2 font-mono text-mute">{r.row}</td>
+                        <td className="px-3 py-2">{r.data?.name ?? "—"}</td>
+                        <td className="px-3 py-2 font-mono">
+                          {r.data ? `${r.data.quantity} ${r.data.purchase_unit}` : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-[12.5px]">
+                          {r.ok ? "OK" : r.errors.join("; ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {confirmImport.isError && (
+                <p className="text-sm text-alert">{(confirmImport.error as Error).message}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => confirmImport.mutate()}
+                  disabled={importOk === 0 || confirmImport.isPending}
+                >
+                  {t("stock.importConfirm")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setImportOpen(false);
+                    setImportRows(null);
+                  }}
+                >
+                  {t("common.cancel")}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Dialog>
     </div>
   );
 }

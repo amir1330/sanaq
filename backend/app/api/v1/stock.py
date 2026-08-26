@@ -1,14 +1,29 @@
 from datetime import datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, roles
 from app.database import get_session
-from app.models import StockItem, StockLogAction, StockMovement, StockMovementType, User, UserRole
+from app.models import (
+    Category,
+    Product,
+    ProductIngredient,
+    StockItem,
+    StockLogAction,
+    StockMovement,
+    StockMovementType,
+    User,
+    UserRole,
+)
+from app.schemas.catalog import IngredientOut, ProductOut
 from app.schemas.stock import (
+    MakeProductIn,
+    StockImportConfirmIn,
+    StockImportPreviewOut,
     StockItemCreate,
     StockItemOut,
     StockItemUpdate,
@@ -31,6 +46,7 @@ from app.services.stock import (
     transfer_stock,
     write_stock_log,
 )
+from app.services.stock_import import build_stock_import_template, parse_stock_import_xlsx
 from app.services.uploads import delete_upload, replace_upload
 
 router = APIRouter(tags=["stock"])
@@ -61,6 +77,7 @@ def _item_out(
         updated_at=item.updated_at,
         last_income_at=last_income_at,
         is_low=item.quantity <= item.min_quantity,
+        is_ingredient=bool(getattr(item, "is_ingredient", False)),
     )
 
 
@@ -93,6 +110,87 @@ async def list_stock(
     hide = user.role == UserRole.barista
     last = await _last_income_map(session, shop_id)
     return [_item_out(i, hide_cost=hide, last_income_at=last.get(i.id)) for i in result.scalars().all()]
+
+
+@router.get("/shops/{shop_id}/stock-items/import-template")
+async def stock_import_template(
+    shop_id: int,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    data = build_stock_import_template()
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="stock-import-template.xlsx"'},
+    )
+
+
+@router.post("/shops/{shop_id}/stock-items/import/preview", response_model=StockImportPreviewOut)
+async def stock_import_preview(
+    shop_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    content = await file.read()
+    if not content:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустой файл")
+    return parse_stock_import_xlsx(content)
+
+
+@router.post("/shops/{shop_id}/stock-items/import/confirm", response_model=list[StockItemOut], status_code=201)
+async def stock_import_confirm(
+    shop_id: int,
+    body: StockImportConfirmIn,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    await assert_no_open_revision(session, shop_id)
+    created: list[StockItem] = []
+    for row in body.rows:
+        item = StockItem(
+            shop_id=shop_id,
+            name=row.name.strip(),
+            base_unit=row.base_unit.strip(),
+            purchase_unit=row.purchase_unit.strip(),
+            purchase_to_base=row.purchase_to_base,
+            quantity=Decimal("0"),
+            min_quantity=row.min_quantity,
+            cost_per_base_unit=row.cost_per_base_unit,
+            is_ingredient=row.is_ingredient,
+        )
+        session.add(item)
+        await session.flush()
+        write_stock_log(
+            session,
+            item=item,
+            action=StockLogAction.created,
+            user=user,
+            detail=item_create_detail(item),
+        )
+        if row.quantity > 0:
+            price_total = (row.quantity * row.purchase_to_base * row.cost_per_base_unit).quantize(
+                Decimal("0.01")
+            )
+            await apply_stock_movement(
+                session,
+                shop_id=shop_id,
+                item=item,
+                movement_type=StockMovementType.income,
+                quantity=row.quantity,
+                price_total=price_total,
+                user=user,
+                comment="импорт склада",
+            )
+        created.append(item)
+    await session.commit()
+    for item in created:
+        await session.refresh(item)
+    return [_item_out(item, hide_cost=False) for item in created]
 
 
 @router.get("/shops/{shop_id}/stock-items/{item_id}", response_model=StockItemOut)
@@ -213,6 +311,77 @@ async def delete_stock_item(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
     await remove_stock_item(session, item, user)
     await session.commit()
+
+
+@router.post("/shops/{shop_id}/stock-items/{item_id}/make-product", response_model=ProductOut, status_code=201)
+async def make_product_from_stock(
+    shop_id: int,
+    item_id: int,
+    body: MakeProductIn,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    item = await session.get(StockItem, item_id)
+    if item is None or item.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+    if body.category_id is not None:
+        category = await session.get(Category, body.category_id)
+        if category is None or category.shop_id != shop_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Категория не найдена")
+    product = Product(
+        shop_id=shop_id,
+        name=item.name,
+        sale_price=body.sale_price,
+        category_id=body.category_id,
+        is_active=True,
+        is_service=False,
+    )
+    session.add(product)
+    await session.flush()
+    session.add(
+        ProductIngredient(
+            product_id=product.id,
+            stock_item_id=item.id,
+            quantity=Decimal("1"),
+        )
+    )
+    await session.commit()
+    result = await session.execute(
+        select(Product)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
+            selectinload(Product.image),
+        )
+        .where(Product.id == product.id)
+    )
+    product = result.scalar_one()
+    return ProductOut(
+        id=product.id,
+        shop_id=product.shop_id,
+        category_id=product.category_id,
+        name=product.name,
+        name_kk=product.name_kk,
+        name_en=product.name_en,
+        sale_price=product.sale_price,
+        is_active=product.is_active,
+        is_service=bool(product.is_service),
+        image_url=product.image_url,
+        created_at=product.created_at,
+        category_name=product.category.name if product.category else None,
+        category_name_kk=product.category.name_kk if product.category else None,
+        category_name_en=product.category.name_en if product.category else None,
+        cost_price=item.cost_per_base_unit.quantize(Decimal("0.01")),
+        ingredients=[
+            IngredientOut(
+                stock_item_id=item.id,
+                quantity=Decimal("1"),
+                stock_item_name=item.name,
+                unit=item.base_unit,
+            )
+        ],
+    )
 
 
 @router.post(

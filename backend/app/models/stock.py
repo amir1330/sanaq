@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Numeric, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Numeric, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -28,6 +28,7 @@ class StockItem(Base):
     cost_per_base_unit: Mapped[Decimal] = mapped_column(
         Numeric(12, 4), nullable=False, default=Decimal("0")
     )
+    is_ingredient: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     image_upload_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("uploads.id", ondelete="SET NULL", use_alter=True, name="fk_stock_items_image_upload_id"),
