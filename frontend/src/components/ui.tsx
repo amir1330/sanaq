@@ -268,9 +268,11 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 
 export type MoreMenuItem = {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   danger?: boolean;
   disabled?: boolean;
+  /** Custom row (e.g. stepper); skips default click-to-close button. */
+  custom?: ReactNode;
 };
 
 export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: string }) {
@@ -318,26 +320,32 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
           role="menu"
           className="absolute right-0 z-20 mt-1 min-w-44 overflow-hidden rounded-md bg-paper py-1 shadow-soft"
         >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              disabled={item.disabled}
-              className={cn(
-                "block w-full px-4 py-2.5 text-left text-[13.5px] disabled:opacity-40",
-                item.danger ? "text-maroon hover:bg-maroon/10" : "text-ink hover:bg-cream",
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (item.disabled) return;
-                setOpen(false);
-                item.onClick();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
+          {items.map((item) =>
+            item.custom ? (
+              <div key={item.label} role="none" className="px-3 py-2">
+                {item.custom}
+              </div>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                disabled={item.disabled}
+                className={cn(
+                  "block w-full px-4 py-2.5 text-left text-[13.5px] disabled:opacity-40",
+                  item.danger ? "text-maroon hover:bg-maroon/10" : "text-ink hover:bg-cream",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.disabled) return;
+                  setOpen(false);
+                  item.onClick?.();
+                }}
+              >
+                {item.label}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>

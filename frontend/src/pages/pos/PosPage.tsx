@@ -113,6 +113,7 @@ export function PosPage() {
   const [cashPayOpen, setCashPayOpen] = useState(false);
   const [tendered, setTendered] = useState(0);
   const [printReceipts, setPrintReceipts] = useState(true);
+  const [headerOpen, setHeaderOpen] = useState(false);
 
   const shops = useQuery({
     queryKey: ["shops"],
@@ -418,92 +419,159 @@ export function PosPage() {
   const registerList = registers.data ?? [];
   const currentRegister = registerList.find((r) => r.id === registerId) ?? registerList[0];
   const multiTill = registerList.length > 1;
-  const scaleLabels: Record<UiScale, string> = {
-    sm: t("account.scaleSm"),
-    md: t("account.scaleMd"),
-    lg: t("account.scaleLg"),
-    xl: t("account.scaleXl"),
-  };
+  const scaleIdx = SCALES.indexOf(scale);
+  const sellerName = seller?.name ?? user.full_name;
+  const tillName = currentRegister?.name ?? t("pos.tillFallback");
+
+  const moreItems = [
+    {
+      label: t("account.scale"),
+      custom: (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[12px] text-ink-soft">{t("account.scale")}</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center rounded-full border border-line-2 text-[15px] disabled:opacity-40"
+              disabled={scaleIdx <= 0}
+              onClick={() => setScale(SCALES[Math.max(0, scaleIdx - 1)])}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center rounded-full border border-line-2 text-[15px] disabled:opacity-40"
+              disabled={scaleIdx >= SCALES.length - 1}
+              onClick={() => setScale(SCALES[Math.min(SCALES.length - 1, scaleIdx + 1)])}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      ),
+    },
+    ...(shift.data
+      ? [
+          {
+            label: t("pos.receipts"),
+            onClick: () => setPanel("receipts"),
+          },
+          {
+            label: t("pos.drawer"),
+            onClick: () => {
+              setMoveType("withdrawal" as const);
+              setMoveAmount("");
+              setPanel("move");
+            },
+          },
+        ]
+      : []),
+    ...((user.role !== "barista" || user.can_receive_stock)
+      ? [
+          {
+            label: t("pos.receive"),
+            disabled: salesFrozen,
+            onClick: () => {
+              if (salesFrozen) {
+                setNotice({
+                  tone: "warn" as const,
+                  text: t("pos.receiveBlocked", { id: revisionId! }),
+                });
+                return;
+              }
+              setReceiveOpen(true);
+            },
+          },
+        ]
+      : []),
+    ...(user.role !== "barista"
+      ? [
+          {
+            label: t("pos.toCabinet"),
+            onClick: () => navigate("/owner"),
+          },
+        ]
+      : []),
+  ];
 
   const headerBlock = (
-    <div className="space-y-3 rounded-md bg-paper-2 p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 rounded-md bg-paper px-3 py-2.5">
-            <ShopBrand shop={currentShop} fallback={t("pos.tillFallback")} size="md" markClass="h-5 w-7 text-gold" />
-          </div>
+    <div className="rounded-md bg-paper-2 p-2.5">
+      <div className="flex items-center gap-2.5 px-1.5 py-1">
+        <ShopBrand shop={currentShop} fallback={t("pos.tillFallback")} size="sm" markClass="h-4 w-5 text-gold" />
+      </div>
+      <div className="mt-1 flex items-center gap-1">
+        {!isBarista ? (
+          <button
+            type="button"
+            onClick={() => setPanel("seller")}
+            className="min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-ink hover:bg-paper"
+            title={t("pos.changeSeller")}
+          >
+            {sellerName}
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1 truncate px-2 py-1.5 text-[13px] font-medium text-ink">
+            {sellerName}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setHeaderOpen((v) => !v)}
+          className="shrink-0 rounded-md px-2 py-1.5 text-[12px] text-ink-soft hover:bg-paper hover:text-ink"
+          aria-expanded={headerOpen}
+        >
+          <span className="max-w-[7.5rem] truncate">{tillName}</span>
+          <span className="ml-1" aria-hidden>
+            {headerOpen ? "▴" : "▾"}
+          </span>
+        </button>
+      </div>
+      {headerOpen && (
+        <div className="mt-1.5 space-y-2 border-t border-line px-1.5 pt-2">
           {currentShop?.address && (
-            <p className="mt-1.5 px-1 text-[11px] text-ink-soft">{currentShop.address}</p>
+            <p className="text-[11px] text-ink-soft">{currentShop.address}</p>
+          )}
+          {multiTill ? (
+            <div className="space-y-1">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                {t("pos.tillLabel")}
+              </p>
+              {registerList.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => pickRegister(r.id)}
+                  className={`min-h-10 w-full rounded-md px-3 py-2 text-left text-[13px] ${
+                    r.id === registerId
+                      ? "bg-paper font-semibold text-ink"
+                      : "text-ink-soft hover:bg-paper/60"
+                  }`}
+                >
+                  <span className="block">{r.name}</span>
+                  <span className="text-[11px] text-faint">
+                    {r.has_open_shift || (r.id === registerId && shift.data)
+                      ? t("pos.shiftOpen")
+                      : t("pos.shiftClosed")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[12px] text-ink-soft">
+              {tillName}
+              {shift.data ? ` · ${t("pos.shiftOpen")}` : ` · ${t("pos.shiftClosed")}`}
+            </p>
+          )}
+          {currentShop && !currentShop.webkassa_enabled && (
+            <p className="text-[11px] text-gold">{t("pos.ofdOff")}</p>
+          )}
+          {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
+            <p className="text-[11px] text-gold">
+              {t("pos.ofdPending", { n: shift.data?.fiscal_pending_count ?? 0 })}
+            </p>
           )}
         </div>
-      </div>
-      <div>
-        <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-          {t("account.scale")}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="quiet"
-            className="min-w-11"
-            disabled={SCALES.indexOf(scale) <= 0}
-            onClick={() => setScale(SCALES[Math.max(0, SCALES.indexOf(scale) - 1)])}
-          >
-            −
-          </Button>
-          <span className="min-w-[2.5rem] text-center text-[13px] font-semibold">{scaleLabels[scale]}</span>
-          <Button
-            variant="quiet"
-            className="min-w-11"
-            disabled={SCALES.indexOf(scale) >= SCALES.length - 1}
-            onClick={() => setScale(SCALES[Math.min(SCALES.length - 1, SCALES.indexOf(scale) + 1)])}
-          >
-            +
-          </Button>
-        </div>
-      </div>
-      {multiTill && (
-        <div className="space-y-1.5">
-          <p className="px-1 text-[10px] font-mono uppercase tracking-wider text-ink-soft">{t("pos.tillLabel")}</p>
-          <div className="flex flex-col gap-1">
-            {registerList.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => pickRegister(r.id)}
-                className={`min-h-11 rounded-md px-3.5 py-2.5 text-left text-[13px] ${
-                  r.id === registerId
-                    ? "bg-paper font-semibold text-ink"
-                    : "text-ink-soft hover:bg-paper/60"
-                }`}
-              >
-                <span className="block">{r.name}</span>
-                <span className="text-[11px] text-faint">
-                  {r.has_open_shift || (r.id === registerId && shift.data) ? t("pos.shiftOpen") : t("pos.shiftClosed")}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
       )}
-      {!multiTill && currentRegister && (
-        <p className="px-1 text-[11px] text-ink-soft">{currentRegister.name}</p>
-      )}
-      {currentShop && !currentShop.webkassa_enabled && (
-        <p className="px-1 text-[11px] text-gold">{t("pos.ofdOff")}</p>
-      )}
-      {(shift.data?.fiscal_pending_count ?? 0) > 0 && (
-        <p className="px-1 text-[11px] text-gold">
-          {t("pos.ofdPending", { n: shift.data?.fiscal_pending_count ?? 0 })}
-        </p>
-      )}
-      <div className="flex min-h-11 items-center justify-between rounded-full bg-paper py-2 pl-4 pr-2 text-[12.5px]">
-        <span>{seller?.name ?? user.full_name}</span>
-        {!isBarista && (
-          <Button variant="gold" onClick={() => setPanel("seller")}>
-            {t("pos.changeSeller")}
-          </Button>
-        )}
-      </div>
     </div>
   );
 
@@ -597,74 +665,15 @@ export function PosPage() {
             >
               {t("pos.closeShift")}
             </Button>
-            <MoreMenu
-              label="⋮"
-              items={[
-                {
-                  label: t("pos.receipts"),
-                  onClick: () => setPanel("receipts"),
-                },
-                {
-                  label: t("pos.drawer"),
-                  onClick: () => {
-                    setMoveType("withdrawal");
-                    setMoveAmount("");
-                    setPanel("move");
-                  },
-                },
-                ...((user.role !== "barista" || user.can_receive_stock)
-                  ? [
-                      {
-                        label: t("pos.receive"),
-                        disabled: salesFrozen,
-                        onClick: () => {
-                          if (salesFrozen) {
-                            setNotice({
-                              tone: "warn",
-                              text: t("pos.receiveBlocked", { id: revisionId! }),
-                            });
-                            return;
-                          }
-                          setReceiveOpen(true);
-                        },
-                      },
-                    ]
-                  : []),
-              ]}
-            />
+            <MoreMenu label="⋮" items={moreItems} />
           </div>
         </>
       ) : (
-        <>
-          <Button variant="confirm" className="w-full" onClick={() => setPanel("open")}>
+        <div className="flex items-center gap-2">
+          <Button variant="confirm" className="min-w-0 flex-1" onClick={() => setPanel("open")}>
             {t("pos.openShift")}
           </Button>
-          {(user.role !== "barista" || user.can_receive_stock) && (
-            <Button
-              variant="quiet"
-              className="w-full"
-              onClick={() => {
-                if (salesFrozen) {
-                  setNotice({
-                    tone: "warn",
-                    text: t("pos.receiveBlocked", { id: revisionId! }),
-                  });
-                  return;
-                }
-                setReceiveOpen(true);
-              }}
-              disabled={salesFrozen}
-            >
-              {t("pos.receive")}
-            </Button>
-          )}
-        </>
-      )}
-      {user.role !== "barista" && (
-        <div className="border-t border-line pt-2.5">
-          <Button variant="ghost" className="w-full justify-start px-0" onClick={() => navigate("/owner")}>
-            {t("pos.toCabinet")}
-          </Button>
+          <MoreMenu label="⋮" items={moreItems} />
         </div>
       )}
     </div>
