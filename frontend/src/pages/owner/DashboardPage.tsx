@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Empty, Field, Input, pill } from "../../components/ui";
+import { Button, Empty, Input, pill } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { money, startOfPeriod, type Period } from "../../lib/utils";
@@ -78,32 +78,47 @@ export function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex gap-2">
-            {(["today", "week", "month", "custom"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`${pill} ${
-                  period === p
-                    ? "border-ink bg-ink text-paper"
-                    : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
-                }`}
-              >
-                {periodLabel(p)}
-              </button>
-            ))}
-          </div>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {(["today", "week", "month", "custom"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriod(p)}
+              className={`${pill} ${
+                period === p
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
+              }`}
+            >
+              {periodLabel(p)}
+            </button>
+          ))}
           {period === "custom" && (
-            <div className="flex gap-4">
-              <Field label={t("dashboard.from")}>
-                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </Field>
-              <Field label={t("dashboard.to")}>
-                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-              </Field>
-            </div>
+            <>
+              <label className="inline-flex h-10 items-center gap-2">
+                <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">
+                  {t("dashboard.from")}
+                </span>
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="h-10 w-[11.5rem] py-0"
+                />
+              </label>
+              <label className="inline-flex h-10 items-center gap-2">
+                <span className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">
+                  {t("dashboard.to")}
+                </span>
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="h-10 w-[11.5rem] py-0"
+                />
+              </label>
+            </>
           )}
         </div>
         <Button variant="quiet" disabled={!shopId || !rangeOk || exporting} onClick={() => void exportCsv()}>
