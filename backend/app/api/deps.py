@@ -52,6 +52,7 @@ async def user_out_payload(session: AsyncSession, user: User) -> dict:
         "created_at": user.created_at,
         "owned_shop_ids": shop_ids,
         "can_receive_stock": user.role != UserRole.barista or bool(user.can_receive_stock),
+        "can_apply_discount": user.role != UserRole.barista or bool(user.can_apply_discount),
     }
 
 

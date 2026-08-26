@@ -7,16 +7,72 @@ import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { storageGet, storageSet } from "../../lib/storage";
+import { cartTotals, lineGross, lineTotal, type Discount } from "../../lib/discount";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import { SCALE_ZOOM, useUiScale, type UiScale } from "../../store/uiScale";
 import type { CrewMember, Product, ShiftSale } from "../../types";
 
-type Line = { product: Product; quantity: number };
+type Line = { product: Product; quantity: number; discount?: Discount | null };
 type MobileTab = "products" | "cart" | "shift";
+type DiscountDraft = { type: Discount["type"]; value: string };
 
 const SCALES: UiScale[] = ["sm", "md", "lg", "xl"];
+
+function DiscountEditor({
+  draft,
+  onChange,
+  onApply,
+  onCancel,
+  applyLabel,
+  percentLabel,
+  amountLabel,
+}: {
+  draft: DiscountDraft;
+  onChange: (next: DiscountDraft) => void;
+  onApply: () => void;
+  onCancel: () => void;
+  applyLabel: string;
+  percentLabel: string;
+  amountLabel: string;
+}) {
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-line bg-paper px-2.5 py-2">
+      <div className="flex gap-1">
+        <Button
+          variant={draft.type === "percent" ? "primary" : "quiet"}
+          className="flex-1"
+          onClick={() => onChange({ ...draft, type: "percent" })}
+        >
+          {percentLabel}
+        </Button>
+        <Button
+          variant={draft.type === "amount" ? "primary" : "quiet"}
+          className="flex-1"
+          onClick={() => onChange({ ...draft, type: "amount" })}
+        >
+          {amountLabel}
+        </Button>
+      </div>
+      <input
+        className="w-full rounded-md border-[1.5px] border-line-2 bg-cream px-3 py-2 text-[14px] text-ink outline-none focus:border-ink"
+        value={draft.value}
+        onChange={(e) => onChange({ ...draft, value: e.target.value })}
+        inputMode="decimal"
+        autoFocus
+      />
+      <div className="flex gap-2">
+        <Button variant="confirm" className="flex-1" onClick={onApply}>
+          {applyLabel}
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          ×
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function PosPage() {
   const t = useT();
@@ -42,6 +98,17 @@ export function PosPage() {
   const [registerId, setRegisterId] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("products");
   const [financeOpen, setFinanceOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [receiptDiscount, setReceiptDiscount] = useState<Discount | null>(null);
+  const [lineDiscountEdit, setLineDiscountEdit] = useState<number | null>(null);
+  const [lineDiscountDraft, setLineDiscountDraft] = useState<DiscountDraft>({ type: "percent", value: "" });
+  const [receiptDiscountEdit, setReceiptDiscountEdit] = useState(false);
+  const [receiptDiscountDraft, setReceiptDiscountDraft] = useState<DiscountDraft>({
+    type: "percent",
+    value: "",
+  });
+  const [findReceiptId, setFindReceiptId] = useState("");
+  const [findReceiptError, setFindReceiptError] = useState<string | null>(null);
 
   const shops = useQuery({
     queryKey: ["shops"],
@@ -127,14 +194,22 @@ export function PosPage() {
 
   const visible = useMemo(() => {
     const list = (products.data ?? []).filter((p) => p.is_active);
-    if (categoryId === "all") return list;
-    return list.filter((p) => p.category_id === categoryId);
-  }, [products.data, categoryId]);
+    const byCategory = categoryId === "all" ? list : list.filter((p) => p.category_id === categoryId);
+    const q = productSearch.trim().toLocaleLowerCase();
+    if (!q) return byCategory;
+    return byCategory.filter((p) => localizedName(p, locale).toLocaleLowerCase().includes(q));
+  }, [products.data, categoryId, productSearch, locale]);
 
-  const total = cart.reduce((s, l) => s + Number(l.product.sale_price) * l.quantity, 0);
+  const totals = cartTotals(
+    cart.map((l) => ({ price: l.product.sale_price, quantity: l.quantity, discount: l.discount })),
+    receiptDiscount,
+  );
+  const total = totals.total;
   const shiftOpen = Boolean(shift.data);
   const revisionId = shift.data?.stock_revision_id ?? null;
   const salesFrozen = Boolean(revisionId);
+  const canDiscount =
+    user?.role === "owner" || user?.role === "super_admin" || Boolean(user?.can_apply_discount);
 
   function add(product: Product) {
     if (!shiftOpen) {
@@ -165,19 +240,64 @@ export function PosPage() {
     );
   }
 
+  function applyDraft(draft: DiscountDraft): Discount | null {
+    const value = Number(draft.value.replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return { type: draft.type, value };
+  }
+
+  async function findReceiptById() {
+    const id = Number(findReceiptId.trim());
+    setFindReceiptError(null);
+    if (!Number.isFinite(id) || id <= 0) {
+      setFindReceiptError(t("pos.findReceiptNotFound"));
+      return;
+    }
+    try {
+      const sale = await api.findSale(sid, id);
+      if (sale.is_refunded) {
+        setFindReceiptError(t("pos.findReceiptAlready"));
+        return;
+      }
+      setRestoreStock(false);
+      setRefundTarget({
+        id: sale.id,
+        total_amount: sale.total_amount,
+        payment_type: sale.payment_type,
+        is_refunded: sale.is_refunded,
+        created_at: sale.created_at,
+        discount_amount: sale.discount_amount,
+      });
+    } catch {
+      setFindReceiptError(t("pos.findReceiptNotFound"));
+    }
+  }
+
   const sell = useMutation({
     mutationFn: (payment_type: "cash" | "card") =>
       api.createSale(
         sid,
-        cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+        cart.map((l) => ({
+          product_id: l.product.id,
+          quantity: l.quantity,
+          discount: l.discount
+            ? { type: l.discount.type, value: Number(l.discount.value) }
+            : null,
+        })),
         payment_type,
         seller?.id,
         registerId ?? undefined,
+        receiptDiscount
+          ? { type: receiptDiscount.type, value: Number(receiptDiscount.value) }
+          : null,
       ),
     onSuccess: (sale) => {
       const parts = [
         t("pos.saleOk", { amount: money(sale.total_amount), pay: payLabel(sale.payment_type) }),
       ];
+      if (sale.discount_amount && Number(sale.discount_amount) > 0) {
+        parts.push(t("pos.discountOf", { n: money(sale.discount_amount) }));
+      }
       if (sale.alerts.length) {
         parts.push(t("pos.stockLow", { names: sale.alerts.map((a) => a.name).join(", ") }));
       }
@@ -191,6 +311,9 @@ export function PosPage() {
         parts.push(t("pos.fiscalPending"));
       }
       setCart([]);
+      setReceiptDiscount(null);
+      setLineDiscountEdit(null);
+      setReceiptDiscountEdit(false);
       setNotice({
         tone: sale.alerts.length || sale.fiscal_status === "failed" ? "warn" : "ok",
         text: parts.join(" "),
@@ -200,8 +323,7 @@ export function PosPage() {
     onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
   });
 
-  const openShift = useMutation({
-    mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id, registerId ?? undefined),
+  const openShift = useMutation({    mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id, registerId ?? undefined),
     onSuccess: () => {
       setPanel("none");
       setNotice({ tone: "ok", text: t("pos.shiftOpened") });
@@ -496,39 +618,49 @@ export function PosPage() {
   );
 
   const productsColumn = (
-    <section className="h-full overflow-y-auto bg-paper-2 p-4 sm:p-6">
-      {notice && (
-        <Banner tone={notice.tone}>
-          {notice.text}{" "}
-          <button type="button" className="underline" onClick={() => setNotice(null)}>
-            {t("pos.hide")}
-          </button>
-        </Banner>
-      )}
-      {!shiftOpen && <Banner tone="warn">{t("pos.closedBanner")}</Banner>}
-      {salesFrozen && <Banner tone="warn">{t("pos.revisionBanner", { id: revisionId! })}</Banner>}
-      <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3">
-        {visible.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => add(p)}
-            className={`min-h-[5.5rem] rounded-lg border-[1.5px] border-transparent bg-paper px-3 py-4 text-left text-ink transition hover:-translate-y-0.5 hover:border-gold sm:px-4 sm:py-[18px] ${!shiftOpen || salesFrozen ? "opacity-50" : ""}`}
-          >
-            <p className="truncate font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">
-              {localizedName(
-                {
-                  name: p.category_name ?? "",
-                  name_kk: p.category_name_kk,
-                  name_en: p.category_name_en,
-                },
-                locale,
-              )}
-            </p>
-            <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
-            <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
-          </button>
-        ))}
+    <section className="flex h-full flex-col overflow-hidden bg-paper-2">
+      <div className="sticky top-0 z-10 border-b border-line bg-paper-2 p-4 sm:px-6 sm:pt-6 sm:pb-3">
+        <input
+          className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-4 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+          value={productSearch}
+          onChange={(e) => setProductSearch(e.target.value)}
+          placeholder={t("pos.searchProducts")}
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 sm:pt-3">
+        {notice && (
+          <Banner tone={notice.tone}>
+            {notice.text}{" "}
+            <button type="button" className="underline" onClick={() => setNotice(null)}>
+              {t("pos.hide")}
+            </button>
+          </Banner>
+        )}
+        {!shiftOpen && <Banner tone="warn">{t("pos.closedBanner")}</Banner>}
+        {salesFrozen && <Banner tone="warn">{t("pos.revisionBanner", { id: revisionId! })}</Banner>}
+        <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3">
+          {visible.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => add(p)}
+              className={`min-h-[5.5rem] rounded-lg border-[1.5px] border-transparent bg-paper px-3 py-4 text-left text-ink transition hover:-translate-y-0.5 hover:border-gold sm:px-4 sm:py-[18px] ${!shiftOpen || salesFrozen ? "opacity-50" : ""}`}
+            >
+              <p className="truncate font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">
+                {localizedName(
+                  {
+                    name: p.category_name ?? "",
+                    name_kk: p.category_name_kk,
+                    name_en: p.category_name_en,
+                  },
+                  locale,
+                )}
+              </p>
+              <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
+              <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -540,36 +672,172 @@ export function PosPage() {
         {cart.length === 0 && (
           <p className="py-5 text-center text-[13px] text-ink-soft">{t("pos.cartEmpty")}</p>
         )}
-        {cart.map((l) => (
-          <div
-            key={l.product.id}
-            className="flex items-center gap-2.5 rounded-md bg-paper-2 px-3.5 py-2.5 text-[13.5px]"
-          >
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
-                onClick={() => changeQty(l.product.id, -1)}
-              >
-                −
-              </button>
-              <span className="min-w-[1.25rem] text-center">{l.quantity}</span>
-              <button
-                type="button"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
-                onClick={() => changeQty(l.product.id, 1)}
-              >
-                +
-              </button>
+        {cart.map((l) => {
+          const gross = lineGross(l.product.sale_price, l.quantity);
+          const net = lineTotal(l.product.sale_price, l.quantity, l.discount);
+          const hasDisc = Boolean(l.discount && Number(l.discount.value) > 0);
+          return (
+            <div key={l.product.id} className="rounded-md bg-paper-2 px-3.5 py-2.5 text-[13.5px]">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
+                    onClick={() => changeQty(l.product.id, -1)}
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[1.25rem] text-center">{l.quantity}</span>
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
+                    onClick={() => changeQty(l.product.id, 1)}
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="min-w-0 flex-1 break-words">{localizedName(l.product, locale)}</span>
+                <span className="shrink-0 text-right font-mono font-semibold text-gold">
+                  {hasDisc ? (
+                    <>
+                      <span className="block text-[11px] font-normal text-ink-soft line-through">
+                        {money(gross)}
+                      </span>
+                      {money(net)}
+                    </>
+                  ) : (
+                    money(net)
+                  )}
+                </span>
+              </div>
+              {hasDisc && (
+                <p className="mt-1 text-[11px] text-ink-soft">
+                  {t("pos.discountOf", { n: money(gross - net) })}
+                </p>
+              )}
+              {canDiscount && (
+                <div className="mt-1.5">
+                  {lineDiscountEdit === l.product.id ? (
+                    <DiscountEditor
+                      draft={lineDiscountDraft}
+                      onChange={setLineDiscountDraft}
+                      applyLabel={t("pos.discountApply")}
+                      percentLabel={t("pos.discountPercent")}
+                      amountLabel={t("pos.discountAmount")}
+                      onApply={() => {
+                        const next = applyDraft(lineDiscountDraft);
+                        setCart((prev) =>
+                          prev.map((row) =>
+                            row.product.id === l.product.id ? { ...row, discount: next } : row,
+                          ),
+                        );
+                        setLineDiscountEdit(null);
+                      }}
+                      onCancel={() => setLineDiscountEdit(null)}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="text-[11px] text-ink-soft underline"
+                        onClick={() => {
+                          setLineDiscountEdit(l.product.id);
+                          setLineDiscountDraft({
+                            type: l.discount?.type ?? "percent",
+                            value: l.discount ? String(l.discount.value) : "",
+                          });
+                        }}
+                      >
+                        {hasDisc ? t("pos.discountItem") : t("pos.discountAdd")}
+                      </button>
+                      {hasDisc && (
+                        <button
+                          type="button"
+                          className="text-[11px] text-maroon underline"
+                          onClick={() =>
+                            setCart((prev) =>
+                              prev.map((row) =>
+                                row.product.id === l.product.id ? { ...row, discount: null } : row,
+                              ),
+                            )
+                          }
+                        >
+                          {t("pos.discountRemove")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <span className="min-w-0 flex-1 break-words">{localizedName(l.product, locale)}</span>
-            <span className="shrink-0 font-mono font-semibold text-gold">
-              {money(Number(l.product.sale_price) * l.quantity)}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="sticky bottom-0 mt-3.5 border-t border-line bg-paper pt-4">
+        {totals.discountTotal > 0 && (
+          <div className="mb-2 space-y-1 text-[12.5px] text-ink-soft">
+            <div className="flex justify-between">
+              <span>{t("pos.subtotal")}</span>
+              <span className="font-mono">{money(totals.subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>{t("pos.discountItem")}</span>
+              <span className="font-mono">−{money(totals.discountTotal)}</span>
+            </div>
+          </div>
+        )}
+        {canDiscount && (
+          <div className="mb-3">
+            <div className="mb-1 flex items-center justify-between text-[12.5px]">
+              <span className="text-ink-soft">{t("pos.discountReceipt")}</span>
+              {receiptDiscount && Number(receiptDiscount.value) > 0 ? (
+                <button
+                  type="button"
+                  className="text-maroon underline"
+                  onClick={() => {
+                    setReceiptDiscount(null);
+                    setReceiptDiscountEdit(false);
+                  }}
+                >
+                  {t("pos.discountRemove")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="underline text-ink-soft"
+                  onClick={() => {
+                    setReceiptDiscountEdit(true);
+                    setReceiptDiscountDraft({ type: "percent", value: "" });
+                  }}
+                >
+                  {t("pos.discountAdd")}
+                </button>
+              )}
+            </div>
+            {receiptDiscount && Number(receiptDiscount.value) > 0 && !receiptDiscountEdit && (
+              <p className="text-[12px] text-ink-soft">
+                {receiptDiscount.type === "percent"
+                  ? `${receiptDiscount.value}%`
+                  : money(receiptDiscount.value)}{" "}
+                → −{money(totals.receiptDiscount)}
+              </p>
+            )}
+            {receiptDiscountEdit && (
+              <DiscountEditor
+                draft={receiptDiscountDraft}
+                onChange={setReceiptDiscountDraft}
+                applyLabel={t("pos.discountApply")}
+                percentLabel={t("pos.discountPercent")}
+                amountLabel={t("pos.discountAmount")}
+                onApply={() => {
+                  setReceiptDiscount(applyDraft(receiptDiscountDraft));
+                  setReceiptDiscountEdit(false);
+                }}
+                onCancel={() => setReceiptDiscountEdit(false)}
+              />
+            )}
+          </div>
+        )}
         <div className="mb-[18px] flex items-baseline justify-between text-[13px] text-ink-soft">
           <span>{t("pos.toPay")}</span>
           <b className="font-mono text-[25px] font-semibold text-ink">{money(total)}</b>
@@ -595,7 +863,14 @@ export function PosPage() {
           </Button>
         </div>
         {cart.length > 0 && (
-          <Button variant="ghost" className="mt-3 w-full" onClick={() => setCart([])}>
+          <Button
+            variant="ghost"
+            className="mt-3 w-full"
+            onClick={() => {
+              setCart([]);
+              setReceiptDiscount(null);
+            }}
+          >
             {t("pos.clearCart")}
           </Button>
         )}
@@ -780,6 +1055,32 @@ export function PosPage() {
               <>
                 <h2 className="font-display text-2xl font-normal">{t("pos.receipts")}</h2>
                 <p className="mt-2 text-sm text-ink-soft">{t("pos.receiptsHint")}</p>
+                <div className="mt-4 rounded-md border border-line bg-paper-2 p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                    {t("pos.findReceipt")}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      className="min-w-0 flex-1 rounded-md border-[1.5px] border-line-2 bg-cream px-3 py-2 text-[14px] text-ink outline-none focus:border-ink"
+                      value={findReceiptId}
+                      onChange={(e) => {
+                        setFindReceiptId(e.target.value);
+                        setFindReceiptError(null);
+                      }}
+                      placeholder={t("pos.findReceiptPh")}
+                      inputMode="numeric"
+                    />
+                    <Button
+                      variant="quiet"
+                      onClick={() => {
+                        void findReceiptById();
+                      }}
+                    >
+                      {t("pos.findReceiptGo")}
+                    </Button>
+                  </div>
+                  {findReceiptError && <p className="mt-2 text-sm text-alert">{findReceiptError}</p>}
+                </div>
                 <div className="mt-4 max-h-72 overflow-auto">
                   {(shift.data?.sales ?? []).length === 0 && (
                     <p className="py-4 text-sm text-ink-soft">{t("pos.noReceipts")}</p>
@@ -789,6 +1090,9 @@ export function PosPage() {
                       <div>
                         <p className={sale.is_refunded ? "text-ink-soft line-through" : ""}>
                           №{sale.id} · {money(sale.total_amount)} · {payLabel(sale.payment_type)}
+                          {sale.discount_amount && Number(sale.discount_amount) > 0
+                            ? ` · ${t("pos.discountOf", { n: money(sale.discount_amount) })}`
+                            : ""}
                         </p>
                         <p className="font-mono text-[10px] text-faint">
                           {new Date(sale.created_at).toLocaleTimeString(dateLocaleTag(locale), {
@@ -814,7 +1118,15 @@ export function PosPage() {
                     </div>
                   ))}
                 </div>
-                <Button variant="ghost" className="mt-4 text-ink-soft" onClick={() => setPanel("none")}>
+                <Button
+                  variant="ghost"
+                  className="mt-4 text-ink-soft"
+                  onClick={() => {
+                    setPanel("none");
+                    setFindReceiptId("");
+                    setFindReceiptError(null);
+                  }}
+                >
                   {t("common.back")}
                 </Button>
               </>

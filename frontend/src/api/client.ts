@@ -292,15 +292,18 @@ export const api = {
 
   createSale: (
     shopId: number,
-    items: { product_id: number; quantity: number }[],
+    items: { product_id: number; quantity: number; discount?: { type: "percent" | "amount"; value: number } | null }[],
     payment_type: "cash" | "card",
     barista_id?: number,
     cash_register_id?: number,
+    discount?: { type: "percent" | "amount"; value: number } | null,
   ) =>
     request<Sale>("/sales", {
       method: "POST",
-      body: json({ shop_id: shopId, items, payment_type, barista_id, cash_register_id }),
+      body: json({ shop_id: shopId, items, payment_type, barista_id, cash_register_id, discount }),
     }),
+  findSale: (shopId: number, saleId: number) =>
+    request<Sale>(`/shops/${shopId}/sales/${saleId}`),
   refundSale: (shopId: number, saleId: number, restore_stock = false) =>
     request<Sale>(`/sales/${saleId}/refund`, {
       method: "POST",

@@ -294,6 +294,22 @@ export type Messages = {
     tabProducts: string;
     tabCart: string;
     tabShift: string;
+    searchProducts: string;
+    discountReceipt: string;
+    discountItem: string;
+    discountAdd: string;
+    discountRemove: string;
+    discountPercent: string;
+    discountAmount: string;
+    discountForbidden: string;
+    discountApply: string;
+    discountOf: string;
+    subtotal: string;
+    findReceipt: string;
+    findReceiptPh: string;
+    findReceiptGo: string;
+    findReceiptNotFound: string;
+    findReceiptAlready: string;
   };
   products: {
     kicker: string;
@@ -447,6 +463,8 @@ export type Messages = {
     colStatus: string;
     rightsPosStock: string;
     rightsPos: string;
+    rightsDiscountOn: string;
+    rightsDiscountOff: string;
     newPassword: string;
     change: string;
     newTitle: string;
@@ -458,6 +476,7 @@ export type Messages = {
     phone: string;
     phonePh: string;
     canReceive: string;
+    canDiscount: string;
     adding: string;
   };
   stock: {

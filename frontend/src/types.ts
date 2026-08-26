@@ -12,6 +12,7 @@ export type User = {
   owned_shop_ids: number[];
   has_pin?: boolean;
   can_receive_stock?: boolean;
+  can_apply_discount?: boolean;
 };
 
 export type CrewMember = {
@@ -19,6 +20,7 @@ export type CrewMember = {
   full_name: string;
   role: Role;
   can_receive_stock: boolean;
+  can_apply_discount: boolean;
 };
 
 export type TokenPair = {
@@ -218,6 +220,7 @@ export type ShiftSale = {
   is_refunded: boolean;
   created_at: string;
   barista_name?: string | null;
+  discount_amount?: string;
 };
 
 export type SellerPoint = {
@@ -238,8 +241,30 @@ export type StockAlert = {
 
 export type FiscalStatus = "pending" | "sent" | "failed" | "skipped";
 
+export type Discount = { type: "percent" | "amount"; value: number | string };
+
+export type SaleItem = {
+  id: number;
+  product_id: number;
+  product_name?: string | null;
+  quantity: number;
+  price_snapshot: string;
+  cost_price_snapshot: string;
+  discount_type?: "percent" | "amount" | null;
+  discount_value?: string | null;
+  discount_amount?: string;
+  line_total?: string;
+};
+
 export type Sale = {
   id: number;
+  shop_id?: number;
+  shift_id?: number;
+  barista_id?: number;
+  subtotal_amount?: string;
+  discount_type?: "percent" | "amount" | null;
+  discount_value?: string | null;
+  discount_amount?: string;
   total_amount: string;
   payment_type: "cash" | "card";
   is_refunded: boolean;
@@ -248,6 +273,7 @@ export type Sale = {
   fiscal_receipt_number?: string | null;
   fiscal_receipt_url?: string | null;
   fiscal_error?: string | null;
+  items?: SaleItem[];
   alerts: StockAlert[];
 };
 
@@ -336,5 +362,6 @@ export type AdminUser = {
   is_active: boolean;
   created_at: string;
   can_receive_stock: boolean;
+  can_apply_discount?: boolean;
   has_pin: boolean;
 };

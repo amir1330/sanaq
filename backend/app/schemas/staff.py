@@ -9,6 +9,7 @@ class StaffCreate(BaseModel):
     password: str = Field(min_length=6)
     phone: str | None = None
     can_receive_stock: bool = False
+    can_apply_discount: bool = False
 
 
 class StaffUpdate(BaseModel):
@@ -18,6 +19,7 @@ class StaffUpdate(BaseModel):
     email: EmailStr | None = None
     is_active: bool | None = None
     can_receive_stock: bool | None = None
+    can_apply_discount: bool | None = None
 
 
 class StaffOut(UserOut):
@@ -29,3 +31,4 @@ class CrewMember(BaseModel):
     full_name: str
     role: str
     can_receive_stock: bool = False
+    can_apply_discount: bool = False

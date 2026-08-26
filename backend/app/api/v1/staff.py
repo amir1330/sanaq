@@ -27,6 +27,7 @@ def _staff_out(user: User) -> StaffOut:
         created_at=user.created_at,
         owned_shop_ids=[],
         can_receive_stock=bool(user.can_receive_stock),
+        can_apply_discount=bool(user.can_apply_discount),
         has_pin=bool(user.pin_code),
     )
 
@@ -44,6 +45,7 @@ async def list_crew(
             full_name=u.full_name,
             role=u.role.value,
             can_receive_stock=u.role != UserRole.barista or bool(u.can_receive_stock),
+            can_apply_discount=u.role != UserRole.barista or bool(u.can_apply_discount),
         )
         for u in await shop_crew(session, shop_id)
     ]
@@ -80,6 +82,7 @@ async def create_staff(
         email=str(body.email).strip().lower(),
         password_hash=hash_secret(body.password),
         can_receive_stock=body.can_receive_stock,
+        can_apply_discount=body.can_apply_discount,
     )
     session.add(barista)
     try:

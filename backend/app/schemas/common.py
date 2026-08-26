@@ -21,6 +21,7 @@ class UserOut(ORMModel):
     created_at: datetime
     owned_shop_ids: list[int] = Field(default_factory=list)
     can_receive_stock: bool = False
+    can_apply_discount: bool = False
 
 
 class TokenPair(BaseModel):

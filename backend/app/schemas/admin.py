@@ -21,6 +21,7 @@ class AdminUserCreate(BaseModel):
     phone: str | None = None
     password: str | None = Field(default=None, min_length=6)
     can_receive_stock: bool = False
+    can_apply_discount: bool = False
 
 
 class AdminUserOut(ORMModel):
@@ -34,6 +35,7 @@ class AdminUserOut(ORMModel):
     is_active: bool
     created_at: datetime
     can_receive_stock: bool = False
+    can_apply_discount: bool = False
     has_pin: bool = False
 
 

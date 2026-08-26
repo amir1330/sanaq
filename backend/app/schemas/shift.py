@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import CashMovementType, FiscalStatus, PaymentType, ShiftStatus
+from app.models.enums import CashMovementType, DiscountType, FiscalStatus, PaymentType, ShiftStatus
 from app.schemas.common import ORMModel
 
 
@@ -50,6 +50,7 @@ class ShiftSaleOut(ORMModel):
     is_refunded: bool
     created_at: datetime
     barista_name: str | None = None
+    discount_amount: Decimal = Decimal("0")
 
 
 class ShiftOut(ORMModel):
@@ -79,9 +80,15 @@ class ShiftOut(ORMModel):
     sales: list[ShiftSaleOut] = Field(default_factory=list)
 
 
+class DiscountIn(BaseModel):
+    type: DiscountType
+    value: Decimal = Field(ge=0)
+
+
 class SaleItemIn(BaseModel):
     product_id: int
     quantity: int = Field(ge=1)
+    discount: DiscountIn | None = None
 
 
 class SaleCreate(BaseModel):
@@ -90,6 +97,7 @@ class SaleCreate(BaseModel):
     payment_type: PaymentType
     barista_id: int | None = None
     cash_register_id: int | None = None
+    discount: DiscountIn | None = None
 
 
 class SaleRefundIn(BaseModel):
@@ -104,6 +112,10 @@ class SaleItemOut(ORMModel):
     quantity: int
     price_snapshot: Decimal
     cost_price_snapshot: Decimal
+    discount_type: DiscountType | None = None
+    discount_value: Decimal | None = None
+    discount_amount: Decimal = Decimal("0")
+    line_total: Decimal = Decimal("0")
 
 
 class StockAlert(BaseModel):
@@ -119,6 +131,10 @@ class SaleOut(ORMModel):
     shift_id: int
     barista_id: int
     payment_type: PaymentType
+    subtotal_amount: Decimal = Decimal("0")
+    discount_type: DiscountType | None = None
+    discount_value: Decimal | None = None
+    discount_amount: Decimal = Decimal("0")
     total_amount: Decimal
     is_refunded: bool
     created_at: datetime

@@ -59,6 +59,10 @@ def can_receive_stock(user: User) -> bool:
     return user.role in (UserRole.super_admin, UserRole.owner) or bool(user.can_receive_stock)
 
 
+def can_apply_discount(user: User) -> bool:
+    return user.role in (UserRole.super_admin, UserRole.owner) or bool(user.can_apply_discount)
+
+
 def require_roles(*roles: UserRole):
     async def checker(user: User) -> User:
         if user.role not in roles:

@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models import (
     CashMovementType,
+    DiscountType,
     FiscalStatus,
     PaymentType,
     Product,
@@ -22,10 +23,26 @@ from app.models import (
     StockMovementType,
     User,
 )
-from app.schemas.shift import SaleItemIn, SellerTotal, StockAlert
-from app.services.access import shop_crew
+from app.schemas.shift import DiscountIn, SaleItemIn, SellerTotal, StockAlert
+from app.services.access import can_apply_discount, shop_crew
 from app.services.revisions import assert_no_open_revision
 from app.services.stock import add_lot, consume_fifo, record_stock_movement
+
+
+def _discount_amount(base: Decimal, discount: DiscountIn | None) -> Decimal:
+    if discount is None:
+        return Decimal("0")
+    value = Decimal(str(discount.value))
+    if value <= 0 or base <= 0:
+        return Decimal("0")
+    if discount.type == DiscountType.percent:
+        pct = min(value, Decimal("100"))
+        return (base * pct / Decimal("100")).quantize(Decimal("0.01"))
+    return min(value, base).quantize(Decimal("0.01"))
+
+
+def _has_discount(discount: DiscountIn | None) -> bool:
+    return discount is not None and Decimal(str(discount.value)) > 0
 
 
 async def get_open_shift(
@@ -99,6 +116,7 @@ async def create_sale(
     payment_type: PaymentType,
     barista_id: int | None = None,
     cash_register_id: int | None = None,
+    discount: DiscountIn | None = None,
 ) -> tuple[Sale, list[StockAlert]]:
     register = await resolve_cash_register(session, shop_id, cash_register_id)
     shift = await get_open_shift(session, shop_id, register.id)
@@ -106,6 +124,10 @@ async def create_sale(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Смена на этой кассе не открыта")
     await assert_no_open_revision(session, shop_id)
     seller = await resolve_seller(session, shop_id, user, barista_id)
+
+    wants_discount = _has_discount(discount) or any(_has_discount(line.discount) for line in items)
+    if wants_discount and not can_apply_discount(user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет права применять скидки")
 
     qty_by_product: dict[int, int] = defaultdict(int)
     for line in items:
@@ -151,20 +173,33 @@ async def create_sale(
             line_cogs += await consume_fifo(session, item, need)
         cost_by_product[product_id] = (line_cogs / qty).quantize(Decimal("0.01")) if qty else Decimal("0")
 
-    total = Decimal("0")
+    subtotal = Decimal("0")
+    items_discount_total = Decimal("0")
     sale_items: list[SaleItem] = []
-    for product_id, qty in qty_by_product.items():
-        product = products[product_id]
-        line_total = (product.sale_price * qty).quantize(Decimal("0.01"))
-        total += line_total
+    for line in items:
+        product = products[line.product_id]
+        gross = (product.sale_price * line.quantity).quantize(Decimal("0.01"))
+        item_disc = _discount_amount(gross, line.discount)
+        line_total = (gross - item_disc).quantize(Decimal("0.01"))
+        subtotal += gross
+        items_discount_total += item_disc
         sale_items.append(
             SaleItem(
-                product_id=product_id,
-                quantity=qty,
+                product_id=line.product_id,
+                quantity=line.quantity,
                 price_snapshot=product.sale_price,
-                cost_price_snapshot=cost_by_product[product_id],
+                cost_price_snapshot=cost_by_product[line.product_id],
+                discount_type=line.discount.type if _has_discount(line.discount) else None,
+                discount_value=line.discount.value if _has_discount(line.discount) else None,
+                discount_amount=item_disc,
+                line_total=line_total,
             )
         )
+
+    after_items = (subtotal - items_discount_total).quantize(Decimal("0.01"))
+    receipt_disc = _discount_amount(after_items, discount)
+    total = (after_items - receipt_disc).quantize(Decimal("0.01"))
+    total_discount = (items_discount_total + receipt_disc).quantize(Decimal("0.01"))
 
     shop = await session.get(Shop, shop_id)
     fiscal = (
@@ -181,6 +216,10 @@ async def create_sale(
         shift_id=shift.id,
         barista_id=seller.id,
         payment_type=payment_type,
+        subtotal_amount=subtotal,
+        discount_type=discount.type if _has_discount(discount) else None,
+        discount_value=discount.value if _has_discount(discount) else None,
+        discount_amount=total_discount,
         total_amount=total,
         created_at=datetime.now(timezone.utc),
         fiscal_status=fiscal,

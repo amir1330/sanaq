@@ -2,6 +2,7 @@ from app.models.cash_register import CashRegister
 from app.models.catalog import Category, Product, ProductIngredient
 from app.models.enums import (
     CashMovementType,
+    DiscountType,
     FiscalStatus,
     PaymentType,
     ShiftStatus,
@@ -23,6 +24,7 @@ __all__ = [
     "CashMovementType",
     "CashRegister",
     "Category",
+    "DiscountType",
     "Expense",
     "FiscalStatus",
     "Lead",

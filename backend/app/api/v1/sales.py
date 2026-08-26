@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import roles
 from app.database import get_session
-from app.models import FiscalStatus, Product, Sale, SaleItem, User, UserRole
+from app.models import FiscalStatus, Product, Sale, User, UserRole
 from app.schemas.shift import SaleCreate, SaleItemOut, SaleOut, SaleRefundIn
 from app.services.access import assert_shop_access
 from app.services.sales import create_sale, refund_sale
@@ -22,6 +22,10 @@ def _sale_out(sale: Sale, products: dict[int, Product], alerts=None) -> SaleOut:
         shift_id=sale.shift_id,
         barista_id=sale.barista_id,
         payment_type=sale.payment_type,
+        subtotal_amount=getattr(sale, "subtotal_amount", None) or sale.total_amount,
+        discount_type=getattr(sale, "discount_type", None),
+        discount_value=getattr(sale, "discount_value", None),
+        discount_amount=getattr(sale, "discount_amount", None) or 0,
         total_amount=sale.total_amount,
         is_refunded=sale.is_refunded,
         created_at=sale.created_at,
@@ -37,6 +41,11 @@ def _sale_out(sale: Sale, products: dict[int, Product], alerts=None) -> SaleOut:
                 quantity=item.quantity,
                 price_snapshot=item.price_snapshot,
                 cost_price_snapshot=item.cost_price_snapshot,
+                discount_type=getattr(item, "discount_type", None),
+                discount_value=getattr(item, "discount_value", None),
+                discount_amount=getattr(item, "discount_amount", None) or 0,
+                line_total=getattr(item, "line_total", None)
+                or (item.price_snapshot * item.quantity),
             )
             for item in sale.items
         ],
@@ -68,6 +77,7 @@ async def post_sale(
         payment_type=body.payment_type,
         barista_id=body.barista_id,
         cash_register_id=body.cash_register_id,
+        discount=body.discount,
     )
     await session.commit()
     if sale.fiscal_status == FiscalStatus.pending:
@@ -78,6 +88,24 @@ async def post_sale(
     sale = result.scalar_one()
     products = await _products_for(session, sale)
     return _sale_out(sale, products, alerts)
+
+
+@router.get("/shops/{shop_id}/sales/{sale_id}", response_model=SaleOut)
+async def get_sale(
+    shop_id: int,
+    sale_id: int,
+    user: User = Depends(pos_roles),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    result = await session.execute(
+        select(Sale).options(selectinload(Sale.items)).where(Sale.id == sale_id, Sale.shop_id == shop_id)
+    )
+    sale = result.scalar_one_or_none()
+    if sale is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Sale not found")
+    products = await _products_for(session, sale)
+    return _sale_out(sale, products)
 
 
 @router.post("/sales/{sale_id}/refund", response_model=SaleOut)

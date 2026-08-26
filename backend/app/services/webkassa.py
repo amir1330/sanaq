@@ -45,8 +45,22 @@ def build_check_payload(
     token: str,
     operation_type: int,
 ) -> dict[str, Any]:
+    items_disc = sum((Decimal(str(getattr(i, "discount_amount", 0) or 0)) for i in items), Decimal("0"))
+    receipt_disc = (Decimal(str(getattr(sale, "discount_amount", 0) or 0)) - items_disc).quantize(
+        Decimal("0.01")
+    )
+    if receipt_disc < 0:
+        receipt_disc = Decimal("0")
+    after_items = sum(
+        (
+            Decimal(str(getattr(i, "line_total", None) or (i.price_snapshot * i.quantity)))
+            for i in items
+        ),
+        Decimal("0"),
+    )
     positions = []
-    for item in items:
+    allocated = Decimal("0")
+    for idx, item in enumerate(items):
         product = products.get(item.product_id)
         tax_percent = product.tax_percent if product else Decimal("0")
         tax_type = product.tax_type if product else 0
@@ -54,6 +68,15 @@ def build_check_payload(
         code = (product.fiscal_position_code if product and product.fiscal_position_code else None) or str(
             item.product_id
         )
+        item_disc = Decimal(str(getattr(item, "discount_amount", 0) or 0))
+        line_after = Decimal(str(getattr(item, "line_total", None) or (item.price_snapshot * item.quantity)))
+        share = Decimal("0")
+        if receipt_disc > 0 and after_items > 0:
+            if idx == len(items) - 1:
+                share = (receipt_disc - allocated).quantize(Decimal("0.01"))
+            else:
+                share = (receipt_disc * line_after / after_items).quantize(Decimal("0.01"))
+                allocated += share
         positions.append(
             {
                 "Count": item.quantity,
@@ -65,7 +88,7 @@ def build_check_payload(
                 "PositionCode": code,
                 "UnitCode": settings.webkassa_unit_code,
                 "SectionCode": "1",
-                "Discount": 0,
+                "Discount": money_float(item_disc + share),
                 "Markup": 0,
             }
         )

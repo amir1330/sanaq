@@ -98,6 +98,7 @@ async def identify_pin(
                 full_name=candidate.full_name,
                 role=candidate.role.value,
                 can_receive_stock=candidate.role != UserRole.barista or bool(candidate.can_receive_stock),
+                can_apply_discount=candidate.role != UserRole.barista or bool(candidate.can_apply_discount),
             )
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный PIN")
 

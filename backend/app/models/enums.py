@@ -51,3 +51,8 @@ class FiscalStatus(str, enum.Enum):
     sent = "sent"
     failed = "failed"
     skipped = "skipped"
+
+
+class DiscountType(str, enum.Enum):
+    percent = "percent"
+    amount = "amount"

@@ -53,6 +53,7 @@ def _admin_user_out(user: User, shop_name: str | None = None) -> AdminUserOut:
         is_active=user.is_active,
         created_at=user.created_at,
         can_receive_stock=bool(user.can_receive_stock),
+        can_apply_discount=bool(user.can_apply_discount),
         has_pin=bool(user.pin_code),
     )
 
@@ -235,6 +236,7 @@ async def create_user(
             phone=phone,
             password_hash=hash_secret(body.password),
             can_receive_stock=body.can_receive_stock,
+            can_apply_discount=body.can_apply_discount,
         )
         session.add(user)
 

@@ -34,6 +34,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     pin_code: Mapped[str | None] = mapped_column(String(128))
     can_receive_stock: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    can_apply_discount: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

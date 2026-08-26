@@ -75,6 +75,7 @@ def _shift_out(
                 is_refunded=sale.is_refunded,
                 created_at=sale.created_at,
                 barista_name=sale.barista.full_name if sale.barista else None,
+                discount_amount=getattr(sale, "discount_amount", None) or 0,
             )
             for sale in sorted(sales, key=lambda row: row.created_at, reverse=True)[:40]
         ],

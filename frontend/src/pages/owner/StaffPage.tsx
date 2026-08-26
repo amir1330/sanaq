@@ -12,6 +12,7 @@ const emptyForm = {
   password: "",
   phone: "",
   can_receive_stock: false,
+  can_apply_discount: false,
 };
 
 export function StaffPage() {
@@ -31,6 +32,7 @@ export function StaffPage() {
         password: form.password,
         phone: form.phone.trim() || null,
         can_receive_stock: form.can_receive_stock,
+        can_apply_discount: form.can_apply_discount,
       }),
     onSuccess: () => {
       setForm(emptyForm);
@@ -90,15 +92,29 @@ export function StaffPage() {
                   </td>
                   <td className="font-mono text-xs">{u.email || t("common.none")}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={() =>
-                        patch.mutate({ id: u.id, body: { can_receive_stock: !u.can_receive_stock } })
-                      }
-                    >
-                      {u.can_receive_stock ? t("staff.rightsPosStock") : t("staff.rightsPos")}
-                    </button>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        className="text-left underline"
+                        onClick={() =>
+                          patch.mutate({ id: u.id, body: { can_receive_stock: !u.can_receive_stock } })
+                        }
+                      >
+                        {u.can_receive_stock ? t("staff.rightsPosStock") : t("staff.rightsPos")}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-left underline"
+                        onClick={() =>
+                          patch.mutate({
+                            id: u.id,
+                            body: { can_apply_discount: !u.can_apply_discount },
+                          })
+                        }
+                      >
+                        {u.can_apply_discount ? t("staff.rightsDiscountOn") : t("staff.rightsDiscountOff")}
+                      </button>
+                    </div>
                   </td>
                   <td>
                     {passwordEdit?.id === u.id ? (
@@ -197,6 +213,12 @@ export function StaffPage() {
             onChange={(can_receive_stock) => setForm({ ...form, can_receive_stock })}
           >
             {t("staff.canReceive")}
+          </Check>
+          <Check
+            checked={form.can_apply_discount}
+            onChange={(can_apply_discount) => setForm({ ...form, can_apply_discount })}
+          >
+            {t("staff.canDiscount")}
           </Check>
           {create.isError && <p className="text-sm text-rust">{(create.error as Error).message}</p>}
           <div className="flex justify-end gap-2 pt-1">
