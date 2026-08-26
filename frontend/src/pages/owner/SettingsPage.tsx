@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { SessionCard } from "../../components/SessionCard";
-import { Button, Card, Check, Field, Input, PageTitle, Select } from "../../components/ui";
+import { Button, Card, Check, Field, Input, PageTitle, Select, pill } from "../../components/ui";
 import { useT } from "../../i18n";
 import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Shop } from "../../types";
+
+type Tab = "account" | "branch" | "tills" | "ofd" | "network";
 
 export function SettingsPage() {
   const t = useT();
@@ -16,6 +18,7 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const shop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
+  const [tab, setTab] = useState<Tab>("branch");
   const [form, setForm] = useState({ name: "", address: "", timezone: "Asia/Almaty" });
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -64,115 +67,159 @@ export function SettingsPage() {
     (upload.error as Error | null)?.message ||
     (removeLogo.error as Error | null)?.message;
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "branch", label: t("settings.tabBranch") },
+    { id: "tills", label: t("settings.tabTills") },
+    { id: "ofd", label: t("settings.tabOfd") },
+    { id: "network", label: t("settings.tabNetwork") },
+    { id: "account", label: t("settings.tabAccount") },
+  ];
+
   return (
     <div>
       <PageTitle
-        kicker={t("settings.kicker")}
+        kicker={shop?.name ?? t("settings.kicker")}
         title={t("settings.title")}
         hint={t("settings.hint")}
       />
 
-      <SessionCard />
-
-      <Card className="mt-4 border border-line bg-paper-2">
-        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-          {t("settings.mapTitle")}
-        </p>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">{t("settings.mapHint")}</p>
-      </Card>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <Card className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("settings.shopName")}>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </Field>
-            <Field label={t("settings.address")}>
-              <Input
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder={t("settings.addressPh")}
-              />
-            </Field>
-            <Field label={t("settings.timezone")}>
-              <Select
-                value={form.timezone}
-                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-              >
-                {[form.timezone, ...TIMEZONES.filter((z) => z !== form.timezone)].map((z) => (
-                  <option key={z} value={z}>
-                    {z}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <div className="flex justify-end">
-            <Button disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>
-              {save.isSuccess && !save.isPending ? t("settings.saved") : t("common.save")}
-            </Button>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.logo")}</p>
+      <div className="mb-6 flex flex-wrap gap-2">
+        {tabs.map((item) => (
           <button
+            key={item.id}
             type="button"
-            onClick={() => fileRef.current?.click()}
-            className="mt-3 flex h-40 w-full items-center justify-center border border-dashed border-line bg-paper hover:border-ink"
+            onClick={() => setTab(item.id)}
+            className={`${pill} ${
+              tab === item.id
+                ? "border-ink bg-ink text-paper"
+                : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
+            }`}
           >
-            {logoSrc ? (
-              <img src={logoSrc} alt="" className="max-h-32 max-w-full object-contain" />
-            ) : (
-              <span className="px-4 text-center text-sm text-mute">
-                {t("settings.logoHint")}
-              </span>
-            )}
+            {item.label}
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              setPreview(URL.createObjectURL(file));
-              upload.mutate(file);
-            }}
-          />
-          <div className="mt-3 flex gap-2">
-            <Button variant="foam" className="flex-1" onClick={() => fileRef.current?.click()} disabled={busy}>
-              {logoSrc ? t("settings.replace") : t("settings.upload")}
-            </Button>
-            {shop?.logo_url && (
-              <Button variant="ghost" onClick={() => removeLogo.mutate()} disabled={busy}>
-                {t("settings.removeLogo")}
-              </Button>
-            )}
-          </div>
-          <p className="mt-3 text-sm text-mute">{t("settings.logoNote")}</p>
-        </Card>
+        ))}
       </div>
-      {error && <p className="mt-3 text-sm text-rust">{error}</p>}
 
-      <Card className="mt-4">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.vitrine")}</p>
-        <p className="mt-2 max-w-xl text-sm text-mute">{t("settings.vitrineHint")}</p>
-        <div className="mt-4">
-          <Link to="/vitrine">
-            <Button variant="quiet">{t("settings.openVitrine")}</Button>
-          </Link>
+      {tab !== "account" && shop && (
+        <p className="mb-4 rounded-md border border-line bg-paper-2 px-4 py-3 text-sm text-ink-soft">
+          <span className="font-medium text-ink">{shop.name}</span>
+          {shop.address ? <span className="text-mute"> · {shop.address}</span> : null}
+          <span className="text-mute"> — {t("settings.editingHere")}</span>
+        </p>
+      )}
+
+      {tab === "account" && <SessionCard />}
+
+      {tab === "branch" && (
+        <div className="space-y-4">
+          <SectionHead title={t("settings.branchSection")} lead={t("settings.branchLead")} />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <Card className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label={t("settings.shopName")}>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </Field>
+                <Field label={t("settings.address")}>
+                  <Input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    placeholder={t("settings.addressPh")}
+                  />
+                </Field>
+                <Field label={t("settings.timezone")}>
+                  <Select
+                    value={form.timezone}
+                    onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                  >
+                    {[form.timezone, ...TIMEZONES.filter((z) => z !== form.timezone)].map((z) => (
+                      <option key={z} value={z}>
+                        {z}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <div className="flex justify-end">
+                <Button disabled={busy || !form.name.trim()} onClick={() => save.mutate()}>
+                  {save.isSuccess && !save.isPending ? t("settings.saved") : t("common.save")}
+                </Button>
+              </div>
+            </Card>
+
+            <Card>
+              <p className="font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-faint">
+                {t("settings.logo")}
+              </p>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="mt-3 flex h-36 w-full items-center justify-center border border-dashed border-line bg-paper hover:border-ink"
+              >
+                {logoSrc ? (
+                  <img src={logoSrc} alt="" className="max-h-28 max-w-full object-contain" />
+                ) : (
+                  <span className="px-4 text-center text-sm text-mute">{t("settings.logoHint")}</span>
+                )}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setPreview(URL.createObjectURL(file));
+                  upload.mutate(file);
+                }}
+              />
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="foam"
+                  className="flex-1"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={busy}
+                >
+                  {logoSrc ? t("settings.replace") : t("settings.upload")}
+                </Button>
+                {shop?.logo_url && (
+                  <Button variant="ghost" onClick={() => removeLogo.mutate()} disabled={busy}>
+                    {t("settings.removeLogo")}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          </div>
+          {error && <p className="text-sm text-rust">{error}</p>}
+
+          <Card className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-ink">{t("settings.vitrine")}</p>
+              <p className="mt-1 text-sm text-mute">{t("settings.vitrineHint")}</p>
+            </div>
+            <Link to="/vitrine">
+              <Button variant="quiet">{t("settings.openVitrine")}</Button>
+            </Link>
+          </Card>
         </div>
-      </Card>
+      )}
 
-      <CashRegistersCard shopId={shopId} />
-      <BranchesCard shopId={shopId} shops={shops.data ?? []} />
-      <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />
+      {tab === "tills" && <CashRegistersCard shopId={shopId} />}
+      {tab === "ofd" && <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />}
+      {tab === "network" && <BranchesCard shopId={shopId} shops={shops.data ?? []} />}
+    </div>
+  );
+}
+
+function SectionHead({ title, lead }: { title: string; lead: string }) {
+  return (
+    <div className="mb-1">
+      <h2 className="font-display text-[26px] font-normal leading-tight text-ink">{title}</h2>
+      <p className="mt-1.5 max-w-xl text-sm text-mute">{lead}</p>
     </div>
   );
 }
@@ -209,88 +256,99 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
 
   const error =
     (create.error as Error | null)?.message || (patch.error as Error | null)?.message;
+  const list = registers.data ?? [];
 
   return (
-    <Card className="mt-4 space-y-4">
-      <div>
-        <p className="text-[11px] uppercase tracking-[0.14em] text-mute">{t("settings.tills")}</p>
-        <p className="mt-2 max-w-xl text-sm text-mute">{t("settings.tillsHint")}</p>
-      </div>
-      <ul className="divide-y divide-line border border-line">
-        {(registers.data ?? []).map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-            {editingId === r.id ? (
-              <>
-                <Input
-                  className="max-w-xs flex-1"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  autoFocus
-                />
-                <Button
-                  disabled={!editName.trim() || patch.isPending}
-                  onClick={() => patch.mutate({ id: r.id, body: { name: editName.trim() } })}
-                >
-                  {t("common.save")}
-                </Button>
-                <Button variant="ghost" onClick={() => setEditingId(null)}>
-                  {t("common.cancel")}
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className={`flex-1 ${r.is_active ? "" : "text-mute line-through"}`}>{r.name}</span>
-                {r.has_open_shift && (
-                  <span className="text-[11px] uppercase tracking-wide text-gold">{t("settings.tillOpen")}</span>
-                )}
-                {!r.is_active && <span className="text-[11px] text-mute">{t("settings.tillOff")}</span>}
-                <button
-                  type="button"
-                  className="underline text-mute hover:text-ink"
-                  onClick={() => {
-                    setEditingId(r.id);
-                    setEditName(r.name);
-                  }}
-                >
-                  {t("common.rename")}
-                </button>
-                {r.is_active ? (
-                  <button
-                    type="button"
-                    className="underline text-mute hover:text-ink"
-                    onClick={() => patch.mutate({ id: r.id, body: { is_active: false } })}
-                    disabled={patch.isPending}
-                  >
-                    {t("common.disable")}
-                  </button>
+    <div className="space-y-4">
+      <SectionHead title={t("settings.tills")} lead={t("settings.tillsLead")} />
+      <Card className="space-y-4">
+        {list.length === 0 ? (
+          <p className="text-sm text-mute">{t("settings.tillsEmpty")}</p>
+        ) : (
+          <ul className="divide-y divide-line overflow-hidden rounded-md border border-line">
+            {list.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 bg-paper px-4 py-3 text-sm">
+                {editingId === r.id ? (
+                  <>
+                    <Input
+                      className="max-w-xs flex-1"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      autoFocus
+                    />
+                    <Button
+                      disabled={!editName.trim() || patch.isPending}
+                      onClick={() => patch.mutate({ id: r.id, body: { name: editName.trim() } })}
+                    >
+                      {t("common.save")}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setEditingId(null)}>
+                      {t("common.cancel")}
+                    </Button>
+                  </>
                 ) : (
-                  <button
-                    type="button"
-                    className="underline text-mute hover:text-ink"
-                    onClick={() => patch.mutate({ id: r.id, body: { is_active: true } })}
-                    disabled={patch.isPending}
-                  >
-                    {t("common.enable")}
-                  </button>
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-medium ${r.is_active ? "text-ink" : "text-mute line-through"}`}>
+                        {r.name}
+                      </p>
+                      <p className="mt-0.5 text-[12.5px] text-mute">
+                        {r.has_open_shift
+                          ? t("settings.tillOpen")
+                          : r.is_active
+                            ? t("settings.tillReady")
+                            : t("settings.tillOff")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-[12.5px] underline text-mute hover:text-ink"
+                      onClick={() => {
+                        setEditingId(r.id);
+                        setEditName(r.name);
+                      }}
+                    >
+                      {t("common.rename")}
+                    </button>
+                    {r.is_active ? (
+                      <button
+                        type="button"
+                        className="text-[12.5px] underline text-mute hover:text-ink"
+                        onClick={() => patch.mutate({ id: r.id, body: { is_active: false } })}
+                        disabled={patch.isPending}
+                      >
+                        {t("common.disable")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-[12.5px] underline text-mute hover:text-ink"
+                        onClick={() => patch.mutate({ id: r.id, body: { is_active: true } })}
+                        disabled={patch.isPending}
+                      >
+                        {t("common.enable")}
+                      </button>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          className="max-w-xs flex-1"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("settings.tillAddPh")}
-        />
-        <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
-          {t("settings.tillAdd")}
-        </Button>
-      </div>
-      {error && <p className="text-sm text-rust">{error}</p>}
-    </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+          <Input
+            className="max-w-xs flex-1"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("settings.tillAddPh")}
+          />
+          <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
+            {t("settings.tillAdd")}
+          </Button>
+        </div>
+        {error && <p className="text-sm text-rust">{error}</p>}
+      </Card>
+    </div>
   );
 }
 
@@ -323,7 +381,12 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
         copy_catalog: form.copy_catalog,
       }),
     onSuccess: (shop) => {
-      setForm({ name: "", address: "", timezone: current?.timezone ?? "Asia/Almaty", copy_catalog: true });
+      setForm({
+        name: "",
+        address: "",
+        timezone: current?.timezone ?? "Asia/Almaty",
+        copy_catalog: true,
+      });
       setOpen(false);
       void qc.invalidateQueries({ queryKey: ["shops"] });
       setShopId(shop.id);
@@ -331,88 +394,92 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
   });
 
   return (
-    <Card className="mt-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-            {t("settings.network")}
-          </p>
-          <h2 className="mt-1 font-display text-2xl font-normal">{t("settings.branches")}</h2>
-          <p className="mt-2 text-sm text-mute">{t("settings.branchesHint")}</p>
-        </div>
+        <SectionHead title={t("settings.branches")} lead={t("settings.networkLead")} />
         <Button variant={open ? "ghost" : "primary"} onClick={() => setOpen((v) => !v)}>
           {open ? t("common.collapse") : t("settings.branchNew")}
         </Button>
       </div>
-      {shops.length > 1 && (
-        <div className="mt-4 border border-line">
-          <table className="w-full text-sm">
-            <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-              <tr className="border-b border-ink/10 text-left">
-                <th className="px-4 py-3">{t("settings.branchCol")}</th>
-                <th>{t("settings.address")}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {shops.map((s) => (
-                <tr key={s.id} className="border-b border-ink/5">
-                  <td className="px-4 py-3">
-                    {s.name}
-                    {s.id === shopId && <span className="ml-2 text-mute">{t("common.now")}</span>}
-                    {!s.is_active && <span className="ml-2 text-alert">{t("common.off")}</span>}
-                  </td>
-                  <td className="text-mute">{s.address || t("common.none")}</td>
-                  <td className="px-4 py-3 text-right">
-                    {s.id !== shopId && (
-                      <button className="underline" onClick={() => setShopId(s.id)}>
-                        {t("common.open")}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {shops.map((s) => {
+          const active = s.id === shopId;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={active}
+              onClick={() => setShopId(s.id)}
+              className={`rounded-lg border px-4 py-4 text-left transition ${
+                active
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line bg-cream text-ink hover:-translate-y-0.5 hover:border-ink"
+              }`}
+            >
+              <p className="font-display text-[20px] font-normal leading-tight">{s.name}</p>
+              <p className={`mt-1 text-sm ${active ? "text-paper/70" : "text-mute"}`}>
+                {s.address || t("common.none")}
+              </p>
+              <p
+                className={`mt-3 font-mono text-[10px] uppercase tracking-[0.1em] ${
+                  active ? "text-paper/60" : "text-faint"
+                }`}
+              >
+                {active ? t("settings.workingHere") : t("settings.switchHere")}
+                {!s.is_active ? ` · ${t("common.off")}` : ""}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
       {open && (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Field label={t("settings.branchName")}>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t("settings.branchNamePh")}
-            />
-          </Field>
-          <Field label={t("settings.address")}>
-            <Input
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder={t("settings.addressPh")}
-            />
-          </Field>
-          <Field label={t("settings.timezone")}>
-            <Select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
-              {TIMEZONES.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Check checked={form.copy_catalog} onChange={(copy_catalog) => setForm({ ...form, copy_catalog })}>
-            {t("settings.copyCatalog")}
-          </Check>
-          {add.isError && <p className="text-sm text-alert md:col-span-2">{(add.error as Error).message}</p>}
-          <div className="md:col-span-2">
-            <Button disabled={!form.name.trim() || add.isPending} onClick={() => add.mutate()}>
-              {t("settings.createBranch")}
-            </Button>
+        <Card className="space-y-4">
+          <p className="font-medium text-ink">{t("settings.branchNew")}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("settings.branchName")}>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder={t("settings.branchNamePh")}
+              />
+            </Field>
+            <Field label={t("settings.address")}>
+              <Input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder={t("settings.addressPh")}
+              />
+            </Field>
+            <Field label={t("settings.timezone")}>
+              <Select
+                value={form.timezone}
+                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+              >
+                {TIMEZONES.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <div className="flex items-end">
+              <Check
+                checked={form.copy_catalog}
+                onChange={(copy_catalog) => setForm({ ...form, copy_catalog })}
+              >
+                {t("settings.copyCatalog")}
+              </Check>
+            </div>
           </div>
-        </div>
+          {add.isError && <p className="text-sm text-alert">{(add.error as Error).message}</p>}
+          <Button disabled={!form.name.trim() || add.isPending} onClick={() => add.mutate()}>
+            {t("settings.createBranch")}
+          </Button>
+        </Card>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -465,59 +532,62 @@ function WebkassaCard({
     onError: (err: Error) => setTestMsg(err.message),
   });
 
+  const on = Boolean(shop?.webkassa_enabled);
+
   return (
-    <Card className="mt-6">
-      <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">
-        {t("settings.fiscal")}
-      </p>
-      <h2 className="mt-1 font-display text-2xl font-normal">Webkassa</h2>
-      {shop?.webkassa_enabled ? (
-        <p className="mt-2 text-sm text-mute">{t("settings.webkassaOn")}</p>
-      ) : (
-        <p className="mt-2 text-sm text-alert">{t("settings.webkassaOff")}</p>
-      )}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <Field label={t("settings.wkLogin")}>
-          <Input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />
-        </Field>
-        <Field label={t("settings.wkPassword")}>
-          <Input
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={shop?.webkassa_has_password ? t("settings.wkPasswordPh") : ""}
-          />
-        </Field>
-        <Field label={t("settings.wkCashbox")}>
-          <Input
-            value={form.cashbox_number}
-            onChange={(e) => setForm({ ...form, cashbox_number: e.target.value })}
-          />
-        </Field>
-        <Field label={t("settings.wkApiKey")}>
-          <Input
-            type="password"
-            value={form.api_key}
-            onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-            placeholder={shop?.webkassa_has_api_key ? t("settings.wkApiKeySaved") : t("settings.wkApiKeyPh")}
-          />
-        </Field>
-      </div>
-      <div className="mt-4">
+    <div className="space-y-4">
+      <SectionHead title={t("settings.fiscal")} lead={t("settings.ofdLead")} />
+      <Card className="space-y-4">
+        <div
+          className={`rounded-md px-4 py-3 text-sm ${
+            on ? "bg-turq/10 text-ink" : "bg-alert/10 text-alert"
+          }`}
+        >
+          <p className="font-medium">{on ? t("settings.webkassaOn") : t("settings.webkassaOff")}</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label={t("settings.wkLogin")}>
+            <Input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />
+          </Field>
+          <Field label={t("settings.wkPassword")}>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder={shop?.webkassa_has_password ? t("settings.wkPasswordPh") : ""}
+            />
+          </Field>
+          <Field label={t("settings.wkCashbox")}>
+            <Input
+              value={form.cashbox_number}
+              onChange={(e) => setForm({ ...form, cashbox_number: e.target.value })}
+            />
+          </Field>
+          <Field label={t("settings.wkApiKey")}>
+            <Input
+              type="password"
+              value={form.api_key}
+              onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+              placeholder={
+                shop?.webkassa_has_api_key ? t("settings.wkApiKeySaved") : t("settings.wkApiKeyPh")
+              }
+            />
+          </Field>
+        </div>
         <Check checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })}>
           {t("settings.wkEnabled")}
         </Check>
-      </div>
-      {save.isError && <p className="mt-2 text-sm text-alert">{(save.error as Error).message}</p>}
-      {testMsg && <p className="mt-2 text-sm text-mute">{testMsg}</p>}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {t("settings.wkSave")}
-        </Button>
-        <Button variant="foam" onClick={() => test.mutate()} disabled={test.isPending}>
-          {t("settings.wkTest")}
-        </Button>
-      </div>
-    </Card>
+        {save.isError && <p className="text-sm text-alert">{(save.error as Error).message}</p>}
+        {testMsg && <p className="text-sm text-mute">{testMsg}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {t("settings.wkSave")}
+          </Button>
+          <Button variant="foam" onClick={() => test.mutate()} disabled={test.isPending}>
+            {t("settings.wkTest")}
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }
