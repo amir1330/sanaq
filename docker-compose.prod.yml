@@ -1,3 +1,7 @@
+# Project name pinned so volumes stay coffeeos_postgres_data / coffeeos_uploads
+# even after the app dir moves off /root/coffeeos.
+name: coffeeos
+
 services:
   postgres:
     image: postgres:16-alpine

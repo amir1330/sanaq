@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 # Emergency copy of compose to the VPS. Everyday deploys go through GitHub Actions.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${DEPLOY_HOST:-root@89.167.79.221}"
-DEST="${DEPLOY_DIR:-/root/coffeeos}"
+HOST="${DEPLOY_HOST:-sanaq@89.167.79.221}"
+DEST="${DEPLOY_DIR:-/home/sanaq/coffeeos}"
 
 scp "$ROOT/docker-compose.prod.yml" "$HOST:$DEST/"
 ssh "$HOST" "mkdir -p $DEST/deploy"

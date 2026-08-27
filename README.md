@@ -25,7 +25,7 @@
 
 - Backend: Python 3.12, FastAPI, SQLAlchemy 2 (async), Alembic, PostgreSQL 16
 - Frontend: React 19, Vite, TypeScript, Tailwind, TanStack Query, Zustand
-- Прод: Docker-образы в GHCR, Traefik, GitHub Actions по SSH
+- Прод: Docker-образы в GHCR, Traefik, GitHub Actions по SSH (forced-command, не root)
 
 ## Запуск локально
 
@@ -55,28 +55,50 @@ docker compose up --build
 backend/    FastAPI, миграции, тесты
 frontend/   React-кабинет и касса
 nginx/      статика + прокси /api
-deploy/     скрипт, который гоняет Actions на VPS
+deploy/     bootstrap, provision ключа и remote.sh для Actions
 ```
 
 ## Деплой
 
-Push в `main`:
+Тот же hardened-паттерн, что у **telegram-queue-bot**:
 
-1. Тесты бэкенда.
-2. Сборка и пуш `ghcr.io/amir1330/sanaq/backend` и `.../nginx` (`:latest` и `:<sha>`).
-3. SSH на VPS: `pull` и recreate только `backend` и `nginx`. Postgres не трогаем.
+1. GitHub Actions гоняет тесты, затем собирает и пушит `ghcr.io/amir1330/sanaq/backend` и `.../nginx` (`:latest` и `:<sha>`).
+2. CI заходит по SSH **не root**, пользователь **`sanaq`**, ключ с **forced-command**.
+3. Remote `deploy/ci-entry.sh` принимает только `sync-deploy` / `deploy`.
+4. Host key запинен в `.github/known_hosts` (`StrictHostKeyChecking=yes`).
+5. Recreate только `backend` и `nginx`. Postgres и volume `coffeeos_postgres_data` не трогаем.
 
-На сервере нет git и нет вебхука. Логин в GHCR — на время джоба, через `GITHUB_TOKEN`. Нужен Docker Compose v2: v1.29 падает на образах из GHCR.
+Вебхука нет. Root SSH из CI нет. Логин в GHCR — на время джоба, через `GITHUB_TOKEN`. Нужен Docker Compose v2: v1.29 падает на образах из GHCR.
 
-Секреты репозитория (Settings → Secrets → Actions):
+### Одноразовый VPS + secrets
 
-| Secret | Зачем |
+С ноутбука (`gh` auth + SSH как root один раз):
+
+```bash
+chmod +x deploy/provision-ci-key.sh
+./deploy/provision-ci-key.sh
+```
+
+Создаёт пользователя `sanaq` (группа `docker`), ставит restricted-ключ и секреты репо `HOST`, `USERNAME`, `SSH_KEY`.
+
+### Каталог на сервере
+
+| Path | Purpose |
+|---|---|
+| `/home/sanaq/coffeeos/` | compose + `.env` (пароли БД, `SECRET_KEY`) |
+| `/home/sanaq/bin/ci-entry.sh` | forced-command entrypoint |
+
+Имя compose-проекта остаётся **`coffeeos`**, чтобы не создать новые пустые volume вместо `coffeeos_postgres_data` и `coffeeos_uploads`.
+
+### GitHub secrets
+
+| Secret | Value |
 |---|---|
 | `HOST` | IP VPS |
-| `USERNAME` | пользователь SSH |
-| `SSH_KEY` | отдельный deploy-ключ, не ключ с ноутбука |
+| `USERNAME` | `sanaq` |
+| `SSH_KEY` | private key (forced-command) |
 
-Пароли базы и `SECRET_KEY` живут только в `.env` на сервере, в git их нет.
+**Никогда не коммить** `POSTGRES_PASSWORD` / `SECRET_KEY`. Они только в `.env` на сервере.
 
 ## Лицензия
 
