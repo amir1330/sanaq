@@ -55,7 +55,7 @@ const emptyCreate = {
   purchase_to_base: "1000",
   min_quantity: "0",
   cost_per_purchase: "0",
-  is_ingredient: false,
+  on_pos: true,
 };
 
 export function StockPage() {
@@ -125,17 +125,23 @@ export function StockPage() {
         purchase_to_base: create.purchase_to_base,
         min_quantity: create.min_quantity,
         cost_per_base_unit: costPerBase(create.cost_per_purchase, create.purchase_to_base),
-        is_ingredient: create.is_ingredient,
+        is_ingredient: !create.on_pos,
       });
       if (createPhoto) await api.uploadStockImage(shopId, item.id, createPhoto);
+      return { item, wantPos: create.on_pos };
     },
-    onSuccess: () => {
+    onSuccess: ({ item, wantPos }) => {
       setCreate(emptyCreate);
       setCreatePhoto(null);
       setCreatePreview(null);
       setCreating(false);
       refreshStock();
       void qc.invalidateQueries({ queryKey: ["stock-journal", shopId] });
+      if (wantPos && !item.on_pos) {
+        setMakeFor(item);
+        setMakePrice("");
+        setMakeCategoryId("");
+      }
     },
   });
   const makeProduct = useMutation({
@@ -148,9 +154,34 @@ export function StockPage() {
       setMakeFor(null);
       setMakePrice("");
       setMakeCategoryId("");
+      refreshStock();
       void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
+  const setOnPos = useMutation({
+    mutationFn: ({ id, on }: { id: number; on: boolean }) => api.patchStock(shopId, id, { on_pos: on }),
+    onSuccess: () => {
+      refreshStock();
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+
+  function togglePos(item: StockItem, on: boolean) {
+    if (on) {
+      if (item.on_pos) return;
+      if (item.has_pos_product) {
+        setOnPos.mutate({ id: item.id, on: true });
+        return;
+      }
+      setMakeFor(item);
+      setMakePrice("");
+      setMakeCategoryId("");
+      makeProduct.reset();
+      return;
+    }
+    if (!item.on_pos) return;
+    setOnPos.mutate({ id: item.id, on: false });
+  }
   const previewImport = useMutation({
     mutationFn: (file: File) => api.previewStockImport(shopId, file),
     onSuccess: (res) => {
@@ -338,11 +369,12 @@ export function StockPage() {
         </Field>
         <div className="md:col-span-3">
           <Check
-            checked={create.is_ingredient}
-            onChange={(is_ingredient) => setCreate({ ...create, is_ingredient })}
+            checked={create.on_pos}
+            onChange={(on_pos) => setCreate({ ...create, on_pos })}
           >
-            {t("stock.isIngredient")}
+            {t("stock.onPos")}
           </Check>
+          <p className="mt-1 text-[12.5px] text-mute">{t("stock.onPosHint")}</p>
         </div>
         <div className="flex flex-wrap items-end gap-2 md:col-span-3">
           <Button onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
@@ -382,7 +414,7 @@ export function StockPage() {
               <th>{t("stock.colCost")}</th>
               <th className="text-right">{t("stock.colShelf")}</th>
               <th className="pr-5 text-right">{t("stock.colLastIn")}</th>
-              <th className="pr-5 text-right" />
+              <th className="pr-5 text-center">{t("stock.colOnPos")}</th>
             </tr>
           </thead>
           <tbody>
@@ -423,23 +455,15 @@ export function StockPage() {
                 </td>
                 <td className="pr-4 text-right font-mono font-semibold">{money(shelfValue(i))}</td>
                 <td className="pr-5 text-right font-mono text-[12.5px] text-mute">{shortDay(i.last_income_at)}</td>
-                <td className="pr-5 text-right">
-                  {!i.is_ingredient && (
-                    <Button
-                      size="md"
-                      variant="quiet"
-                      className="h-8 px-3 text-[11px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMakeFor(i);
-                        setMakePrice("");
-                        setMakeCategoryId("");
-                        makeProduct.reset();
-                      }}
-                    >
-                      {t("stock.makeProduct")}
-                    </Button>
-                  )}
+                <td className="pr-5 text-center" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 cursor-pointer rounded-[4px] border-[1.5px] border-line-2 accent-maroon"
+                    checked={Boolean(i.on_pos)}
+                    disabled={setOnPos.isPending && setOnPos.variables?.id === i.id}
+                    aria-label={t("stock.onPos")}
+                    onChange={(e) => togglePos(i, e.target.checked)}
+                  />
                 </td>
               </tr>
               );

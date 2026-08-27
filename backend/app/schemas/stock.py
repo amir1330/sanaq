@@ -28,6 +28,7 @@ class StockItemUpdate(BaseModel):
     min_quantity: Decimal | None = None
     cost_per_base_unit: Decimal | None = None
     is_ingredient: bool | None = None
+    on_pos: bool | None = None
 
 
 class StockItemOut(ORMModel):
@@ -48,6 +49,8 @@ class StockItemOut(ORMModel):
     last_income_at: datetime | None = None
     is_low: bool = False
     is_ingredient: bool = False
+    on_pos: bool = False
+    has_pos_product: bool = False
 
 
 class StockItemPage(BaseModel):

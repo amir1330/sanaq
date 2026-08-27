@@ -533,6 +533,9 @@ export type Messages = {
     makeProductTitle: string;
     makeProductHint: string;
     isIngredient: string;
+    onPos: string;
+    onPosHint: string;
+    colOnPos: string;
     revisionPause: string;
     revisionPauseHint: string;
     buy: string;

@@ -194,6 +194,8 @@ export type StockItem = {
   last_income_at?: string | null;
   is_low: boolean;
   is_ingredient?: boolean;
+  on_pos?: boolean;
+  has_pos_product?: boolean;
 };
 
 export type CashRegister = {

@@ -37,7 +37,6 @@ export function StockItemPage() {
     purchase_to_base: "",
     min_quantity: "",
     cost_per_purchase: "",
-    is_ingredient: false,
   });
   const [editPhoto, setEditPhoto] = useState<File | null>(null);
   const [editPreview, setEditPreview] = useState<string | null>(null);
@@ -86,7 +85,6 @@ export function StockItemPage() {
       purchase_to_base: String(Number(item.purchase_to_base)),
       min_quantity: String(Number(item.min_quantity)),
       cost_per_purchase: costPerPurchase(item.cost_per_base_unit, item.purchase_to_base),
-      is_ingredient: Boolean(item.is_ingredient),
     });
     setEditPhoto(null);
     setEditPreview(null);
@@ -154,7 +152,6 @@ export function StockItemPage() {
         purchase_to_base: edit.purchase_to_base,
         min_quantity: edit.min_quantity,
         cost_per_base_unit: costPerBase(edit.cost_per_purchase, edit.purchase_to_base),
-        is_ingredient: edit.is_ingredient,
       });
       if (dropPhoto && !editPhoto) await api.deleteStockImage(shopId, id);
       if (editPhoto) await api.uploadStockImage(shopId, id, editPhoto);
@@ -174,6 +171,14 @@ export function StockItemPage() {
       setPanel(null);
       setMakePrice("");
       setMakeCategoryId("");
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+  const setOnPos = useMutation({
+    mutationFn: (on: boolean) => api.patchStock(shopId, id, { on_pos: on }),
+    onSuccess: () => {
+      refresh();
       void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
@@ -252,19 +257,6 @@ export function StockItemPage() {
                 ...(branches.length > 0
                   ? [{ label: t("stock.transfer"), onClick: () => setPanel("transfer") }]
                   : []),
-                ...(!item.is_ingredient
-                  ? [
-                      {
-                        label: t("stock.makeProduct"),
-                        onClick: () => {
-                          setMakePrice("");
-                          setMakeCategoryId("");
-                          makeProduct.reset();
-                          setPanel("makeProduct");
-                        },
-                      },
-                    ]
-                  : []),
                 { label: t("stock.edit"), onClick: () => setPanel("edit") },
                 { label: t("common.delete"), danger: true, onClick: () => setPanel("remove") },
               ]}
@@ -287,6 +279,28 @@ export function StockItemPage() {
           <p className="font-mono text-[28px] font-semibold leading-none">{stockBalance(item)}</p>
           <p className="mt-2 text-sm text-mute">{meta.join(" · ")}</p>
           {item.is_low && <p className="mt-2 text-sm text-alert">{t("stock.low")}</p>}
+          <div className="mt-4">
+            <Check
+              checked={Boolean(item.on_pos)}
+              onChange={(on) => {
+                if (on) {
+                  if (item.has_pos_product) {
+                    setOnPos.mutate(true);
+                    return;
+                  }
+                  setMakePrice("");
+                  setMakeCategoryId("");
+                  makeProduct.reset();
+                  setPanel("makeProduct");
+                  return;
+                }
+                setOnPos.mutate(false);
+              }}
+            >
+              {t("stock.onPos")}
+            </Check>
+            <p className="mt-1 text-[12.5px] text-mute">{t("stock.onPosHint")}</p>
+          </div>
         </div>
       </div>
       <p className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.13em] text-faint">{t("stock.history")}</p>
@@ -612,12 +626,6 @@ export function StockItemPage() {
               inputMode="decimal"
             />
           </Field>
-          <Check
-            checked={edit.is_ingredient}
-            onChange={(is_ingredient) => setEdit({ ...edit, is_ingredient })}
-          >
-            {t("stock.isIngredient")}
-          </Check>
           {saveEdit.isError && <p className="text-sm text-alert">{(saveEdit.error as Error).message}</p>}
           <div className="flex gap-2">
             <Button onClick={() => saveEdit.mutate()} disabled={!edit.name || saveEdit.isPending}>

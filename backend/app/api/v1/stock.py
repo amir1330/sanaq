@@ -83,6 +83,8 @@ def _item_out(
     *,
     hide_cost: bool,
     last_income_at: datetime | None = None,
+    on_pos: bool = False,
+    has_pos_product: bool = False,
 ) -> StockItemOut:
     cost = Decimal("0") if hide_cost else item.cost_per_base_unit
     value = Decimal("0") if hide_cost else (item.quantity * item.cost_per_base_unit).quantize(Decimal("0.01"))
@@ -104,7 +106,68 @@ def _item_out(
         last_income_at=last_income_at,
         is_low=item.quantity <= item.min_quantity,
         is_ingredient=bool(getattr(item, "is_ingredient", False)),
+        on_pos=on_pos,
+        has_pos_product=has_pos_product,
     )
+
+
+async def _direct_sale_products(session: AsyncSession, shop_id: int, item_ids: list[int]) -> dict[int, list[Product]]:
+    """1:1 sell-through products (this stock item is the only ingredient, qty 1)."""
+    if not item_ids:
+        return {}
+    only = (
+        select(ProductIngredient.product_id)
+        .group_by(ProductIngredient.product_id)
+        .having(func.count() == 1)
+        .subquery()
+    )
+    result = await session.execute(
+        select(ProductIngredient.stock_item_id, Product)
+        .join(Product, Product.id == ProductIngredient.product_id)
+        .join(only, only.c.product_id == Product.id)
+        .where(
+            Product.shop_id == shop_id,
+            ProductIngredient.stock_item_id.in_(item_ids),
+            ProductIngredient.quantity == Decimal("1"),
+        )
+    )
+    found: dict[int, list[Product]] = {}
+    for stock_item_id, product in result.all():
+        found.setdefault(stock_item_id, []).append(product)
+    return found
+
+
+async def _pos_maps(
+    session: AsyncSession, shop_id: int, item_ids: list[int]
+) -> tuple[set[int], set[int]]:
+    linked = await _direct_sale_products(session, shop_id, item_ids)
+    has_pos_product = set(linked)
+    on_pos = {item_id for item_id, products in linked.items() if any(p.is_active for p in products)}
+    return has_pos_product, on_pos
+
+
+async def _item_out_full(
+    session: AsyncSession,
+    item: StockItem,
+    *,
+    hide_cost: bool,
+    last_income_at: datetime | None = None,
+) -> StockItemOut:
+    has_pos_product, on_pos = await _pos_maps(session, item.shop_id, [item.id])
+    return _item_out(
+        item,
+        hide_cost=hide_cost,
+        last_income_at=last_income_at,
+        on_pos=item.id in on_pos,
+        has_pos_product=item.id in has_pos_product,
+    )
+
+
+async def _set_on_pos(session: AsyncSession, item: StockItem, on_pos: bool) -> None:
+    item.is_ingredient = not on_pos
+    linked = await _direct_sale_products(session, item.shop_id, [item.id])
+    for product in linked.get(item.id, []):
+        product.is_active = on_pos
 
 
 async def _last_income_map(
@@ -196,9 +259,20 @@ async def list_stock(
     )
     items = list(result.scalars().all())
     hide = user.role == UserRole.barista
-    last = await _last_income_map(session, shop_id, item_ids=[i.id for i in items])
+    ids = [i.id for i in items]
+    last = await _last_income_map(session, shop_id, item_ids=ids)
+    has_pos_product, on_pos = await _pos_maps(session, shop_id, ids)
     return StockItemPage(
-        items=[_item_out(i, hide_cost=hide, last_income_at=last.get(i.id)) for i in items],
+        items=[
+            _item_out(
+                i,
+                hide_cost=hide,
+                last_income_at=last.get(i.id),
+                on_pos=i.id in on_pos,
+                has_pos_product=i.id in has_pos_product,
+            )
+            for i in items
+        ],
         total=int(total),
         limit=limit,
         offset=offset,
@@ -286,7 +360,7 @@ async def stock_import_confirm(
     await session.commit()
     for item in created:
         await session.refresh(item)
-    return [_item_out(item, hide_cost=False) for item in created]
+    return [await _item_out_full(session, item, hide_cost=False) for item in created]
 
 
 @router.get("/shops/{shop_id}/stock-items/{item_id}", response_model=StockItemOut)
@@ -301,7 +375,12 @@ async def get_stock_item(
     if item is None or item.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
     last = await _last_income_map(session, shop_id, item_id)
-    return _item_out(item, hide_cost=user.role == UserRole.barista, last_income_at=last.get(item.id))
+    return await _item_out_full(
+        session,
+        item,
+        hide_cost=user.role == UserRole.barista,
+        last_income_at=last.get(item.id),
+    )
 
 
 @router.post("/shops/{shop_id}/stock-items", response_model=StockItemOut, status_code=201)
@@ -327,7 +406,7 @@ async def create_stock_item(
     )
     await session.commit()
     await session.refresh(item)
-    return _item_out(item, hide_cost=False)
+    return await _item_out_full(session, item, hide_cost=False)
 
 
 @router.patch("/shops/{shop_id}/stock-items/{item_id}", response_model=StockItemOut)
@@ -343,17 +422,27 @@ async def update_stock_item(
     if item is None or item.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Stock item not found")
     changes = body.model_dump(exclude_unset=True)
+    on_pos = changes.pop("on_pos", None)
     if "sku" in changes:
         changes["sku"] = _norm_sku(changes["sku"])
         await _assert_stock_sku_free(session, shop_id, changes["sku"], exclude_id=item.id)
     detail = item_update_detail(item, changes)
     for key, value in changes.items():
         setattr(item, key, value)
+    if on_pos is True:
+        linked = await _direct_sale_products(session, shop_id, [item.id])
+        if not linked.get(item.id):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Сначала укажите цену продажи")
+        await _set_on_pos(session, item, True)
+    elif on_pos is False:
+        await _set_on_pos(session, item, False)
+    elif changes.get("is_ingredient") is True:
+        await _set_on_pos(session, item, False)
     if detail:
         write_stock_log(session, item=item, action=StockLogAction.updated, user=user, detail=detail)
     await session.commit()
     await session.refresh(item)
-    return _item_out(item, hide_cost=False)
+    return await _item_out_full(session, item, hide_cost=False)
 
 
 @router.post("/shops/{shop_id}/stock-items/{item_id}/image", response_model=StockItemOut)
@@ -379,7 +468,7 @@ async def upload_stock_image(
     )
     await session.commit()
     await session.refresh(item)
-    return _item_out(item, hide_cost=False)
+    return await _item_out_full(session, item, hide_cost=False)
 
 
 @router.delete("/shops/{shop_id}/stock-items/{item_id}/image", response_model=StockItemOut)
@@ -397,7 +486,7 @@ async def delete_stock_image(
     item.image = None
     await session.commit()
     await session.refresh(item)
-    return _item_out(item, hide_cost=False)
+    return await _item_out_full(session, item, hide_cost=False)
 
 
 @router.delete("/shops/{shop_id}/stock-items/{item_id}", status_code=204)
@@ -431,24 +520,47 @@ async def make_product_from_stock(
         category = await session.get(Category, body.category_id)
         if category is None or category.shop_id != shop_id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Категория не найдена")
-    product = Product(
-        shop_id=shop_id,
-        name=item.name,
-        sku=_norm_sku(getattr(item, "sku", None)),
-        sale_price=body.sale_price,
-        category_id=body.category_id,
-        is_active=True,
-        is_service=False,
-    )
-    session.add(product)
-    await session.flush()
-    session.add(
-        ProductIngredient(
-            product_id=product.id,
-            stock_item_id=item.id,
-            quantity=Decimal("1"),
+    item.is_ingredient = False
+    linked = (await _direct_sale_products(session, shop_id, [item.id])).get(item.id, [])
+    if linked:
+        product = linked[0]
+        product.is_active = True
+        product.sale_price = body.sale_price
+        product.name = item.name
+        if body.category_id is not None:
+            product.category_id = body.category_id
+        for extra in linked[1:]:
+            extra.is_active = False
+        product_id = product.id
+    else:
+        sku = _norm_sku(getattr(item, "sku", None))
+        if sku:
+            taken = (
+                await session.execute(
+                    select(Product.id).where(Product.shop_id == shop_id, Product.sku == sku).limit(1)
+                )
+            ).scalar_one_or_none()
+            if taken is not None:
+                sku = None
+        product = Product(
+            shop_id=shop_id,
+            name=item.name,
+            sku=sku,
+            sale_price=body.sale_price,
+            category_id=body.category_id,
+            is_active=True,
+            is_service=False,
         )
-    )
+        session.add(product)
+        await session.flush()
+        session.add(
+            ProductIngredient(
+                product_id=product.id,
+                stock_item_id=item.id,
+                quantity=Decimal("1"),
+            )
+        )
+        product_id = product.id
     await session.commit()
     result = await session.execute(
         select(Product)
@@ -457,7 +569,7 @@ async def make_product_from_stock(
             selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
             selectinload(Product.image),
         )
-        .where(Product.id == product.id)
+        .where(Product.id == product_id)
     )
     product = result.scalar_one()
     from app.api.v1.catalog import _product_out
