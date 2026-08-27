@@ -33,32 +33,61 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <header className="flex items-center justify-between px-6 py-7 md:px-14">
+    <div className="min-h-screen bg-paper md:grid md:grid-cols-2">
+      <aside className="hidden border-r border-line bg-paper-2 px-10 py-12 md:flex md:flex-col md:justify-between">
         <Link to="/">
-          <Brand />
+          <Brand className="text-[18px]" markClass="h-[18px] w-[26px]" />
         </Link>
-      </header>
-      <div className="mx-auto max-w-[420px] px-6 pt-16">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-maroon">{t("login.kicker")}</p>
-        <h1 className="mt-3 font-display text-[40px] font-normal">{t("login.title")}</h1>
-        <form onSubmit={(e) => void signIn(e)} className="mt-10 space-y-6">
-          <Field label={t("login.fieldLogin")}>
-            <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
-          </Field>
-          <Field label={t("login.fieldPassword")}>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </Field>
-          {error && <p className="text-sm text-alert">{error}</p>}
-          <Button className="w-full" size="lg" disabled={pending || !login || !password}>
-            {pending ? t("login.submitting") : t("login.submit")}
-          </Button>
-        </form>
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("login.kicker")}</p>
+          <h1 className="mt-4 max-w-[12ch] font-display text-[40px] font-medium leading-tight tracking-tight text-ink">
+            {t("login.title")}
+          </h1>
+          <hr className="perforation-h mt-8 max-w-xs" />
+          <p className="mt-4 max-w-[30ch] text-sm leading-relaxed text-ink-soft">{t("login.blurb")}</p>
+        </div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-faint">Sanaq</p>
+      </aside>
+
+      <div className="flex min-h-screen flex-col">
+        <header className="flex items-center justify-between border-b border-line px-6 py-5 md:hidden">
+          <Link to="/">
+            <Brand className="text-[17px]" />
+          </Link>
+        </header>
+
+        <div className="flex flex-1 items-center justify-center px-6 py-12">
+          <div className="w-full max-w-[400px] page-enter">
+            <div className="md:hidden">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("login.kicker")}</p>
+              <h1 className="mt-3 font-display text-[32px] font-medium leading-tight">{t("login.title")}</h1>
+            </div>
+
+            <form onSubmit={(e) => void signIn(e)} className="mt-8 space-y-5 md:mt-0">
+              <Field label={t("login.fieldLogin")}>
+                <Input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" />
+              </Field>
+              <Field label={t("login.fieldPassword")}>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </Field>
+              {error && <p className="text-sm text-maroon">{error}</p>}
+              <Button className="w-full" size="lg" disabled={pending || !login || !password}>
+                {pending ? t("login.submitting") : t("login.submit")}
+              </Button>
+            </form>
+
+            <p className="mt-8 text-center text-[13px] text-ink-soft">
+              <Link to="/" className="hover:text-ink">
+                ← {t("login.backHome")}
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

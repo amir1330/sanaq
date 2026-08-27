@@ -123,6 +123,7 @@ const en: Messages = {
     submitFail: "Couldn’t send. Try again.",
     footerBlurb: "POS and accounts for your shop. Open source, AGPLv3.",
     license: "License",
+    tagline: "POS · stock · shifts · reports",
   },
   login: {
     kicker: "Account",
@@ -132,6 +133,8 @@ const en: Messages = {
     submit: "Sign in",
     submitting: "Signing in…",
     fail: "Wrong login or password",
+    blurb: "Till, stock, and reports in one workspace.",
+    backHome: "Back to home",
   },
   errors: {
     saveFailed: "Couldn’t save",

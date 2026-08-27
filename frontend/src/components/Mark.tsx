@@ -16,7 +16,7 @@ export function Brand({
 }) {
   return (
     <span className={cn("inline-flex items-center gap-[11px] font-display text-[22px] leading-none", className)}>
-      <Mark className={cn("h-[22px] w-[31px] text-maroon", markClass)} />
+      <Mark className={cn("h-[22px] w-[31px] text-sun", markClass)} />
       <span className="truncate">{name}</span>
     </span>
   );

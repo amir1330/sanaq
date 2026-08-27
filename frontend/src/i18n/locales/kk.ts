@@ -123,6 +123,7 @@ const kk: Messages = {
     submitFail: "Жіберілмеді. Қайта көріңіз.",
     footerBlurb: "Нүктеге касса және есеп. Код ашық, лицензия AGPLv3.",
     license: "Лицензия",
+    tagline: "Касса · қойма · ауысым · есеп",
   },
   login: {
     kicker: "Аккаунт",
@@ -132,6 +133,8 @@ const kk: Messages = {
     submit: "Кіру",
     submitting: "Кіріп жатырмыз…",
     fail: "Логин немесе құпия сөз қате",
+    blurb: "Касса, қойма және есептер — бір жұмыс кеңістігінде.",
+    backHome: "Басты бетке",
   },
   errors: {
     saveFailed: "Сақталмады",

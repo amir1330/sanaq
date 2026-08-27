@@ -13,21 +13,21 @@ export function Button({
   size?: "md" | "lg";
 }) {
   const styles = {
-    primary: "border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
-    ink: "border-ink bg-ink text-paper hover:border-maroon hover:bg-maroon",
-    foam: "border-ink bg-transparent text-ink hover:bg-ink hover:text-paper",
-    ghost: "border-transparent bg-transparent text-ink hover:text-maroon",
-    quiet: "border-line-2 bg-transparent text-ink-soft hover:border-ink hover:text-ink",
+    primary: "border-ink bg-ink text-paper hover:border-sun hover:bg-sun",
+    ink: "border-ink bg-ink text-paper hover:border-sun hover:bg-sun",
+    foam: "border-line-2 bg-paper text-ink hover:border-ink",
+    ghost: "border-transparent bg-transparent text-ink hover:text-sun",
+    quiet: "border-line bg-paper-2 text-ink-soft hover:border-line-2 hover:text-ink",
     danger: "border-maroon bg-maroon text-paper hover:bg-maroon-deep",
-    sky: "border-turq bg-turq text-roast hover:bg-sky-deep",
-    gold: "border-gold bg-gold text-roast hover:border-cream hover:bg-cream",
+    sky: "border-sky bg-sky text-paper hover:bg-sky-deep",
+    gold: "border-sun bg-sun text-paper hover:border-sun-hot hover:bg-sun-hot",
     confirm: "border-confirm bg-confirm text-paper hover:bg-confirm-deep",
   }[variant];
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] font-semibold transition disabled:opacity-40",
-        size === "lg" ? "h-12 px-[26px] text-[13.5px]" : "h-10 px-[18px] text-[12.5px]",
+        "inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition disabled:opacity-40",
+        size === "lg" ? "h-12 px-6 text-[14px]" : "h-10 px-4 text-[13px]",
         styles,
         className,
       )}
@@ -36,7 +36,8 @@ export function Button({
   );
 }
 
-export const pill = "inline-flex h-10 items-center justify-center rounded-full border-[1.5px] px-[18px] text-[12.5px] font-medium transition";
+export const pill =
+  "inline-flex h-10 items-center justify-center rounded-md border px-4 text-[13px] font-medium transition";
 
 export function Field({
   label,
@@ -60,7 +61,7 @@ export function Field({
         {label}
       </span>
       {children}
-      {hint ? <p className="mt-1.5 text-[12.5px] leading-snug text-mute">{hint}</p> : null}
+      {hint ? <p className="mt-1.5 text-[13px] leading-snug text-mute">{hint}</p> : null}
     </label>
   );
 }
@@ -75,10 +76,10 @@ export function Check({
   children: ReactNode;
 }) {
   return (
-    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[14.5px] text-ink">
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] text-ink">
       <input
         type="checkbox"
-        className="h-5 w-5 shrink-0 rounded-[4px] border-[1.5px] border-line-2 accent-maroon"
+        className="h-5 w-5 shrink-0 rounded border border-line-2 accent-sun"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
@@ -87,7 +88,7 @@ export function Check({
   );
 }
 
-const fieldControl = "w-full rounded-md border-[1.5px] px-4 py-[13px] text-[14.5px] outline-none transition";
+const fieldControl = "w-full rounded-md border px-4 py-3 text-[14px] outline-none transition";
 
 export function Input({
   tone = "light",
@@ -100,8 +101,8 @@ export function Input({
       className={cn(
         fieldControl,
         tone === "dark"
-          ? "border-[#453e30] bg-[#2c271e] text-[#efe9da] caret-[#efe9da] placeholder:text-[#736b58] focus:border-gold [color-scheme:dark] [&:-webkit-autofill]:[-webkit-text-fill-color:#efe9da] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_#2c271e_inset]"
-          : "border-line-2 bg-cream text-ink placeholder:text-faint focus:border-ink",
+          ? "border-line-dark bg-roast-2 text-cream caret-cream placeholder:text-cream-soft focus:border-sun [color-scheme:dark] [&:-webkit-autofill]:[-webkit-text-fill-color:rgb(var(--cream))] [&:-webkit-autofill]:[box-shadow:0_0_0px_1000px_rgb(var(--roast-2))_inset]"
+          : "border-line-2 bg-paper text-ink placeholder:text-faint focus:border-sun",
         className,
       )}
     />
@@ -119,8 +120,8 @@ export function Select({
       className={cn(
         fieldControl,
         tone === "dark"
-          ? "border-[#453e30] bg-[#2c271e] text-[#efe9da] focus:border-gold [color-scheme:dark]"
-          : "border-line-2 bg-cream text-ink focus:border-ink",
+          ? "border-line-dark bg-roast-2 text-cream focus:border-sun [color-scheme:dark]"
+          : "border-line-2 bg-paper text-ink focus:border-sun",
         className,
       )}
     />
@@ -147,7 +148,7 @@ export function Dialog({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-roast/60 p-4"
+      className="fixed inset-0 z-40 grid place-items-center bg-roast/70 p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="presentation"
     >
@@ -175,32 +176,32 @@ function DialogBody({
 }) {
   const t = useT();
   return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={cn(
-          "max-h-[90vh] w-full overflow-auto rounded-lg p-7 shadow-soft",
-          dark ? "border border-line-dark bg-roast text-cream" : "bg-paper",
-          wide ? "max-w-2xl" : "max-w-lg",
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-xl font-normal">{title}</h2>
-            {hint && <p className={cn("mt-1.5 text-sm", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
-          </div>
-          <button
-            type="button"
-            className={cn("font-mono text-[10px] uppercase tracking-[0.08em]", dark ? "text-cream-soft" : "text-faint")}
-            onClick={onClose}
-          >
-            {t("common.close")}
-          </button>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className={cn(
+        "max-h-[90vh] w-full overflow-auto rounded-md border p-6 shadow-soft",
+        dark ? "border-line-dark bg-roast text-cream" : "border-line bg-paper",
+        wide ? "max-w-2xl" : "max-w-lg",
+      )}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-xl font-medium tracking-tight">{title}</h2>
+          {hint && <p className={cn("mt-1.5 text-sm", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
         </div>
-        {children}
+        <button
+          type="button"
+          className={cn("font-mono text-[10px] uppercase tracking-[0.08em]", dark ? "text-cream-soft" : "text-faint")}
+          onClick={onClose}
+        >
+          {t("common.close")}
+        </button>
       </div>
+      {children}
+    </div>
   );
 }
 
@@ -211,7 +212,11 @@ export function Card({
   className?: string;
   children: ReactNode;
 }) {
-  return <section className={cn("rounded-lg bg-cream p-6 shadow-soft", className)}>{children}</section>;
+  return (
+    <section className={cn("surface-raised p-5 sm:p-6", className)}>
+      {children}
+    </section>
+  );
 }
 
 export function PageTitle({
@@ -226,20 +231,25 @@ export function PageTitle({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div className="max-w-2xl">
-        <p className="font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint">{kicker}</p>
-        <h1 className="mt-2 font-display text-[32px] font-normal leading-tight text-ink">{title}</h1>
-        {hint && <p className="mt-2 text-sm leading-relaxed text-mute">{hint}</p>}
+    <header className="mb-8 border-b border-line pb-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-2xl">
+          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-sun">{kicker}</p>
+          <h1 className="mt-2 font-display text-[28px] font-medium leading-tight tracking-tight text-ink sm:text-[32px]">
+            {title}
+          </h1>
+          {hint && <p className="mt-2 text-sm leading-relaxed text-mute">{hint}</p>}
+        </div>
+        {action}
       </div>
-      {action}
-    </div>
+      <hr className="perforation-h mt-6" />
+    </header>
   );
 }
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg bg-cream px-5 py-12 text-center text-sm text-mute shadow-soft">{children}</div>
+    <div className="surface-panel px-5 py-12 text-center text-sm text-mute">{children}</div>
   );
 }
 
@@ -251,16 +261,16 @@ export function Banner({
   children: ReactNode;
 }) {
   const cls = {
-    info: "bg-cream text-ink",
-    warn: "bg-maroon/10 text-maroon",
-    ok: "bg-turq/10 text-turq",
+    info: "border-line bg-paper-2 text-ink",
+    warn: "border-maroon/30 bg-maroon/8 text-maroon",
+    ok: "border-sky/30 bg-sky/8 text-sky",
   }[tone];
-  return <div className={`mb-4 rounded-md px-4 py-3 text-sm ${cls}`}>{children}</div>;
+  return <div className={cn("mb-4 rounded-md border px-4 py-3 text-sm", cls)}>{children}</div>;
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cn("font-mono text-[10.5px] font-medium uppercase tracking-[0.13em] text-faint", className)}>
+    <span className={cn("font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-faint", className)}>
       {children}
     </span>
   );
@@ -271,7 +281,6 @@ export type MoreMenuItem = {
   onClick?: () => void;
   danger?: boolean;
   disabled?: boolean;
-  /** Custom row (e.g. stepper); skips default click-to-close button. */
   custom?: ReactNode;
 };
 
@@ -306,7 +315,7 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        className="grid h-10 w-10 place-items-center rounded-full text-[18px] leading-none text-faint hover:bg-cream hover:text-ink"
+        className="grid h-10 w-10 place-items-center rounded-md border border-transparent text-[18px] leading-none text-faint hover:border-line hover:bg-paper-2 hover:text-ink"
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
@@ -318,7 +327,7 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-20 mt-1 min-w-44 overflow-hidden rounded-md bg-paper py-1 shadow-soft"
+          className="absolute right-0 z-20 mt-1 min-w-44 overflow-hidden rounded-md border border-line bg-paper py-1 shadow-soft"
         >
           {items.map((item) =>
             item.custom ? (
@@ -332,8 +341,8 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
                 role="menuitem"
                 disabled={item.disabled}
                 className={cn(
-                  "block w-full px-4 py-2.5 text-left text-[13.5px] disabled:opacity-40",
-                  item.danger ? "text-maroon hover:bg-maroon/10" : "text-ink hover:bg-cream",
+                  "block w-full px-4 py-2.5 text-left text-[13px] disabled:opacity-40",
+                  item.danger ? "text-maroon hover:bg-maroon/8" : "text-ink hover:bg-paper-2",
                 )}
                 onClick={(e) => {
                   e.stopPropagation();

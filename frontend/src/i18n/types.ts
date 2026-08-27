@@ -124,6 +124,7 @@ export type Messages = {
     submitFail: string;
     footerBlurb: string;
     license: string;
+    tagline: string;
   };
   login: {
     kicker: string;
@@ -133,6 +134,8 @@ export type Messages = {
     submit: string;
     submitting: string;
     fail: string;
+    blurb: string;
+    backHome: string;
   };
   errors: {
     saveFailed: string;
