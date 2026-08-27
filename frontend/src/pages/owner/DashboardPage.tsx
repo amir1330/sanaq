@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, Empty, Input, pill } from "../../components/ui";
+import { Button, Empty, Input, PageTitle, pill } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { money, startOfPeriod, type Period } from "../../lib/utils";
@@ -78,6 +78,8 @@ export function DashboardPage() {
 
   return (
     <div>
+      <PageTitle kicker={t("dashboard.kicker")} title={t("dashboard.title")} hint={t("dashboard.hint")} />
+
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {(["today", "week", "month", "custom"] as const).map((p) => (

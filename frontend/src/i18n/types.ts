@@ -51,12 +51,20 @@ export type Messages = {
     staff: string;
     expenses: string;
     shifts: string;
+    shiftsHistory: string;
     till: string;
     settings: string;
+    vitrine: string;
+    stockBalances: string;
+    stockMoves: string;
+    account: string;
+    groupToday: string;
+    groupMoney: string;
     groupSales: string;
     groupMenu: string;
     groupStock: string;
     groupTeam: string;
+    groupShop: string;
     groupOther: string;
     groupPlatform: string;
     shops: string;
@@ -170,6 +178,7 @@ export type Messages = {
     title: string;
     hint: string;
     tabBranch: string;
+    tabPos: string;
     tabTills: string;
     tabOfd: string;
     tabNetwork: string;
@@ -426,6 +435,9 @@ export type Messages = {
     bulkErrPrice: string;
   };
   dashboard: {
+    kicker: string;
+    title: string;
+    hint: string;
     periodToday: string;
     periodWeek: string;
     periodMonth: string;
@@ -557,6 +569,10 @@ export type Messages = {
     kicker: string;
     title: string;
     hint: string;
+    hubLabel: string;
+    hubBalances: string;
+    hubMoves: string;
+    hubRevisions: string;
     openRevision: string;
     revision: string;
     recounts: string;

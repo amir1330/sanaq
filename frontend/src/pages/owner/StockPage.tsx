@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
+import { StockHubNav } from "../../components/StockHubNav";
 import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
@@ -261,6 +262,7 @@ export function StockPage() {
           </div>
         }
       />
+      <StockHubNav />
       {hasDraft && (
         <Card className="mb-4 border border-maroon/30 bg-maroon/5">
           <p className="font-medium text-maroon">{t("stock.revisionPause")}</p>

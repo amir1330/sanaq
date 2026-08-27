@@ -1,7 +1,8 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { RevisionsHistory } from "../../components/RevisionsPanel";
+import { StockHubNav } from "../../components/StockHubNav";
 import { Button, Card, PageTitle } from "../../components/ui";
 import { useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
@@ -29,7 +30,7 @@ export function StockRevisionsPage() {
   return (
     <div>
       <PageTitle
-        kicker={t("stock.revKicker")}
+        kicker={t("stock.kicker")}
         title={t("stock.revTitle")}
         hint={t("stock.revHint")}
         action={
@@ -43,12 +44,10 @@ export function StockRevisionsPage() {
                 {t("stock.newRev")}
               </Button>
             )}
-            <Link to="/owner/stock">
-              <Button variant="quiet">{t("stock.toStock")}</Button>
-            </Link>
           </div>
         }
       />
+      <StockHubNav />
       {start.isError && <p className="mb-4 text-sm text-alert">{(start.error as Error).message}</p>}
       {draft && (
         <Card className="mb-5 border border-maroon/30 bg-maroon/5">

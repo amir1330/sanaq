@@ -13,7 +13,10 @@ export type NavIconName =
   | "shops"
   | "users"
   | "leads"
-  | "more";
+  | "more"
+  | "vitrine"
+  | "moves"
+  | "account";
 
 const paths: Record<NavIconName, string> = {
   reports:
@@ -30,6 +33,9 @@ const paths: Record<NavIconName, string> = {
   users: "M8 11a3 3 0 106 0 3 3 0 00-6 0zm-6 9a9 9 0 0118 0",
   leads: "M4 6h16M4 12h10M4 18h14",
   more: "M6 12h.01M12 12h.01M18 12h.01",
+  vitrine: "M4 5h16v10H4V5zm2 2v6h12V7H6zm3 8h6",
+  moves: "M4 7h16M4 12h10M4 17h14",
+  account: "M9 11a3 3 0 106 0 3 3 0 00-6 0zm-6 9a9 9 0 0118 0",
 };
 
 export function NavIcon({

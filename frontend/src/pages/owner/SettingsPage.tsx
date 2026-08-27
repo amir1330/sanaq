@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { SessionCard } from "../../components/SessionCard";
@@ -9,16 +9,24 @@ import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Shop } from "../../types";
 
-type Tab = "account" | "branch" | "tills" | "ofd" | "network";
+type Tab = "account" | "branch" | "pos" | "network";
+
+const TAB_IDS: Tab[] = ["branch", "pos", "network", "account"];
+
+function parseTab(value: string | null): Tab {
+  if (value && TAB_IDS.includes(value as Tab)) return value as Tab;
+  return "branch";
+}
 
 export function SettingsPage() {
   const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [params, setParams] = useSearchParams();
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const shop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
-  const [tab, setTab] = useState<Tab>("branch");
+  const [tab, setTab] = useState<Tab>(() => parseTab(params.get("tab")));
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -37,6 +45,18 @@ export function SettingsPage() {
     });
     setPreview(null);
   }, [shop]);
+
+  useEffect(() => {
+    setTab(parseTab(params.get("tab")));
+  }, [params]);
+
+  function selectTab(next: Tab) {
+    setTab(next);
+    const search = new URLSearchParams(params);
+    if (next === "branch") search.delete("tab");
+    else search.set("tab", next);
+    setParams(search, { replace: true });
+  }
 
   function refreshShops() {
     void qc.invalidateQueries({ queryKey: ["shops"] });
@@ -76,8 +96,7 @@ export function SettingsPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "branch", label: t("settings.tabBranch") },
-    { id: "tills", label: t("settings.tabTills") },
-    { id: "ofd", label: t("settings.tabOfd") },
+    { id: "pos", label: t("settings.tabPos") },
     { id: "network", label: t("settings.tabNetwork") },
     { id: "account", label: t("settings.tabAccount") },
   ];
@@ -95,7 +114,7 @@ export function SettingsPage() {
           <button
             key={item.id}
             type="button"
-            onClick={() => setTab(item.id)}
+            onClick={() => selectTab(item.id)}
             className={`${pill} ${
               tab === item.id
                 ? "border-ink bg-ink text-paper"
@@ -212,21 +231,15 @@ export function SettingsPage() {
             </Card>
           </div>
           {error && <p className="text-sm text-rust">{error}</p>}
-
-          <Card className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-medium text-ink">{t("settings.vitrine")}</p>
-              <p className="mt-1 text-sm text-mute">{t("settings.vitrineHint")}</p>
-            </div>
-            <Link to="/vitrine">
-              <Button variant="quiet">{t("settings.openVitrine")}</Button>
-            </Link>
-          </Card>
         </div>
       )}
 
-      {tab === "tills" && <CashRegistersCard shopId={shopId} />}
-      {tab === "ofd" && <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />}
+      {tab === "pos" && (
+        <div className="space-y-6">
+          <CashRegistersCard shopId={shopId} />
+          <WebkassaCard shopId={shopId} shop={shop} onSaved={refreshShops} />
+        </div>
+      )}
       {tab === "network" && <BranchesCard shopId={shopId} shops={shops.data ?? []} />}
     </div>
   );
