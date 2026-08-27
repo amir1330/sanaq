@@ -35,26 +35,6 @@ class CategoryOut(ORMModel):
     icon: str | None = None
 
 
-class ReorderItem(BaseModel):
-    id: int
-    sort_order: int
-
-
-class MenuLayoutOut(ORMModel):
-    shop_id: int
-    columns: int = 3
-    show_dividers: bool = True
-    card_style: str = "photo"
-    config_json: dict = Field(default_factory=dict)
-
-
-class MenuLayoutUpdate(BaseModel):
-    columns: int | None = Field(default=None, ge=2, le=5)
-    show_dividers: bool | None = None
-    card_style: str | None = None
-    config_json: dict | None = None
-
-
 class IngredientIn(BaseModel):
     stock_item_id: int
     quantity: Decimal = Field(gt=0)
@@ -69,6 +49,7 @@ class IngredientOut(ORMModel):
 
 
 class VariantIn(BaseModel):
+    id: int | None = None
     name: str
     name_kk: str | None = None
     name_en: str | None = None
@@ -136,6 +117,8 @@ class ProductUpdate(BaseModel):
     fiscal_position_code: str | None = None
     tax_percent: Decimal | None = None
     tax_type: int | None = None
+    ingredients: list[IngredientIn] | None = None
+    variants: list[VariantIn] | None = None
 
 
 class ProductOut(ORMModel):
@@ -169,9 +152,3 @@ class ProductPage(BaseModel):
     total: int
     limit: int
     offset: int
-
-
-class MenuOut(BaseModel):
-    layout: MenuLayoutOut
-    categories: list[CategoryOut]
-    products: list[ProductOut]

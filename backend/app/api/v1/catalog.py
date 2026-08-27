@@ -9,7 +9,6 @@ from app.api.deps import get_current_user, roles
 from app.database import get_session
 from app.models import (
     Category,
-    MenuLayout,
     Product,
     ProductIngredient,
     ProductVariant,
@@ -17,6 +16,8 @@ from app.models import (
     StockItem,
     User,
     UserRole,
+    VitrineColumn,
+    VitrineItem,
 )
 from app.schemas.catalog import (
     CategoryCreate,
@@ -24,17 +25,19 @@ from app.schemas.catalog import (
     CategoryUpdate,
     IngredientIn,
     IngredientOut,
-    MenuLayoutOut,
-    MenuLayoutUpdate,
-    MenuOut,
     ProductBulkCreate,
     ProductCreate,
     ProductOut,
     ProductPage,
     ProductUpdate,
-    ReorderItem,
     VariantIn,
     VariantOut,
+)
+from app.schemas.vitrine import (
+    VitrineColumnOut,
+    VitrineItemOut,
+    VitrineLayoutOut,
+    VitrineLayoutUpdate,
 )
 from app.services.access import assert_shop_access
 from app.services.uploads import delete_upload, replace_upload
@@ -216,28 +219,6 @@ async def create_category(
     return category
 
 
-@router.patch("/shops/{shop_id}/categories/reorder", response_model=list[CategoryOut])
-async def reorder_categories(
-    shop_id: int,
-    body: list[ReorderItem],
-    user: User = Depends(manage),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id, write=True)
-    result = await session.execute(select(Category).where(Category.shop_id == shop_id))
-    by_id = {c.id: c for c in result.scalars().all()}
-    for item in body:
-        cat = by_id.get(item.id)
-        if cat is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Категория {item.id} не найдена")
-        cat.sort_order = item.sort_order
-    await session.commit()
-    ordered = await session.execute(
-        select(Category).where(Category.shop_id == shop_id).order_by(Category.sort_order, Category.name)
-    )
-    return list(ordered.scalars().all())
-
-
 @router.patch("/shops/{shop_id}/categories/{category_id}", response_model=CategoryOut)
 async def update_category(
     shop_id: int,
@@ -266,115 +247,6 @@ async def update_category(
     await session.commit()
     await session.refresh(category)
     return category
-
-
-@router.patch("/shops/{shop_id}/products/reorder", response_model=list[ProductOut])
-async def reorder_products(
-    shop_id: int,
-    body: list[ReorderItem],
-    user: User = Depends(manage),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id, write=True)
-    result = await session.execute(select(Product).where(Product.shop_id == shop_id))
-    by_id = {p.id: p for p in result.scalars().all()}
-    for item in body:
-        product = by_id.get(item.id)
-        if product is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Товар {item.id} не найден")
-        product.sort_order = item.sort_order
-    await session.commit()
-    ids = [i.id for i in body]
-    loaded = await session.execute(
-        select(Product)
-        .options(*_product_load_options(with_ingredients=False))
-        .where(Product.id.in_(ids))
-        .order_by(Product.sort_order, Product.name, Product.id)
-    )
-    return [_product_out(p, with_ingredients=False) for p in loaded.scalars().unique().all()]
-
-
-@router.get("/shops/{shop_id}/menu-layout", response_model=MenuLayoutOut)
-async def get_menu_layout(
-    shop_id: int,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id)
-    return await _get_or_create_layout(session, shop_id)
-
-
-@router.put("/shops/{shop_id}/menu-layout", response_model=MenuLayoutOut)
-async def put_menu_layout(
-    shop_id: int,
-    body: MenuLayoutUpdate,
-    user: User = Depends(manage),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id, write=True)
-    layout = await session.get(MenuLayout, shop_id)
-    if layout is None:
-        layout = MenuLayout(shop_id=shop_id)
-        session.add(layout)
-    data = body.model_dump(exclude_unset=True)
-    if "card_style" in data and data["card_style"] not in ("photo", "compact", "list"):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неверный стиль карточки")
-    for key, value in data.items():
-        setattr(layout, key, value)
-    await session.commit()
-    await session.refresh(layout)
-    return _layout_out(layout)
-
-
-@router.get("/shops/{shop_id}/menu", response_model=MenuOut)
-async def get_menu(
-    shop_id: int,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id)
-    layout = await _get_or_create_layout(session, shop_id)
-    cats = (
-        await session.execute(
-            select(Category)
-            .where(Category.shop_id == shop_id)
-            .order_by(Category.sort_order, Category.name)
-        )
-    ).scalars().all()
-    filters = [Product.shop_id == shop_id, Product.is_active.is_(True)]
-    products = (
-        await session.execute(
-            select(Product)
-            .options(*_product_load_options(with_ingredients=False))
-            .where(*filters)
-            .order_by(Product.sort_order, Product.name, Product.id)
-        )
-    ).scalars().unique().all()
-    return MenuOut(
-        layout=layout,
-        categories=list(cats),
-        products=[_product_out(p, with_ingredients=False) for p in products],
-    )
-
-
-def _layout_out(layout: MenuLayout) -> MenuLayoutOut:
-    return MenuLayoutOut(
-        shop_id=layout.shop_id,
-        columns=layout.columns,
-        show_dividers=layout.show_dividers,
-        card_style=layout.card_style,
-        config_json=layout.config_json or {},
-    )
-
-
-async def _get_or_create_layout(session: AsyncSession, shop_id: int) -> MenuLayoutOut:
-    layout = await session.get(MenuLayout, shop_id)
-    if layout is None:
-        layout = MenuLayout(shop_id=shop_id)
-        session.add(layout)
-        await session.commit()
-        await session.refresh(layout)
-    return _layout_out(layout)
 
 
 @router.delete("/shops/{shop_id}/categories/{category_id}", status_code=204)
@@ -566,7 +438,7 @@ async def create_product(
         session, shop_id, product, [] if body.is_service else body.ingredients
     )
     if not body.is_service and body.variants:
-        await _replace_variants(session, shop_id, product, body.variants)
+        await _upsert_variants(session, shop_id, product, body.variants)
     await session.commit()
     return await _reload_product(session, product.id)
 
@@ -625,6 +497,8 @@ async def update_product(
     if product is None or product.shop_id != shop_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
     changes = body.model_dump(exclude_unset=True)
+    variants = changes.pop("variants", None)
+    ingredients = changes.pop("ingredients", None)
     if "sku" in changes:
         sku = _norm_sku(changes["sku"])
         await _assert_product_sku_free(session, shop_id, sku, exclude_id=product.id)
@@ -641,7 +515,15 @@ async def update_product(
         setattr(product, key, value)
     if body.is_service is True:
         await _replace_ingredients(session, shop_id, product, [])
-        await _replace_variants(session, shop_id, product, [])
+        await _upsert_variants(session, shop_id, product, [])
+    elif ingredients is not None:
+        await _replace_ingredients(session, shop_id, product, ingredients)
+    if variants is not None:
+        if product.is_service and variants:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "У услуги не бывает вариантов")
+        await _upsert_variants(session, shop_id, product, variants)
+        if variants:
+            await _replace_ingredients(session, shop_id, product, [])
     await session.commit()
     return await _reload_product(session, product.id)
 
@@ -721,25 +603,6 @@ async def set_ingredients(
     return await _reload_product(session, product.id)
 
 
-@router.post("/shops/{shop_id}/products/{product_id}/variants", response_model=ProductOut)
-async def set_variants(
-    shop_id: int,
-    product_id: int,
-    body: list[VariantIn],
-    user: User = Depends(manage),
-    session: AsyncSession = Depends(get_session),
-):
-    await assert_shop_access(session, user, shop_id, write=True)
-    product = await session.get(Product, product_id)
-    if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
-    if product.is_service and body:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "У услуги не бывает вариантов")
-    await _replace_variants(session, shop_id, product, body)
-    await session.commit()
-    return await _reload_product(session, product.id)
-
-
 async def _replace_ingredients(
     session: AsyncSession, shop_id: int, product: Product, ingredients: list[IngredientIn]
 ) -> None:
@@ -762,15 +625,14 @@ async def _replace_ingredients(
         )
 
 
-async def _replace_variants(
+async def _upsert_variants(
     session: AsyncSession, shop_id: int, product: Product, variants: list[VariantIn]
 ) -> None:
-    existing = await session.execute(
-        select(ProductVariant).where(ProductVariant.product_id == product.id)
-    )
-    for row in existing.scalars().all():
-        await session.delete(row)
-    await session.flush()
+    existing_rows = (
+        await session.execute(select(ProductVariant).where(ProductVariant.product_id == product.id))
+    ).scalars().all()
+    by_id = {v.id: v for v in existing_rows}
+    keep_ids: set[int] = set()
 
     defaults = [v for v in variants if v.is_default]
     if len(defaults) > 1:
@@ -792,20 +654,44 @@ async def _replace_variants(
             if barcode in seen_barcode:
                 raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод варианта уже занят: {barcode}")
             seen_barcode.add(barcode)
-            await _assert_product_barcode_free(session, shop_id, barcode)
-        variant = ProductVariant(
-            product_id=product.id,
-            name=name,
-            name_kk=(body.name_kk or "").strip() or None,
-            name_en=(body.name_en or "").strip() or None,
-            sort_order=body.sort_order if body.sort_order else idx,
-            sale_price=body.sale_price,
-            sku=sku,
-            barcode=barcode,
-            is_default=body.is_default,
-            is_active=body.is_active,
-        )
-        session.add(variant)
+
+        variant: ProductVariant | None = None
+        if body.id is not None:
+            variant = by_id.get(body.id)
+            if variant is None or variant.product_id != product.id:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, f"Вариант {body.id} не найден")
+        if variant is None:
+            variant = ProductVariant(product_id=product.id)
+            session.add(variant)
+            await session.flush()
+        else:
+            keep_ids.add(variant.id)
+
+        if barcode:
+            await _assert_product_barcode_free(
+                session, shop_id, barcode, exclude_variant_id=variant.id
+            )
+
+        variant.name = name
+        variant.name_kk = (body.name_kk or "").strip() or None
+        variant.name_en = (body.name_en or "").strip() or None
+        variant.sort_order = body.sort_order if body.sort_order else idx
+        variant.sale_price = body.sale_price
+        variant.sku = sku
+        variant.barcode = barcode
+        variant.is_default = body.is_default
+        variant.is_active = body.is_active
+        keep_ids.add(variant.id)
+
+        ing_rows = (
+            await session.execute(
+                select(ProductVariantIngredient).where(
+                    ProductVariantIngredient.variant_id == variant.id
+                )
+            )
+        ).scalars().all()
+        for row in ing_rows:
+            await session.delete(row)
         await session.flush()
         for ing in body.ingredients:
             item = await session.get(StockItem, ing.stock_item_id)
@@ -819,6 +705,11 @@ async def _replace_variants(
                 )
             )
 
+    for row in existing_rows:
+        if row.id not in keep_ids:
+            await session.delete(row)
+    await session.flush()
+
 
 async def _reload_product(session: AsyncSession, product_id: int) -> ProductOut:
     result = await session.execute(
@@ -828,3 +719,113 @@ async def _reload_product(session: AsyncSession, product_id: int) -> ProductOut:
     )
     product = result.scalar_one()
     return _product_out(product)
+
+
+@router.get("/shops/{shop_id}/vitrine-layout", response_model=VitrineLayoutOut)
+async def get_vitrine_layout(
+    shop_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    return await _load_vitrine_layout(session, shop_id)
+
+
+@router.put("/shops/{shop_id}/vitrine-layout", response_model=VitrineLayoutOut)
+async def put_vitrine_layout(
+    shop_id: int,
+    body: VitrineLayoutUpdate,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    existing = (
+        await session.execute(select(VitrineColumn).where(VitrineColumn.shop_id == shop_id))
+    ).scalars().all()
+    for col in existing:
+        await session.delete(col)
+    await session.flush()
+
+    for col_idx, col_in in enumerate(body.columns):
+        title = col_in.title.strip()
+        if not title:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название колонки")
+        column = VitrineColumn(
+            shop_id=shop_id,
+            title=title,
+            title_kk=(col_in.title_kk or "").strip() or None,
+            title_en=(col_in.title_en or "").strip() or None,
+            sort_order=col_in.sort_order if col_in.sort_order else col_idx,
+        )
+        session.add(column)
+        await session.flush()
+        for item_idx, item_in in enumerate(col_in.items):
+            product = await session.get(Product, item_in.product_id)
+            if product is None or product.shop_id != shop_id:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, f"Товар {item_in.product_id} не найден"
+                )
+            if item_in.variant_id is not None:
+                variant = await session.get(ProductVariant, item_in.variant_id)
+                if (
+                    variant is None
+                    or variant.product_id != product.id
+                    or not variant.is_active
+                ):
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        f"Вариант {item_in.variant_id} не принадлежит товару",
+                    )
+            session.add(
+                VitrineItem(
+                    column_id=column.id,
+                    product_id=item_in.product_id,
+                    variant_id=item_in.variant_id,
+                    sort_order=item_in.sort_order if item_in.sort_order else item_idx,
+                )
+            )
+
+    await session.commit()
+    return await _load_vitrine_layout(session, shop_id)
+
+
+async def _load_vitrine_layout(session: AsyncSession, shop_id: int) -> VitrineLayoutOut:
+    result = await session.execute(
+        select(VitrineColumn)
+        .options(
+            selectinload(VitrineColumn.items)
+            .selectinload(VitrineItem.product)
+            .options(*_product_load_options(with_ingredients=False)),
+            selectinload(VitrineColumn.items)
+            .selectinload(VitrineItem.variant)
+            .selectinload(ProductVariant.ingredients),
+        )
+        .where(VitrineColumn.shop_id == shop_id)
+        .order_by(VitrineColumn.sort_order, VitrineColumn.id)
+    )
+    columns = result.scalars().unique().all()
+    out_cols: list[VitrineColumnOut] = []
+    for col in columns:
+        items_out: list[VitrineItemOut] = []
+        for item in sorted(col.items, key=lambda i: (i.sort_order, i.id)):
+            items_out.append(
+                VitrineItemOut(
+                    id=item.id,
+                    product_id=item.product_id,
+                    variant_id=item.variant_id,
+                    sort_order=item.sort_order,
+                    product=_product_out(item.product, with_ingredients=False),
+                    variant=_variant_out(item.variant) if item.variant else None,
+                )
+            )
+        out_cols.append(
+            VitrineColumnOut(
+                id=col.id,
+                title=col.title,
+                title_kk=col.title_kk,
+                title_en=col.title_en,
+                sort_order=col.sort_order,
+                items=items_out,
+            )
+        )
+    return VitrineLayoutOut(columns=out_cols)

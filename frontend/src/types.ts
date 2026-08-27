@@ -133,18 +133,26 @@ export type Product = {
   variants?: ProductVariant[];
 };
 
-export type MenuLayout = {
-  shop_id: number;
-  columns: number;
-  show_dividers: boolean;
-  card_style: "photo" | "compact" | "list" | string;
-  config_json: Record<string, unknown>;
+export type VitrineItem = {
+  id: number;
+  product_id: number;
+  variant_id?: number | null;
+  sort_order: number;
+  product: Product;
+  variant?: ProductVariant | null;
 };
 
-export type MenuPayload = {
-  layout: MenuLayout;
-  categories: Category[];
-  products: Product[];
+export type VitrineColumn = {
+  id: number;
+  title: string;
+  title_kk?: string | null;
+  title_en?: string | null;
+  sort_order: number;
+  items: VitrineItem[];
+};
+
+export type VitrineLayout = {
+  columns: VitrineColumn[];
 };
 
 export type StockJournalKind =

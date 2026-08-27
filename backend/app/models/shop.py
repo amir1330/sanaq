@@ -1,7 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -36,24 +35,10 @@ class Shop(Base):
         lazy="selectin",
         post_update=True,
     )
-    menu_layout: Mapped["MenuLayout | None"] = relationship(
-        back_populates="shop", uselist=False, cascade="all, delete-orphan"
+    vitrine_columns: Mapped[list["VitrineColumn"]] = relationship(  # noqa: F821
+        back_populates="shop", cascade="all, delete-orphan", order_by="VitrineColumn.sort_order"
     )
 
     @property
     def logo_url(self) -> str | None:
         return self.logo.file_path if self.logo is not None else None
-
-
-class MenuLayout(Base):
-    __tablename__ = "menu_layouts"
-
-    shop_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), primary_key=True
-    )
-    columns: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
-    show_dividers: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    card_style: Mapped[str] = mapped_column(Text, nullable=False, default="photo")
-    config_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-
-    shop: Mapped[Shop] = relationship(back_populates="menu_layout")

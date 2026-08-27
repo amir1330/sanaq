@@ -36,6 +36,7 @@ type IngRow = {
 };
 
 type VariantRow = {
+  id?: number;
   name: string;
   name_kk: string;
   name_en: string;
@@ -134,6 +135,7 @@ export function ProductsPage() {
           : editing.variants
               .filter((v) => v.name.trim() && v.sale_price.trim())
               .map((v, idx) => ({
+                id: v.id,
                 name: v.name.trim(),
                 name_kk: v.name_kk.trim() || null,
                 name_en: v.name_en.trim() || null,
@@ -164,9 +166,9 @@ export function ProductsPage() {
           is_service: editing.is_service,
           tax_percent: editing.tax_percent || "0",
           tax_type: Number(editing.tax_type || 0),
+          ingredients: editing.has_variants ? [] : ingredients,
+          variants,
         });
-        await api.setIngredients(shopId, id, editing.has_variants ? [] : ingredients);
-        await api.setVariants(shopId, id, variants);
       } else {
         const created = await api.createProduct(shopId, {
           name: editing.name.trim(),
@@ -249,6 +251,7 @@ export function ProductsPage() {
   function draftFromProduct(p: Product, categoryId?: number | null): Draft {
     const variants =
       p.variants?.map((v) => ({
+        id: v.id,
         name: v.name ?? "",
         name_kk: v.name_kk ?? "",
         name_en: v.name_en ?? "",

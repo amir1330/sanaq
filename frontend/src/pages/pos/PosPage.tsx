@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
-import { defaultPriceLabel, MenuGrid } from "../../components/MenuGrid";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button, MoreMenu } from "../../components/ui";
@@ -35,6 +34,16 @@ function linePrice(line: Line): string {
 
 function activeVariants(product: Product): ProductVariant[] {
   return (product.variants ?? []).filter((v) => v.is_active);
+}
+
+function productPriceLabel(product: Product): string {
+  const vs = activeVariants(product);
+  if (vs.length === 0) return money(product.sale_price);
+  if (vs.length === 1) return money(vs[0].sale_price);
+  const prices = vs.map((v) => Number(v.sale_price));
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
 }
 
 const PRODUCT_PAGE = 60;
@@ -167,11 +176,6 @@ export function PosPage() {
   const categories = useQuery({
     queryKey: ["categories", sid],
     queryFn: () => api.categories(sid),
-    enabled: Boolean(user) && sid > 0,
-  });
-  const menuLayout = useQuery({
-    queryKey: ["menu-layout", sid],
-    queryFn: () => api.menuLayout(sid),
     enabled: Boolean(user) && sid > 0,
   });
   const shift = useQuery({
@@ -853,20 +857,32 @@ export function PosPage() {
         )}
         {!shiftOpen && <Banner tone="warn">{t("pos.closedBanner")}</Banner>}
         {salesFrozen && <Banner tone="warn">{t("pos.revisionBanner", { id: revisionId! })}</Banner>}
-        <MenuGrid
-          products={visible}
-          categories={categories.data ?? []}
-          layout={{
-            columns: menuLayout.data?.columns ?? 3,
-            show_dividers: menuLayout.data?.show_dividers ?? true,
-            card_style: menuLayout.data?.card_style ?? "photo",
-          }}
-          locale={locale}
-          disabled={!shiftOpen || salesFrozen}
-          onPick={add}
-          categoryFilter={categoryId}
-          priceLabel={defaultPriceLabel}
-        />
+        <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3">
+          {visible.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => add(p)}
+              className={`min-h-[5.5rem] rounded-lg border-[1.5px] border-transparent bg-paper px-3 py-4 text-left text-ink transition hover:-translate-y-0.5 hover:border-gold sm:px-4 sm:py-[18px] ${!shiftOpen || salesFrozen ? "opacity-50" : ""}`}
+            >
+              <p className="truncate font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">
+                {localizedName(
+                  {
+                    name: p.category_name ?? "",
+                    name_kk: p.category_name_kk,
+                    name_en: p.category_name_en,
+                  },
+                  locale,
+                )}
+              </p>
+              <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
+              {p.barcode || p.sku ? (
+                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.barcode || p.sku}</p>
+              ) : null}
+              <p className="mt-3 font-mono text-sm font-semibold text-gold">{productPriceLabel(p)}</p>
+            </button>
+          ))}
+        </div>
         {products.hasNextPage && (
           <div className="mt-4 flex justify-center">
             <Button

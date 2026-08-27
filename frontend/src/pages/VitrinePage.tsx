@@ -4,13 +4,53 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { ShopBrand } from "../components/ShopBrand";
+import { cn } from "../lib/utils";
+import type { Locale } from "../i18n/types";
 import { useLocale, useT } from "../i18n";
 import { localizedName } from "../lib/i18nName";
 import { money, publicUrl } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
-import type { Product } from "../types";
+import type { Product, ProductVariant, VitrineColumn } from "../types";
 
 const PAGE = 100;
+
+type DisplayColumn = {
+  id: string | number;
+  name: string;
+  items: DisplayItem[];
+};
+
+type DisplayItem = {
+  id: string;
+  product: Product;
+  variant: ProductVariant | null;
+};
+
+function itemPrice(product: Product, variant: ProductVariant | null): string {
+  if (variant) return money(variant.sale_price);
+  const vs = (product.variants ?? []).filter((v) => v.is_active);
+  if (vs.length === 0) return money(product.sale_price);
+  if (vs.length === 1) return money(vs[0].sale_price);
+  const prices = vs.map((v) => Number(v.sale_price));
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
+}
+
+function layoutColumns(cols: VitrineColumn[], locale: Locale): DisplayColumn[] {
+  return cols.map((col) => ({
+    id: col.id,
+    name: localizedName(
+      { name: col.title, name_kk: col.title_kk, name_en: col.title_en },
+      locale,
+    ),
+    items: col.items.map((item) => ({
+      id: String(item.id),
+      product: item.product,
+      variant: item.variant ?? null,
+    })),
+  }));
+}
 
 export function VitrinePage() {
   const t = useT();
@@ -33,6 +73,12 @@ export function VitrinePage() {
   }, []);
 
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops, enabled: sid > 0 });
+  const savedLayout = useQuery({
+    queryKey: ["vitrine-layout", sid],
+    queryFn: () => api.vitrineLayout(sid),
+    enabled: sid > 0,
+    refetchInterval: 20_000,
+  });
   const products = useInfiniteQuery({
     queryKey: ["products", "vitrine", sid],
     queryFn: ({ pageParam }) =>
@@ -68,20 +114,33 @@ export function VitrinePage() {
     () => products.data?.pages.flatMap((p) => p.items) ?? [],
     [products.data],
   );
-  const columns = useMemo(() => {
+
+  const columns = useMemo((): DisplayColumn[] => {
+    const saved = savedLayout.data?.columns ?? [];
+    if (saved.length > 0) {
+      return layoutColumns(saved, locale);
+    }
     const active = allProducts.filter((p) => p.is_active);
     const cats = categories.data ?? [];
     const blocks = cats
       .map((c) => ({
         id: c.id,
         name: localizedName(c, locale),
-        items: active.filter((p) => p.category_id === c.id),
+        items: active
+          .filter((p) => p.category_id === c.id)
+          .map((p) => ({ id: String(p.id), product: p, variant: null as ProductVariant | null })),
       }))
       .filter((b) => b.items.length > 0);
     const rest = active.filter((p) => !p.category_id || !cats.some((c) => c.id === p.category_id));
-    if (rest.length) blocks.push({ id: 0, name: otherLabel, items: rest });
+    if (rest.length) {
+      blocks.push({
+        id: 0,
+        name: otherLabel,
+        items: rest.map((p) => ({ id: String(p.id), product: p, variant: null })),
+      });
+    }
     return blocks;
-  }, [allProducts, categories.data, otherLabel, locale]);
+  }, [savedLayout.data, allProducts, categories.data, otherLabel, locale]);
 
   async function toggleFull() {
     if (document.fullscreenElement) {
@@ -93,6 +152,8 @@ export function VitrinePage() {
 
   const timeLocale = locale === "en" ? "en-GB" : locale === "kk" ? "kk-KZ" : "ru-RU";
   const time = now.toLocaleTimeString(timeLocale, { hour: "2-digit", minute: "2-digit" });
+  const gridCols =
+    columns.length >= 3 ? "lg:grid-cols-2 xl:grid-cols-3" : columns.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-1";
 
   return (
     <div ref={rootRef} className="flex min-h-screen flex-col bg-paper text-ink">
@@ -106,18 +167,28 @@ export function VitrinePage() {
         </div>
       </header>
 
-      <main className="grid flex-1 auto-rows-min gap-x-12 gap-y-12 px-8 py-8 md:px-12 lg:grid-cols-2 xl:grid-cols-3">
-        {columns.map((col) => (
-          <section key={col.id} className="min-w-0">
+      <main
+        className={cn(
+          "grid flex-1 auto-rows-min gap-x-0 gap-y-12 px-8 py-8 md:px-12",
+          gridCols,
+        )}
+      >
+        {columns.map((col, i) => (
+          <section key={col.id} className={cn("min-w-0 px-6", i > 0 && "border-l border-line")}>
             <div className="mb-5 flex flex-col items-center text-center">
               <Glyph name="ornament" className="h-6 w-full max-w-[220px] text-maroon md:h-7 md:max-w-[260px]" />
               <h2 className="mt-3 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
                 {col.name}
               </h2>
             </div>
-            <ul className="space-y-4">
-              {col.items.map((p) => (
-                <MenuRow key={p.id} product={p} />
+            <ul className="space-y-1">
+              {col.items.map((item, rowIdx) => (
+                <MenuRow
+                  key={item.id}
+                  product={item.product}
+                  variant={item.variant}
+                  striped={rowIdx % 2 === 1}
+                />
               ))}
             </ul>
           </section>
@@ -139,12 +210,27 @@ export function VitrinePage() {
   );
 }
 
-function MenuRow({ product }: { product: Product }) {
+function MenuRow({
+  product,
+  variant,
+  striped,
+}: {
+  product: Product;
+  variant: ProductVariant | null;
+  striped?: boolean;
+}) {
   const locale = useLocale((s) => s.locale);
-  const label = localizedName(product, locale);
+  const label = variant
+    ? `${localizedName(product, locale)} — ${localizedName(variant, locale)}`
+    : localizedName(product, locale);
   const src = publicUrl(product.image_url);
   return (
-    <li className="flex items-end gap-3.5">
+    <li
+      className={cn(
+        "flex items-end gap-3.5 rounded-md px-3 py-2",
+        striped ? "bg-paper-2" : "bg-transparent",
+      )}
+    >
       {src ? (
         <img src={src} alt="" className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-md object-cover" />
       ) : (
@@ -158,7 +244,7 @@ function MenuRow({ product }: { product: Product }) {
         </h3>
         <span className="mb-[3px] min-w-6 flex-1 border-b border-dotted border-line-2" />
         <span className="shrink-0 font-mono text-[18px] font-semibold tabular-nums text-gold md:text-[20px]">
-          {money(product.sale_price)}
+          {itemPrice(product, variant)}
         </span>
       </div>
     </li>

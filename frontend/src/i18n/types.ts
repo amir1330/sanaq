@@ -46,7 +46,7 @@ export type Messages = {
   nav: {
     reports: string;
     products: string;
-    menu: string;
+    vitrineBuilder: string;
     stock: string;
     revisions: string;
     staff: string;
@@ -801,23 +801,22 @@ export type Messages = {
     reopen: string;
     loadFailShort: string;
   };
-  menuBuilder: {
+  vitrineBuilder: {
     kicker: string;
     title: string;
     hint: string;
-    columns: string;
-    dividers: string;
-    cardStyle: string;
-    stylePhoto: string;
-    styleCompact: string;
-    styleList: string;
-    preview: string;
-    categories: string;
-    products: string;
-    saveOrder: string;
+    catalog: string;
+    save: string;
     saved: string;
-    emptyCat: string;
-    pickCat: string;
+    addColumn: string;
+    newColumn: string;
+    columnTitle: string;
+    columnItems: string;
+    emptyColumn: string;
+    emptyCatalog: string;
+    pickColumn: string;
+    deleteColumn: string;
+    wholeProduct: string;
   };
 };
 

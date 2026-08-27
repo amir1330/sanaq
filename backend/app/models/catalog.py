@@ -124,3 +124,41 @@ class ProductVariantIngredient(Base):
 
     variant: Mapped[ProductVariant] = relationship(back_populates="ingredients")
     stock_item: Mapped["StockItem"] = relationship()  # noqa: F821
+
+
+class VitrineColumn(Base):
+    __tablename__ = "vitrine_columns"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    title_kk: Mapped[str | None] = mapped_column(Text)
+    title_en: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    shop: Mapped["Shop"] = relationship(back_populates="vitrine_columns")  # noqa: F821
+    items: Mapped[list["VitrineItem"]] = relationship(
+        back_populates="column", cascade="all, delete-orphan", order_by="VitrineItem.sort_order"
+    )
+
+
+class VitrineItem(Base):
+    __tablename__ = "vitrine_items"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    column_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("vitrine_columns.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
+    variant_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("product_variants.id", ondelete="SET NULL")
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    column: Mapped[VitrineColumn] = relationship(back_populates="items")
+    product: Mapped[Product] = relationship()
+    variant: Mapped[ProductVariant | None] = relationship()

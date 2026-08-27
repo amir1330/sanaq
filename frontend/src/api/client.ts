@@ -13,10 +13,9 @@ import type {
   FiscalReceipt,
   Lead,
   LeadStatus,
-  MenuLayout,
-  MenuPayload,
   Page,
   Product,
+  VitrineLayout,
   ReportSummary,
   Sale,
   SellerPoint,
@@ -157,22 +156,9 @@ export const api = {
     request<Category>(`/shops/${shopId}/categories/${id}`, { method: "PATCH", body: json({ name }) }),
   deleteCategory: (shopId: number, id: number) =>
     request<void>(`/shops/${shopId}/categories/${id}`, { method: "DELETE" }),
-  reorderCategories: (shopId: number, items: { id: number; sort_order: number }[]) =>
-    request<Category[]>(`/shops/${shopId}/categories/reorder`, {
-      method: "PATCH",
-      body: json(items),
-    }),
-  reorderProducts: (shopId: number, items: { id: number; sort_order: number }[]) =>
-    request<Product[]>(`/shops/${shopId}/products/reorder`, {
-      method: "PATCH",
-      body: json(items),
-    }),
-  menuLayout: (shopId: number) => request<MenuLayout>(`/shops/${shopId}/menu-layout`),
-  putMenuLayout: (
-    shopId: number,
-    body: Partial<Pick<MenuLayout, "columns" | "show_dividers" | "card_style" | "config_json">>,
-  ) => request<MenuLayout>(`/shops/${shopId}/menu-layout`, { method: "PUT", body: json(body) }),
-  menu: (shopId: number) => request<MenuPayload>(`/shops/${shopId}/menu`),
+  vitrineLayout: (shopId: number) => request<VitrineLayout>(`/shops/${shopId}/vitrine-layout`),
+  putVitrineLayout: (shopId: number, body: { columns: object[] }) =>
+    request<VitrineLayout>(`/shops/${shopId}/vitrine-layout`, { method: "PUT", body: json(body) }),
 
   products: (
     shopId: number,
@@ -213,11 +199,6 @@ export const api = {
     request<Product>(`/shops/${shopId}/products/${productId}/ingredients`, {
       method: "POST",
       body: json(ingredients),
-    }),
-  setVariants: (shopId: number, productId: number, variants: object[]) =>
-    request<Product>(`/shops/${shopId}/products/${productId}/variants`, {
-      method: "POST",
-      body: json(variants),
     }),
   uploadProductImage: (shopId: number, id: number, file: File) => {
     const body = new FormData();
