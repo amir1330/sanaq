@@ -53,6 +53,12 @@ export type Messages = {
     shifts: string;
     till: string;
     settings: string;
+    groupSales: string;
+    groupMenu: string;
+    groupStock: string;
+    groupTeam: string;
+    groupOther: string;
+    groupPlatform: string;
     shops: string;
     users: string;
     leads: string;

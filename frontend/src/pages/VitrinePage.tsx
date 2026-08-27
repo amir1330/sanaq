@@ -14,6 +14,59 @@ import type { Product, ProductVariant, VitrineColumn } from "../types";
 
 const PAGE = 100;
 
+const editToolBtn =
+  "flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line bg-paper text-xl leading-none text-ink transition hover:border-gold disabled:opacity-40";
+const editActionBtn =
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-line bg-paper px-4 py-2.5 text-sm font-medium text-ink transition hover:border-gold disabled:opacity-40";
+const editDashedBtn =
+  "w-full rounded-lg border border-dashed border-line py-4 text-[15px] font-medium text-ink transition hover:border-gold hover:bg-cream/40";
+
+function ItemEditControls({
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  canMoveUp,
+  canMoveDown,
+}: {
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onRemove?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+}) {
+  const t = useT();
+  return (
+    <div className="flex w-[4.75rem] shrink-0 flex-col gap-1.5">
+      <button
+        type="button"
+        disabled={!canMoveUp}
+        className={editToolBtn}
+        onClick={onMoveUp}
+        aria-label={t("vitrine.moveUp")}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        disabled={!canMoveDown}
+        className={editToolBtn}
+        onClick={onMoveDown}
+        aria-label={t("vitrine.moveDown")}
+      >
+        ↓
+      </button>
+      <button
+        type="button"
+        className={cn(editToolBtn, "text-2xl")}
+        onClick={onRemove}
+        aria-label={t("vitrine.removeItem")}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 type HeaderStyle = "ornament" | "line" | "none";
 
 type EditorItem = {
@@ -121,11 +174,11 @@ function ColumnHeader({
   return (
     <div className="mb-5 flex flex-col items-center text-center">
       {editMode && (
-        <div className="mb-2 flex flex-wrap items-center justify-center gap-1">
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             disabled={!canMoveUp}
-            className="rounded border border-line px-2 py-0.5 text-[11px] disabled:opacity-40"
+            className={editToolBtn}
             onClick={onMoveUp}
             title={t("vitrine.moveUp")}
           >
@@ -134,7 +187,7 @@ function ColumnHeader({
           <button
             type="button"
             disabled={!canMoveDown}
-            className="rounded border border-line px-2 py-0.5 text-[11px] disabled:opacity-40"
+            className={editToolBtn}
             onClick={onMoveDown}
             title={t("vitrine.moveDown")}
           >
@@ -145,8 +198,9 @@ function ColumnHeader({
               key={style}
               type="button"
               className={cn(
-                "rounded border px-2 py-0.5 text-[10px] uppercase",
-                headerStyle === style ? "border-ink bg-paper" : "border-line text-faint",
+                editToolBtn,
+                "text-base",
+                headerStyle === style ? "border-ink bg-cream" : "text-faint",
               )}
               onClick={() => onStyleChange?.(style)}
               title={
@@ -161,11 +215,7 @@ function ColumnHeader({
             </button>
           ))}
           {onDelete ? (
-            <button
-              type="button"
-              className="rounded border border-line px-2 py-0.5 text-[10px] text-faint hover:text-ink"
-              onClick={onDelete}
-            >
+            <button type="button" className={editActionBtn} onClick={onDelete}>
               {t("vitrine.deleteColumn")}
             </button>
           ) : null}
@@ -175,7 +225,7 @@ function ColumnHeader({
         <input
           value={title}
           onChange={(e) => onTitleChange?.(e.target.value)}
-          className="w-full max-w-[220px] border-b border-line bg-transparent text-center font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint outline-none"
+          className="w-full max-w-[280px] rounded-lg border border-line bg-paper px-4 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.12em] text-ink outline-none focus:border-gold"
         />
       ) : (
         <>
@@ -233,7 +283,6 @@ function VariantRow({
   canMoveDown?: boolean;
 }) {
   const locale = useLocale((s) => s.locale);
-  const t = useT();
   return (
     <li
       className={cn(
@@ -242,17 +291,13 @@ function VariantRow({
       )}
     >
       {editMode ? (
-        <div className="flex w-[4.5rem] shrink-0 flex-col gap-0.5">
-          <button type="button" disabled={!canMoveUp} className="text-[11px] disabled:opacity-40" onClick={onMoveUp}>
-            ↑
-          </button>
-          <button type="button" disabled={!canMoveDown} className="text-[11px] disabled:opacity-40" onClick={onMoveDown}>
-            ↓
-          </button>
-          <button type="button" className="text-[11px] text-faint hover:text-ink" onClick={onRemove} title={t("vitrine.removeItem")}>
-            ×
-          </button>
-        </div>
+        <ItemEditControls
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onRemove={onRemove}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+        />
       ) : (
         <span className="w-[4.5rem] shrink-0" />
       )}
@@ -294,7 +339,6 @@ function MenuRow({
   canMoveDown?: boolean;
 }) {
   const locale = useLocale((s) => s.locale);
-  const t = useT();
   const label = localizedName(product, locale);
   const src = publicUrl(product.image_url);
   return (
@@ -305,17 +349,13 @@ function MenuRow({
       )}
     >
       {editMode ? (
-        <div className="flex w-[4.5rem] shrink-0 flex-col gap-0.5 pb-1">
-          <button type="button" disabled={!canMoveUp} className="text-[11px] disabled:opacity-40" onClick={onMoveUp}>
-            ↑
-          </button>
-          <button type="button" disabled={!canMoveDown} className="text-[11px] disabled:opacity-40" onClick={onMoveDown}>
-            ↓
-          </button>
-          <button type="button" className="text-[11px] text-faint hover:text-ink" onClick={onRemove} title={t("vitrine.removeItem")}>
-            ×
-          </button>
-        </div>
+        <ItemEditControls
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onRemove={onRemove}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+        />
       ) : src ? (
         <img src={src} alt="" className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-md object-cover" />
       ) : (
@@ -576,7 +616,7 @@ export function VitrinePage() {
               (editMode ? (
                 <button
                   type="button"
-                  className="rounded-full border border-ink px-4 py-2 font-mono text-[12px] uppercase tracking-wide text-ink hover:bg-cream"
+                  className="rounded-full border border-ink bg-paper px-5 py-3 font-mono text-sm font-medium uppercase tracking-wide text-ink shadow-soft hover:bg-cream"
                   disabled={saveLayout.isPending}
                   onClick={() => void finishEdit()}
                 >
@@ -640,11 +680,7 @@ export function VitrinePage() {
                 })}
               </ul>
               {editMode && (
-                <button
-                  type="button"
-                  className="mt-3 w-full rounded-md border border-dashed border-line py-2 text-[12px] text-faint hover:border-gold hover:text-ink"
-                  onClick={() => setPickColumnKey(col.key)}
-                >
+                <button type="button" className={cn(editDashedBtn, "mt-4")} onClick={() => setPickColumnKey(col.key)}>
                   {t("vitrine.addProduct")}
                 </button>
               )}
@@ -653,11 +689,7 @@ export function VitrinePage() {
         })}
         {editMode && (
           <section className="flex min-h-[120px] items-center justify-center px-6">
-            <button
-              type="button"
-              className="w-full max-w-xs rounded-lg border border-dashed border-line py-8 text-sm text-faint hover:border-gold hover:text-ink"
-              onClick={addColumn}
-            >
+            <button type="button" className={cn(editDashedBtn, "max-w-sm py-10 text-base")} onClick={addColumn}>
               {t("vitrine.addColumn")}
             </button>
           </section>
