@@ -8,6 +8,7 @@ def to_shop_out(shop: Shop) -> ShopOut:
         name=shop.name,
         address=shop.address,
         timezone=shop.timezone,
+        business_type=getattr(shop, "business_type", None) or "cafe",
         logo_url=shop.logo_url,
         is_active=shop.is_active,
         created_at=shop.created_at,

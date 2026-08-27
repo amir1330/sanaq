@@ -7,18 +7,34 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, roles
 from app.database import get_session
-from app.models import Category, Product, ProductIngredient, StockItem, User, UserRole
+from app.models import (
+    Category,
+    MenuLayout,
+    Product,
+    ProductIngredient,
+    ProductVariant,
+    ProductVariantIngredient,
+    StockItem,
+    User,
+    UserRole,
+)
 from app.schemas.catalog import (
     CategoryCreate,
     CategoryOut,
     CategoryUpdate,
     IngredientIn,
     IngredientOut,
+    MenuLayoutOut,
+    MenuLayoutUpdate,
+    MenuOut,
     ProductBulkCreate,
     ProductCreate,
     ProductOut,
     ProductPage,
     ProductUpdate,
+    ReorderItem,
+    VariantIn,
+    VariantOut,
 )
 from app.services.access import assert_shop_access
 from app.services.uploads import delete_upload, replace_upload
@@ -63,6 +79,7 @@ async def _assert_product_barcode_free(
     barcode: str | None,
     *,
     exclude_id: int | None = None,
+    exclude_variant_id: int | None = None,
 ) -> None:
     if not barcode:
         return
@@ -71,6 +88,43 @@ async def _assert_product_barcode_free(
         q = q.where(Product.id != exclude_id)
     if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод уже занят: {barcode}")
+    vq = (
+        select(ProductVariant.id)
+        .join(Product, Product.id == ProductVariant.product_id)
+        .where(Product.shop_id == shop_id, ProductVariant.barcode == barcode)
+    )
+    if exclude_variant_id is not None:
+        vq = vq.where(ProductVariant.id != exclude_variant_id)
+    if (await session.execute(vq.limit(1))).scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод уже занят: {barcode}")
+
+
+def _ingredient_out(ing: ProductIngredient | ProductVariantIngredient) -> IngredientOut:
+    item = ing.stock_item
+    return IngredientOut(
+        stock_item_id=ing.stock_item_id,
+        quantity=ing.quantity,
+        stock_item_name=item.name if item else None,
+        stock_item_sku=getattr(item, "sku", None) if item else None,
+        unit=item.base_unit if item else None,
+    )
+
+
+def _variant_out(variant: ProductVariant) -> VariantOut:
+    return VariantOut(
+        id=variant.id,
+        product_id=variant.product_id,
+        name=variant.name,
+        name_kk=variant.name_kk,
+        name_en=variant.name_en,
+        sort_order=variant.sort_order,
+        sale_price=variant.sale_price,
+        sku=variant.sku,
+        barcode=variant.barcode,
+        is_default=variant.is_default,
+        is_active=variant.is_active,
+        ingredients=[_ingredient_out(ing) for ing in variant.ingredients],
+    )
 
 
 def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductOut:
@@ -81,16 +135,9 @@ def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductO
         for ing in product.ingredients:
             item = ing.stock_item
             cost += ing.quantity * (item.cost_per_base_unit if item else Decimal("0"))
-            ingredients.append(
-                IngredientOut(
-                    stock_item_id=ing.stock_item_id,
-                    quantity=ing.quantity,
-                    stock_item_name=item.name if item else None,
-                    stock_item_sku=getattr(item, "sku", None) if item else None,
-                    unit=item.base_unit if item else None,
-                )
-            )
+            ingredients.append(_ingredient_out(ing))
         cost = cost.quantize(Decimal("0.01"))
+    variants = [_variant_out(v) for v in getattr(product, "variants", []) or []]
     return ProductOut(
         id=product.id,
         shop_id=product.shop_id,
@@ -101,6 +148,7 @@ def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductO
         sku=getattr(product, "sku", None),
         barcode=getattr(product, "barcode", None),
         sale_price=product.sale_price,
+        sort_order=getattr(product, "sort_order", 0) or 0,
         is_active=product.is_active,
         is_service=bool(getattr(product, "is_service", False)),
         image_url=product.image_url,
@@ -113,7 +161,21 @@ def _product_out(product: Product, *, with_ingredients: bool = True) -> ProductO
         tax_percent=product.tax_percent,
         tax_type=product.tax_type,
         ingredients=ingredients,
+        variants=variants,
     )
+
+
+def _product_load_options(*, with_ingredients: bool = True):
+    options = [
+        selectinload(Product.category),
+        selectinload(Product.image),
+        selectinload(Product.variants).selectinload(ProductVariant.ingredients).selectinload(
+            ProductVariantIngredient.stock_item
+        ),
+    ]
+    if with_ingredients:
+        options.append(selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item))
+    return options
 
 
 @router.get("/shops/{shop_id}/categories", response_model=list[CategoryOut])
@@ -124,7 +186,9 @@ async def list_categories(
 ):
     await assert_shop_access(session, user, shop_id)
     result = await session.execute(
-        select(Category).where(Category.shop_id == shop_id).order_by(Category.name)
+        select(Category)
+        .where(Category.shop_id == shop_id)
+        .order_by(Category.sort_order, Category.name)
     )
     return result.scalars().all()
 
@@ -142,11 +206,36 @@ async def create_category(
         name=body.name.strip(),
         name_kk=(body.name_kk or "").strip() or None,
         name_en=(body.name_en or "").strip() or None,
+        sort_order=body.sort_order,
+        color=(body.color or "").strip() or None,
+        icon=(body.icon or "").strip() or None,
     )
     session.add(category)
     await session.commit()
     await session.refresh(category)
     return category
+
+
+@router.patch("/shops/{shop_id}/categories/reorder", response_model=list[CategoryOut])
+async def reorder_categories(
+    shop_id: int,
+    body: list[ReorderItem],
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    result = await session.execute(select(Category).where(Category.shop_id == shop_id))
+    by_id = {c.id: c for c in result.scalars().all()}
+    for item in body:
+        cat = by_id.get(item.id)
+        if cat is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Категория {item.id} не найдена")
+        cat.sort_order = item.sort_order
+    await session.commit()
+    ordered = await session.execute(
+        select(Category).where(Category.shop_id == shop_id).order_by(Category.sort_order, Category.name)
+    )
+    return list(ordered.scalars().all())
 
 
 @router.patch("/shops/{shop_id}/categories/{category_id}", response_model=CategoryOut)
@@ -168,9 +257,124 @@ async def update_category(
         category.name_kk = (data["name_kk"] or "").strip() or None
     if "name_en" in data:
         category.name_en = (data["name_en"] or "").strip() or None
+    if "sort_order" in data and data["sort_order"] is not None:
+        category.sort_order = data["sort_order"]
+    if "color" in data:
+        category.color = (data["color"] or "").strip() or None
+    if "icon" in data:
+        category.icon = (data["icon"] or "").strip() or None
     await session.commit()
     await session.refresh(category)
     return category
+
+
+@router.patch("/shops/{shop_id}/products/reorder", response_model=list[ProductOut])
+async def reorder_products(
+    shop_id: int,
+    body: list[ReorderItem],
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    result = await session.execute(select(Product).where(Product.shop_id == shop_id))
+    by_id = {p.id: p for p in result.scalars().all()}
+    for item in body:
+        product = by_id.get(item.id)
+        if product is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Товар {item.id} не найден")
+        product.sort_order = item.sort_order
+    await session.commit()
+    ids = [i.id for i in body]
+    loaded = await session.execute(
+        select(Product)
+        .options(*_product_load_options(with_ingredients=False))
+        .where(Product.id.in_(ids))
+        .order_by(Product.sort_order, Product.name, Product.id)
+    )
+    return [_product_out(p, with_ingredients=False) for p in loaded.scalars().unique().all()]
+
+
+@router.get("/shops/{shop_id}/menu-layout", response_model=MenuLayoutOut)
+async def get_menu_layout(
+    shop_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    return await _get_or_create_layout(session, shop_id)
+
+
+@router.put("/shops/{shop_id}/menu-layout", response_model=MenuLayoutOut)
+async def put_menu_layout(
+    shop_id: int,
+    body: MenuLayoutUpdate,
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    layout = await session.get(MenuLayout, shop_id)
+    if layout is None:
+        layout = MenuLayout(shop_id=shop_id)
+        session.add(layout)
+    data = body.model_dump(exclude_unset=True)
+    if "card_style" in data and data["card_style"] not in ("photo", "compact", "list"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неверный стиль карточки")
+    for key, value in data.items():
+        setattr(layout, key, value)
+    await session.commit()
+    await session.refresh(layout)
+    return _layout_out(layout)
+
+
+@router.get("/shops/{shop_id}/menu", response_model=MenuOut)
+async def get_menu(
+    shop_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id)
+    layout = await _get_or_create_layout(session, shop_id)
+    cats = (
+        await session.execute(
+            select(Category)
+            .where(Category.shop_id == shop_id)
+            .order_by(Category.sort_order, Category.name)
+        )
+    ).scalars().all()
+    filters = [Product.shop_id == shop_id, Product.is_active.is_(True)]
+    products = (
+        await session.execute(
+            select(Product)
+            .options(*_product_load_options(with_ingredients=False))
+            .where(*filters)
+            .order_by(Product.sort_order, Product.name, Product.id)
+        )
+    ).scalars().unique().all()
+    return MenuOut(
+        layout=layout,
+        categories=list(cats),
+        products=[_product_out(p, with_ingredients=False) for p in products],
+    )
+
+
+def _layout_out(layout: MenuLayout) -> MenuLayoutOut:
+    return MenuLayoutOut(
+        shop_id=layout.shop_id,
+        columns=layout.columns,
+        show_dividers=layout.show_dividers,
+        card_style=layout.card_style,
+        config_json=layout.config_json or {},
+    )
+
+
+async def _get_or_create_layout(session: AsyncSession, shop_id: int) -> MenuLayoutOut:
+    layout = await session.get(MenuLayout, shop_id)
+    if layout is None:
+        layout = MenuLayout(shop_id=shop_id)
+        session.add(layout)
+        await session.commit()
+        await session.refresh(layout)
+    return _layout_out(layout)
 
 
 @router.delete("/shops/{shop_id}/categories/{category_id}", status_code=204)
@@ -214,6 +418,16 @@ async def list_products(
             .join(StockItem, StockItem.id == ProductIngredient.stock_item_id)
             .where(StockItem.shop_id == shop_id, StockItem.sku.ilike(like))
         )
+        variant_match = (
+            select(ProductVariant.product_id)
+            .where(
+                or_(
+                    ProductVariant.sku.ilike(like),
+                    ProductVariant.barcode.ilike(like),
+                    ProductVariant.name.ilike(like),
+                )
+            )
+        )
         filters.append(
             or_(
                 Product.name.ilike(like),
@@ -222,6 +436,7 @@ async def list_products(
                 Product.sku.ilike(like),
                 Product.barcode.ilike(like),
                 Product.id.in_(sku_match),
+                Product.id.in_(variant_match),
             )
         )
 
@@ -229,15 +444,11 @@ async def list_products(
         await session.execute(select(func.count()).select_from(Product).where(*filters))
     ).scalar_one()
 
-    options = [selectinload(Product.category)]
-    if include_ingredients:
-        options.append(selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item))
-
     result = await session.execute(
         select(Product)
-        .options(*options)
+        .options(*_product_load_options(with_ingredients=include_ingredients))
         .where(*filters)
-        .order_by(Product.name, Product.id)
+        .order_by(Product.sort_order, Product.name, Product.id)
         .offset(offset)
         .limit(limit)
     )
@@ -263,12 +474,8 @@ async def lookup_product(
     if not needle:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
 
-    options = [
-        selectinload(Product.category),
-        selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
-        selectinload(Product.image),
-    ]
     active = [Product.is_active.is_(True)] if user.role == UserRole.barista else []
+    options = _product_load_options(with_ingredients=True)
 
     for column in (Product.barcode, Product.sku):
         result = await session.execute(
@@ -280,6 +487,29 @@ async def lookup_product(
         product = result.scalar_one_or_none()
         if product is not None:
             return _product_out(product, with_ingredients=True)
+
+    variant_q = (
+        select(ProductVariant)
+        .join(Product, Product.id == ProductVariant.product_id)
+        .where(
+            Product.shop_id == shop_id,
+            ProductVariant.is_active.is_(True),
+            or_(ProductVariant.barcode == needle, ProductVariant.sku == needle),
+            *active,
+        )
+        .limit(1)
+    )
+    variant = (await session.execute(variant_q)).scalar_one_or_none()
+    if variant is not None:
+        result = await session.execute(
+            select(Product).options(*options).where(Product.id == variant.product_id)
+        )
+        product = result.scalar_one()
+        out = _product_out(product, with_ingredients=True)
+        # Prefer matched variant as default for POS add
+        for v in out.variants:
+            v.is_default = v.id == variant.id
+        return out
 
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
 
@@ -294,17 +524,14 @@ async def get_product(
     await assert_shop_access(session, user, shop_id)
     result = await session.execute(
         select(Product)
-        .options(
-            selectinload(Product.category),
-            selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
-            selectinload(Product.image),
-        )
+        .options(*_product_load_options(with_ingredients=True))
         .where(Product.id == product_id, Product.shop_id == shop_id)
     )
     product = result.scalar_one_or_none()
     if product is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
     return _product_out(product, with_ingredients=True)
+
 
 @router.post("/shops/{shop_id}/products", response_model=ProductOut, status_code=201)
 async def create_product(
@@ -338,6 +565,8 @@ async def create_product(
     await _replace_ingredients(
         session, shop_id, product, [] if body.is_service else body.ingredients
     )
+    if not body.is_service and body.variants:
+        await _replace_variants(session, shop_id, product, body.variants)
     await session.commit()
     return await _reload_product(session, product.id)
 
@@ -376,10 +605,7 @@ async def create_products_bulk(
     await session.commit()
     result = await session.execute(
         select(Product)
-        .options(
-            selectinload(Product.category),
-            selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
-        )
+        .options(*_product_load_options(with_ingredients=True))
         .where(Product.id.in_(created_ids))
         .order_by(Product.id)
     )
@@ -415,6 +641,7 @@ async def update_product(
         setattr(product, key, value)
     if body.is_service is True:
         await _replace_ingredients(session, shop_id, product, [])
+        await _replace_variants(session, shop_id, product, [])
     await session.commit()
     return await _reload_product(session, product.id)
 
@@ -494,6 +721,25 @@ async def set_ingredients(
     return await _reload_product(session, product.id)
 
 
+@router.post("/shops/{shop_id}/products/{product_id}/variants", response_model=ProductOut)
+async def set_variants(
+    shop_id: int,
+    product_id: int,
+    body: list[VariantIn],
+    user: User = Depends(manage),
+    session: AsyncSession = Depends(get_session),
+):
+    await assert_shop_access(session, user, shop_id, write=True)
+    product = await session.get(Product, product_id)
+    if product is None or product.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+    if product.is_service and body:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "У услуги не бывает вариантов")
+    await _replace_variants(session, shop_id, product, body)
+    await session.commit()
+    return await _reload_product(session, product.id)
+
+
 async def _replace_ingredients(
     session: AsyncSession, shop_id: int, product: Product, ingredients: list[IngredientIn]
 ) -> None:
@@ -516,13 +762,68 @@ async def _replace_ingredients(
         )
 
 
+async def _replace_variants(
+    session: AsyncSession, shop_id: int, product: Product, variants: list[VariantIn]
+) -> None:
+    existing = await session.execute(
+        select(ProductVariant).where(ProductVariant.product_id == product.id)
+    )
+    for row in existing.scalars().all():
+        await session.delete(row)
+    await session.flush()
+
+    defaults = [v for v in variants if v.is_default]
+    if len(defaults) > 1:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Только один вариант может быть по умолчанию")
+
+    seen_sku: set[str] = set()
+    seen_barcode: set[str] = set()
+    for idx, body in enumerate(variants):
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название варианта")
+        sku = _norm_sku(body.sku)
+        barcode = _norm_barcode(body.barcode)
+        if sku:
+            if sku in seen_sku:
+                raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул варианта уже занят: {sku}")
+            seen_sku.add(sku)
+        if barcode:
+            if barcode in seen_barcode:
+                raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод варианта уже занят: {barcode}")
+            seen_barcode.add(barcode)
+            await _assert_product_barcode_free(session, shop_id, barcode)
+        variant = ProductVariant(
+            product_id=product.id,
+            name=name,
+            name_kk=(body.name_kk or "").strip() or None,
+            name_en=(body.name_en or "").strip() or None,
+            sort_order=body.sort_order if body.sort_order else idx,
+            sale_price=body.sale_price,
+            sku=sku,
+            barcode=barcode,
+            is_default=body.is_default,
+            is_active=body.is_active,
+        )
+        session.add(variant)
+        await session.flush()
+        for ing in body.ingredients:
+            item = await session.get(StockItem, ing.stock_item_id)
+            if item is None or item.shop_id != shop_id:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Stock item not in this shop")
+            session.add(
+                ProductVariantIngredient(
+                    variant_id=variant.id,
+                    stock_item_id=ing.stock_item_id,
+                    quantity=ing.quantity,
+                )
+            )
+
+
 async def _reload_product(session: AsyncSession, product_id: int) -> ProductOut:
     result = await session.execute(
         select(Product)
-        .options(
-            selectinload(Product.category),
-            selectinload(Product.ingredients).selectinload(ProductIngredient.stock_item),
-        )
+        .options(*_product_load_options(with_ingredients=True))
         .where(Product.id == product_id)
     )
     product = result.scalar_one()

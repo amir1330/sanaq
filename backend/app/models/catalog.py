@@ -17,6 +17,9 @@ class Category(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     name_kk: Mapped[str | None] = mapped_column(Text)
     name_en: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    color: Mapped[str | None] = mapped_column(Text)
+    icon: Mapped[str | None] = mapped_column(Text)
 
     products: Mapped[list["Product"]] = relationship(back_populates="category")
 
@@ -37,6 +40,7 @@ class Product(Base):
     sku: Mapped[str | None] = mapped_column(Text)
     barcode: Mapped[str | None] = mapped_column(Text)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     image_upload_id: Mapped[int | None] = mapped_column(
@@ -53,6 +57,9 @@ class Product(Base):
     category: Mapped[Category | None] = relationship(back_populates="products")
     ingredients: Mapped[list["ProductIngredient"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
+    )
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        back_populates="product", cascade="all, delete-orphan", order_by="ProductVariant.sort_order"
     )
     image: Mapped["Upload | None"] = relationship(  # noqa: F821
         "Upload",
@@ -78,4 +85,42 @@ class ProductIngredient(Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
 
     product: Mapped[Product] = relationship(back_populates="ingredients")
+    stock_item: Mapped["StockItem"] = relationship()  # noqa: F821
+
+
+class ProductVariant(Base):
+    __tablename__ = "product_variants"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_kk: Mapped[str | None] = mapped_column(Text)
+    name_en: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sale_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    sku: Mapped[str | None] = mapped_column(Text)
+    barcode: Mapped[str | None] = mapped_column(Text)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    product: Mapped[Product] = relationship(back_populates="variants")
+    ingredients: Mapped[list["ProductVariantIngredient"]] = relationship(
+        back_populates="variant", cascade="all, delete-orphan"
+    )
+
+
+class ProductVariantIngredient(Base):
+    __tablename__ = "product_variant_ingredients"
+
+    variant_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("product_variants.id", ondelete="CASCADE"), primary_key=True
+    )
+    stock_item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock_items.id", ondelete="RESTRICT"), primary_key=True
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
+
+    variant: Mapped[ProductVariant] = relationship(back_populates="ingredients")
     stock_item: Mapped["StockItem"] = relationship()  # noqa: F821

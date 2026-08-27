@@ -36,6 +36,7 @@ class ShopOut(ORMModel):
     name: str
     address: str | None
     timezone: str
+    business_type: str = "cafe"
     logo_url: str | None = None
     is_active: bool
     created_at: datetime
@@ -58,6 +59,7 @@ class ShopSettingsUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     address: str | None = None
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    business_type: str | None = None
 
 
 class WebkassaSettingsUpdate(BaseModel):

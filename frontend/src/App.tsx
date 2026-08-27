@@ -8,6 +8,7 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { LeadsPage } from "./pages/admin/LeadsPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MenuBuilderPage } from "./pages/owner/MenuBuilderPage";
 import { DashboardPage } from "./pages/owner/DashboardPage";
 import { ExpensesPage } from "./pages/owner/ExpensesPage";
 import { ProductsPage } from "./pages/owner/ProductsPage";
@@ -38,6 +39,7 @@ export function App() {
           <Route element={<Shell kind="owner" />}>
             <Route path="/owner" element={<DashboardPage />} />
             <Route path="/owner/products" element={<ProductsPage />} />
+            <Route path="/owner/menu" element={<MenuBuilderPage />} />
             <Route path="/owner/stock" element={<StockPage />} />
             <Route path="/owner/stock/item/:itemId" element={<StockItemPage />} />
             <Route path="/owner/stock/moves" element={<StockMovesPage />} />

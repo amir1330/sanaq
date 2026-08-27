@@ -87,7 +87,13 @@ async def update_shop_settings(
     session: AsyncSession = Depends(get_session),
 ):
     shop = await assert_shop_access(session, user, shop_id, write=True)
-    for key, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "business_type" in data and data["business_type"] is not None:
+        bt = str(data["business_type"]).strip().lower()
+        if bt not in ("cafe", "retail", "bakery"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Тип бизнеса: cafe, retail или bakery")
+        data["business_type"] = bt
+    for key, value in data.items():
         setattr(shop, key, value)
     await session.commit()
     await session.refresh(shop)

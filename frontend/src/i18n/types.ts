@@ -46,6 +46,7 @@ export type Messages = {
   nav: {
     reports: string;
     products: string;
+    menu: string;
     stock: string;
     revisions: string;
     staff: string;
@@ -179,6 +180,11 @@ export type Messages = {
     address: string;
     addressPh: string;
     timezone: string;
+    businessType: string;
+    businessTypeHint: string;
+    bizCafe: string;
+    bizRetail: string;
+    bizBakery: string;
     saved: string;
     logo: string;
     logoHint: string;
@@ -276,6 +282,8 @@ export type Messages = {
     revisionBanner: string;
     cart: string;
     cartEmpty: string;
+    pickVariant: string;
+    pickVariantHint: string;
     toPay: string;
     clearCart: string;
     openShiftTitle: string;
@@ -374,6 +382,15 @@ export type Messages = {
     catPh: string;
     newCategory: string;
     onPos: string;
+    hasVariants: string;
+    variants: string;
+    variantsHint: string;
+    variantPreset: string;
+    addVariant: string;
+    variantName: string;
+    variantNamePh: string;
+    variantDefault: string;
+    needVariant: string;
     kindProduct: string;
     kindService: string;
     recipe: string;
@@ -783,6 +800,24 @@ export type Messages = {
     contacted: string;
     reopen: string;
     loadFailShort: string;
+  };
+  menuBuilder: {
+    kicker: string;
+    title: string;
+    hint: string;
+    columns: string;
+    dividers: string;
+    cardStyle: string;
+    stylePhoto: string;
+    styleCompact: string;
+    styleList: string;
+    preview: string;
+    categories: string;
+    products: string;
+    saveOrder: string;
+    saved: string;
+    emptyCat: string;
+    pickCat: string;
   };
 };
 

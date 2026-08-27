@@ -206,8 +206,11 @@ export function DashboardPage() {
           </thead>
           <tbody>
             {(top.data ?? []).map((p) => (
-              <tr key={p.product_id} className="border-b border-line last:border-0">
-                <td className="px-6 py-3.5 text-ink-soft">{localizedName(p, locale)}</td>
+              <tr key={`${p.product_id}:${p.variant_id ?? ""}`} className="border-b border-line last:border-0">
+                <td className="px-6 py-3.5 text-ink-soft">
+                  {localizedName(p, locale)}
+                  {p.variant_name ? ` — ${p.variant_name}` : ""}
+                </td>
                 <td className="px-6 py-3.5 text-ink-soft">{p.quantity}</td>
                 <td className="px-6 py-3.5 font-mono font-semibold text-ink">{money(p.revenue)}</td>
                 <td className="px-6 py-3.5 font-mono font-semibold text-ink">

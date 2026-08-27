@@ -10,12 +10,18 @@ class CategoryCreate(BaseModel):
     name: str
     name_kk: str | None = None
     name_en: str | None = None
+    sort_order: int = 0
+    color: str | None = None
+    icon: str | None = None
 
 
 class CategoryUpdate(BaseModel):
     name: str | None = None
     name_kk: str | None = None
     name_en: str | None = None
+    sort_order: int | None = None
+    color: str | None = None
+    icon: str | None = None
 
 
 class CategoryOut(ORMModel):
@@ -24,6 +30,29 @@ class CategoryOut(ORMModel):
     name: str
     name_kk: str | None = None
     name_en: str | None = None
+    sort_order: int = 0
+    color: str | None = None
+    icon: str | None = None
+
+
+class ReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
+
+class MenuLayoutOut(ORMModel):
+    shop_id: int
+    columns: int = 3
+    show_dividers: bool = True
+    card_style: str = "photo"
+    config_json: dict = Field(default_factory=dict)
+
+
+class MenuLayoutUpdate(BaseModel):
+    columns: int | None = Field(default=None, ge=2, le=5)
+    show_dividers: bool | None = None
+    card_style: str | None = None
+    config_json: dict | None = None
 
 
 class IngredientIn(BaseModel):
@@ -37,6 +66,34 @@ class IngredientOut(ORMModel):
     stock_item_name: str | None = None
     stock_item_sku: str | None = None
     unit: str | None = None
+
+
+class VariantIn(BaseModel):
+    name: str
+    name_kk: str | None = None
+    name_en: str | None = None
+    sort_order: int = 0
+    sale_price: Decimal = Field(gt=0)
+    sku: str | None = None
+    barcode: str | None = None
+    is_default: bool = False
+    is_active: bool = True
+    ingredients: list[IngredientIn] = Field(default_factory=list)
+
+
+class VariantOut(ORMModel):
+    id: int
+    product_id: int
+    name: str
+    name_kk: str | None = None
+    name_en: str | None = None
+    sort_order: int = 0
+    sale_price: Decimal
+    sku: str | None = None
+    barcode: str | None = None
+    is_default: bool = False
+    is_active: bool = True
+    ingredients: list[IngredientOut] = Field(default_factory=list)
 
 
 class ProductCreate(BaseModel):
@@ -53,6 +110,7 @@ class ProductCreate(BaseModel):
     tax_percent: Decimal = Decimal("0")
     tax_type: int = 0
     ingredients: list[IngredientIn] = Field(default_factory=list)
+    variants: list[VariantIn] = Field(default_factory=list)
 
 
 class ProductBulkItem(BaseModel):
@@ -90,6 +148,7 @@ class ProductOut(ORMModel):
     sku: str | None = None
     barcode: str | None = None
     sale_price: Decimal
+    sort_order: int = 0
     is_active: bool
     is_service: bool = False
     image_url: str | None
@@ -102,6 +161,7 @@ class ProductOut(ORMModel):
     tax_percent: Decimal = Decimal("0")
     tax_type: int = 0
     ingredients: list[IngredientOut] = Field(default_factory=list)
+    variants: list[VariantOut] = Field(default_factory=list)
 
 
 class ProductPage(BaseModel):
@@ -109,3 +169,9 @@ class ProductPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class MenuOut(BaseModel):
+    layout: MenuLayoutOut
+    categories: list[CategoryOut]
+    products: list[ProductOut]

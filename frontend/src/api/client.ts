@@ -13,6 +13,8 @@ import type {
   FiscalReceipt,
   Lead,
   LeadStatus,
+  MenuLayout,
+  MenuPayload,
   Page,
   Product,
   ReportSummary,
@@ -101,8 +103,10 @@ export const api = {
       copy_catalog?: boolean;
     },
   ) => request<Shop>("/shops", { method: "POST", body: json(body) }),
-  updateShopSettings: (shopId: number, body: { name?: string; address?: string; timezone?: string }) =>
-    request<Shop>(`/shops/${shopId}`, { method: "PATCH", body: json(body) }),
+  updateShopSettings: (
+    shopId: number,
+    body: { name?: string; address?: string; timezone?: string; business_type?: string },
+  ) => request<Shop>(`/shops/${shopId}`, { method: "PATCH", body: json(body) }),
   uploadLogo: (shopId: number, file: File) => {
     const body = new FormData();
     body.append("file", file);
@@ -153,6 +157,22 @@ export const api = {
     request<Category>(`/shops/${shopId}/categories/${id}`, { method: "PATCH", body: json({ name }) }),
   deleteCategory: (shopId: number, id: number) =>
     request<void>(`/shops/${shopId}/categories/${id}`, { method: "DELETE" }),
+  reorderCategories: (shopId: number, items: { id: number; sort_order: number }[]) =>
+    request<Category[]>(`/shops/${shopId}/categories/reorder`, {
+      method: "PATCH",
+      body: json(items),
+    }),
+  reorderProducts: (shopId: number, items: { id: number; sort_order: number }[]) =>
+    request<Product[]>(`/shops/${shopId}/products/reorder`, {
+      method: "PATCH",
+      body: json(items),
+    }),
+  menuLayout: (shopId: number) => request<MenuLayout>(`/shops/${shopId}/menu-layout`),
+  putMenuLayout: (
+    shopId: number,
+    body: Partial<Pick<MenuLayout, "columns" | "show_dividers" | "card_style" | "config_json">>,
+  ) => request<MenuLayout>(`/shops/${shopId}/menu-layout`, { method: "PUT", body: json(body) }),
+  menu: (shopId: number) => request<MenuPayload>(`/shops/${shopId}/menu`),
 
   products: (
     shopId: number,
@@ -193,6 +213,11 @@ export const api = {
     request<Product>(`/shops/${shopId}/products/${productId}/ingredients`, {
       method: "POST",
       body: json(ingredients),
+    }),
+  setVariants: (shopId: number, productId: number, variants: object[]) =>
+    request<Product>(`/shops/${shopId}/products/${productId}/variants`, {
+      method: "POST",
+      body: json(variants),
     }),
   uploadProductImage: (shopId: number, id: number, file: File) => {
     const body = new FormData();
@@ -394,7 +419,12 @@ export const api = {
 
   createSale: (
     shopId: number,
-    items: { product_id: number; quantity: number; discount?: { type: "percent" | "amount"; value: number } | null }[],
+    items: {
+      product_id: number;
+      quantity: number;
+      variant_id?: number | null;
+      discount?: { type: "percent" | "amount"; value: number } | null;
+    }[],
     payment_type: "cash" | "card",
     barista_id?: number,
     cash_register_id?: number,

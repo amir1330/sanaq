@@ -35,6 +35,18 @@ type IngRow = {
   cost_per_base_unit?: string;
 };
 
+type VariantRow = {
+  name: string;
+  name_kk: string;
+  name_en: string;
+  sale_price: string;
+  sku: string;
+  barcode: string;
+  is_default: boolean;
+  is_active: boolean;
+  ingredients: IngRow[];
+};
+
 type Draft = {
   id?: number;
   name: string;
@@ -46,10 +58,12 @@ type Draft = {
   category_id: number | null;
   is_active: boolean;
   is_service: boolean;
+  has_variants: boolean;
   tax_percent: string;
   tax_type: string;
   image_url: string | null;
   ingredients: IngRow[];
+  variants: VariantRow[];
 };
 
 export function ProductsPage() {
@@ -114,6 +128,28 @@ export function ProductsPage() {
         : (editing.ingredients ?? [])
             .filter((i) => i.stock_item_id && i.quantity)
             .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity }));
+      const variants =
+        editing.is_service || !editing.has_variants
+          ? []
+          : editing.variants
+              .filter((v) => v.name.trim() && v.sale_price.trim())
+              .map((v, idx) => ({
+                name: v.name.trim(),
+                name_kk: v.name_kk.trim() || null,
+                name_en: v.name_en.trim() || null,
+                sort_order: idx,
+                sale_price: v.sale_price.replace(",", "."),
+                sku: v.sku.trim() || null,
+                barcode: v.barcode.trim() || null,
+                is_default: v.is_default,
+                is_active: v.is_active,
+                ingredients: v.ingredients
+                  .filter((i) => i.stock_item_id && i.quantity)
+                  .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity })),
+              }));
+      if (editing.has_variants && !editing.is_service && variants.length === 0) {
+        throw new Error(t("products.needVariant"));
+      }
       let id = editing.id;
       if (id) {
         await api.patchProduct(shopId, id, {
@@ -129,7 +165,8 @@ export function ProductsPage() {
           tax_percent: editing.tax_percent || "0",
           tax_type: Number(editing.tax_type || 0),
         });
-        await api.setIngredients(shopId, id, ingredients);
+        await api.setIngredients(shopId, id, editing.has_variants ? [] : ingredients);
+        await api.setVariants(shopId, id, variants);
       } else {
         const created = await api.createProduct(shopId, {
           name: editing.name.trim(),
@@ -143,7 +180,8 @@ export function ProductsPage() {
           is_service: editing.is_service,
           tax_percent: editing.tax_percent || "0",
           tax_type: Number(editing.tax_type || 0),
-          ingredients,
+          ingredients: editing.has_variants ? [] : ingredients,
+          variants,
         });
         id = created.id;
       }
@@ -209,6 +247,24 @@ export function ProductsPage() {
   }
 
   function draftFromProduct(p: Product, categoryId?: number | null): Draft {
+    const variants =
+      p.variants?.map((v) => ({
+        name: v.name ?? "",
+        name_kk: v.name_kk ?? "",
+        name_en: v.name_en ?? "",
+        sale_price: v.sale_price ?? "",
+        sku: v.sku ?? "",
+        barcode: v.barcode ?? "",
+        is_default: Boolean(v.is_default),
+        is_active: v.is_active ?? true,
+        ingredients:
+          v.ingredients?.map((i) => ({
+            stock_item_id: i.stock_item_id,
+            quantity: String(i.quantity),
+            name: i.stock_item_name ?? undefined,
+            base_unit: i.unit ?? undefined,
+          })) ?? [],
+      })) ?? [];
     return {
       id: p.id,
       name: p.name ?? "",
@@ -219,7 +275,8 @@ export function ProductsPage() {
       sale_price: p.sale_price ?? "",
       category_id: p.category_id ?? categoryId ?? null,
       is_active: p.is_active ?? true,
-      is_service: Boolean(p.is_service ?? !(p.ingredients?.length)),
+      is_service: Boolean(p.is_service ?? !(p.ingredients?.length || variants.length)),
+      has_variants: variants.length > 0,
       tax_percent: p.tax_percent ?? "0",
       tax_type: String(p.tax_type ?? 0),
       image_url: p.image_url ?? null,
@@ -230,6 +287,7 @@ export function ProductsPage() {
           name: i.stock_item_name ?? undefined,
           base_unit: i.unit ?? undefined,
         })) ?? [],
+      variants,
     };
   }
 
@@ -259,10 +317,45 @@ export function ProductsPage() {
       category_id: categoryId ?? null,
       is_active: true,
       is_service: false,
+      has_variants: false,
       tax_percent: "0",
       tax_type: "0",
       image_url: null,
       ingredients: [],
+      variants: [],
+    });
+  }
+
+  function emptyVariant(isDefault = false): VariantRow {
+    return {
+      name: "",
+      name_kk: "",
+      name_en: "",
+      sale_price: "",
+      sku: "",
+      barcode: "",
+      is_default: isDefault,
+      is_active: true,
+      ingredients: [],
+    };
+  }
+
+  function applySizePreset() {
+    if (!editing) return;
+    const labels =
+      locale === "en"
+        ? ["Small", "Medium", "Large"]
+        : locale === "kk"
+          ? ["Кіші", "Орташа", "Үлкен"]
+          : ["Маленький", "Средний", "Большой"];
+    setEditing({
+      ...editing,
+      has_variants: true,
+      variants: labels.map((name, i) => ({
+        ...emptyVariant(i === 1),
+        name,
+        sale_price: editing.sale_price,
+      })),
     });
   }
 
@@ -282,6 +375,27 @@ export function ProductsPage() {
         },
       ],
     });
+  }
+
+  function pickVariantIngredient(variantIdx: number, item: StockItem) {
+    if (!editing) return;
+    const variants = [...editing.variants];
+    const row = variants[variantIdx];
+    if (!row || row.ingredients.some((r) => r.stock_item_id === item.id)) return;
+    variants[variantIdx] = {
+      ...row,
+      ingredients: [
+        ...row.ingredients,
+        {
+          stock_item_id: item.id,
+          quantity: "",
+          name: item.name,
+          base_unit: item.base_unit,
+          cost_per_base_unit: item.cost_per_base_unit,
+        },
+      ],
+    };
+    setEditing({ ...editing, variants });
   }
 
   const list = useMemo(
@@ -711,7 +825,15 @@ export function ProductsPage() {
                 <Button
                   type="button"
                   variant={editing.is_service ? "primary" : "quiet"}
-                  onClick={() => setEditing({ ...editing, is_service: true, ingredients: [] })}
+                  onClick={() =>
+                    setEditing({
+                      ...editing,
+                      is_service: true,
+                      ingredients: [],
+                      has_variants: false,
+                      variants: [],
+                    })
+                  }
                 >
                   {t("products.kindService")}
                 </Button>
@@ -720,6 +842,168 @@ export function ProductsPage() {
                 {t("products.onPos")}
               </Check>
               {!editing.is_service && (
+                <Check
+                  checked={editing.has_variants}
+                  onChange={(has_variants) =>
+                    setEditing({
+                      ...editing,
+                      has_variants,
+                      variants: has_variants
+                        ? editing.variants.length
+                          ? editing.variants
+                          : [emptyVariant(true)]
+                        : [],
+                    })
+                  }
+                >
+                  {t("products.hasVariants")}
+                </Check>
+              )}
+              {!editing.is_service && editing.has_variants && (
+                <div className="space-y-3 rounded-md bg-cream px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[14.5px] font-medium">{t("products.variants")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="quiet" onClick={applySizePreset}>
+                        {t("products.variantPreset")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        onClick={() =>
+                          setEditing({
+                            ...editing,
+                            variants: [...editing.variants, emptyVariant(editing.variants.length === 0)],
+                          })
+                        }
+                      >
+                        {t("products.addVariant")}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-[12.5px] text-mute">{t("products.variantsHint")}</p>
+                  {editing.variants.map((v, vIdx) => (
+                    <div key={vIdx} className="space-y-2 rounded-md border border-line bg-paper p-3">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Field label={t("products.variantName")}>
+                          <Input
+                            value={v.name}
+                            onChange={(e) => {
+                              const variants = [...editing.variants];
+                              variants[vIdx] = { ...v, name: e.target.value };
+                              setEditing({ ...editing, variants });
+                            }}
+                            placeholder={t("products.variantNamePh")}
+                          />
+                        </Field>
+                        <Field label={t("products.price")}>
+                          <Input
+                            value={v.sale_price}
+                            onChange={(e) => {
+                              const variants = [...editing.variants];
+                              variants[vIdx] = { ...v, sale_price: e.target.value };
+                              setEditing({ ...editing, variants });
+                            }}
+                            inputMode="decimal"
+                          />
+                        </Field>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Field label={t("products.barcode")}>
+                          <Input
+                            value={v.barcode}
+                            onChange={(e) => {
+                              const variants = [...editing.variants];
+                              variants[vIdx] = { ...v, barcode: e.target.value };
+                              setEditing({ ...editing, variants });
+                            }}
+                          />
+                        </Field>
+                        <Field label={t("products.sku")}>
+                          <Input
+                            value={v.sku}
+                            onChange={(e) => {
+                              const variants = [...editing.variants];
+                              variants[vIdx] = { ...v, sku: e.target.value };
+                              setEditing({ ...editing, variants });
+                            }}
+                          />
+                        </Field>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Check
+                          checked={v.is_default}
+                          onChange={(is_default) => {
+                            const variants = editing.variants.map((row, i) => ({
+                              ...row,
+                              is_default: is_default ? i === vIdx : false,
+                            }));
+                            setEditing({ ...editing, variants });
+                          }}
+                        >
+                          {t("products.variantDefault")}
+                        </Check>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() =>
+                            setEditing({
+                              ...editing,
+                              variants: editing.variants.filter((_, i) => i !== vIdx),
+                            })
+                          }
+                        >
+                          {t("common.remove")}
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[12.5px] text-mute">{t("products.recipe")}</p>
+                        {v.ingredients.map((row, idx) => (
+                          <div key={idx} className="grid grid-cols-[1fr_6.5rem_auto] gap-2">
+                            <div className="rounded-md border border-line bg-cream px-3 py-2 text-sm">
+                              {row.name ?? `#${row.stock_item_id}`}
+                              {row.base_unit ? <span className="ml-1 text-mute">· {row.base_unit}</span> : null}
+                            </div>
+                            <Input
+                              value={row.quantity}
+                              onChange={(e) => {
+                                const variants = [...editing.variants];
+                                const ings = [...v.ingredients];
+                                ings[idx] = { ...row, quantity: e.target.value };
+                                variants[vIdx] = { ...v, ingredients: ings };
+                                setEditing({ ...editing, variants });
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                const variants = [...editing.variants];
+                                variants[vIdx] = {
+                                  ...v,
+                                  ingredients: v.ingredients.filter((_, i) => i !== idx),
+                                };
+                                setEditing({ ...editing, variants });
+                              }}
+                            >
+                              {t("common.remove")}
+                            </Button>
+                          </div>
+                        ))}
+                        <StockSearchPicker
+                          shopId={shopId}
+                          excludeIds={v.ingredients
+                            .map((r) => r.stock_item_id)
+                            .filter((id): id is number => typeof id === "number")}
+                          onPick={(item) => pickVariantIngredient(vIdx, item)}
+                          placeholder={t("stock.searchPh")}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!editing.is_service && !editing.has_variants && (
               <details className="rounded-md bg-cream px-4 py-3">
                 <summary className="cursor-pointer text-[14.5px] font-medium">{t("products.recipe")}</summary>
                 <p className="mt-2 text-[12.5px] text-mute">{t("products.recipeHint")}</p>

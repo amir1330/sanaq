@@ -13,6 +13,7 @@ from app.models import (
     FiscalStatus,
     PaymentType,
     Product,
+    ProductVariant,
     Sale,
     SaleItem,
     Shift,
@@ -135,7 +136,10 @@ async def create_sale(
 
     result = await session.execute(
         select(Product)
-        .options(selectinload(Product.ingredients))
+        .options(
+            selectinload(Product.ingredients),
+            selectinload(Product.variants).selectinload(ProductVariant.ingredients),
+        )
         .where(Product.id.in_(qty_by_product.keys()), Product.shop_id == shop_id)
     )
     products = {p.id: p for p in result.scalars().unique().all()}
@@ -148,10 +152,36 @@ async def create_sale(
                 status.HTTP_400_BAD_REQUEST, f"Product '{product.name}' is not on the menu"
             )
 
+    # Resolve variant per cart line
+    resolved: list[tuple[SaleItemIn, Product, ProductVariant | None]] = []
+    for line in items:
+        product = products[line.product_id]
+        active_variants = [v for v in product.variants if v.is_active]
+        variant: ProductVariant | None = None
+        if active_variants:
+            if line.variant_id is None:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Выбери размер для «{product.name}»",
+                )
+            variant = next((v for v in active_variants if v.id == line.variant_id), None)
+            if variant is None:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Вариант не найден для «{product.name}»",
+                )
+        elif line.variant_id is not None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"У «{product.name}» нет вариантов",
+            )
+        resolved.append((line, product, variant))
+
     stock_need: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
-    for product_id, qty in qty_by_product.items():
-        for ing in products[product_id].ingredients:
-            stock_need[ing.stock_item_id] += ing.quantity * qty
+    for line, product, variant in resolved:
+        bom = variant.ingredients if variant is not None else product.ingredients
+        for ing in bom:
+            stock_need[ing.stock_item_id] += ing.quantity * line.quantity
 
     locked: dict[int, StockItem] = {}
     if stock_need:
@@ -162,33 +192,46 @@ async def create_sale(
         )
         locked = {row.id: row for row in locked_rows.scalars().all()}
 
-    cost_by_product: dict[int, Decimal] = {}
-    for product_id, qty in qty_by_product.items():
+    # COGS per (product_id, variant_id) key
+    cost_by_key: dict[tuple[int, int | None], Decimal] = {}
+    for line, product, variant in resolved:
+        key = (product.id, variant.id if variant else None)
+        if key in cost_by_key:
+            continue
+        bom = variant.ingredients if variant is not None else product.ingredients
+        qty = sum(
+            l.quantity
+            for l, p, v in resolved
+            if p.id == product.id and (v.id if v else None) == (variant.id if variant else None)
+        )
         line_cogs = Decimal("0")
-        for ing in products[product_id].ingredients:
+        for ing in bom:
             item = locked.get(ing.stock_item_id)
             if item is None:
                 continue
             need = ing.quantity * qty
             line_cogs += await consume_fifo(session, item, need)
-        cost_by_product[product_id] = (line_cogs / qty).quantize(Decimal("0.01")) if qty else Decimal("0")
+        cost_by_key[key] = (line_cogs / qty).quantize(Decimal("0.01")) if qty else Decimal("0")
 
     subtotal = Decimal("0")
     items_discount_total = Decimal("0")
     sale_items: list[SaleItem] = []
-    for line in items:
-        product = products[line.product_id]
-        gross = (product.sale_price * line.quantity).quantize(Decimal("0.01"))
+    for line, product, variant in resolved:
+        unit_price = variant.sale_price if variant is not None else product.sale_price
+        gross = (unit_price * line.quantity).quantize(Decimal("0.01"))
         item_disc = _discount_amount(gross, line.discount)
         line_total = (gross - item_disc).quantize(Decimal("0.01"))
         subtotal += gross
         items_discount_total += item_disc
+        key = (product.id, variant.id if variant else None)
         sale_items.append(
             SaleItem(
                 product_id=line.product_id,
+                variant_id=variant.id if variant else None,
+                variant_name_snapshot=variant.name if variant else None,
                 quantity=line.quantity,
-                price_snapshot=product.sale_price,
-                cost_price_snapshot=cost_by_product[line.product_id],
+                price_snapshot=unit_price,
+                cost_price_snapshot=cost_by_key[key],
                 discount_type=line.discount.type if _has_discount(line.discount) else None,
                 discount_value=line.discount.value if _has_discount(line.discount) else None,
                 discount_amount=item_disc,
@@ -279,17 +322,29 @@ async def refund_sale(
     restore: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
     if restore_stock:
         product_ids = [i.product_id for i in sale.items]
+        variant_ids = [i.variant_id for i in sale.items if i.variant_id]
         result = await session.execute(
             select(Product)
-            .options(selectinload(Product.ingredients))
+            .options(
+                selectinload(Product.ingredients),
+                selectinload(Product.variants).selectinload(ProductVariant.ingredients),
+            )
             .where(Product.id.in_(product_ids))
         )
         products = {p.id: p for p in result.scalars().unique().all()}
+        variants: dict[int, ProductVariant] = {}
+        for p in products.values():
+            for v in p.variants:
+                variants[v.id] = v
         for line in sale.items:
             product = products.get(line.product_id)
             if not product:
                 continue
-            for ing in product.ingredients:
+            if line.variant_id and line.variant_id in variants:
+                bom = variants[line.variant_id].ingredients
+            else:
+                bom = product.ingredients
+            for ing in bom:
                 restore[ing.stock_item_id] += ing.quantity * line.quantity
 
     if restore:

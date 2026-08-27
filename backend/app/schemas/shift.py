@@ -88,6 +88,7 @@ class DiscountIn(BaseModel):
 class SaleItemIn(BaseModel):
     product_id: int
     quantity: int = Field(ge=1)
+    variant_id: int | None = None
     discount: DiscountIn | None = None
 
 
@@ -109,6 +110,8 @@ class SaleItemOut(ORMModel):
     id: int
     product_id: int
     product_name: str | None = None
+    variant_id: int | None = None
+    variant_name: str | None = None
     quantity: int
     price_snapshot: Decimal
     cost_price_snapshot: Decimal

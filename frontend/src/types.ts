@@ -62,6 +62,7 @@ export type Shop = {
   name: string;
   address: string | null;
   timezone: string;
+  business_type?: string;
   logo_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -78,6 +79,9 @@ export type Category = {
   name: string;
   name_kk?: string | null;
   name_en?: string | null;
+  sort_order?: number;
+  color?: string | null;
+  icon?: string | null;
 };
 
 export type Ingredient = {
@@ -86,6 +90,21 @@ export type Ingredient = {
   stock_item_name?: string | null;
   stock_item_sku?: string | null;
   unit?: string | null;
+};
+
+export type ProductVariant = {
+  id: number;
+  product_id: number;
+  name: string;
+  name_kk?: string | null;
+  name_en?: string | null;
+  sort_order: number;
+  sale_price: string;
+  sku?: string | null;
+  barcode?: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  ingredients: Ingredient[];
 };
 
 export type Product = {
@@ -98,6 +117,7 @@ export type Product = {
   sku?: string | null;
   barcode?: string | null;
   sale_price: string;
+  sort_order?: number;
   is_active: boolean;
   is_service?: boolean;
   image_url: string | null;
@@ -110,6 +130,21 @@ export type Product = {
   tax_percent?: string;
   tax_type?: number;
   ingredients: Ingredient[];
+  variants?: ProductVariant[];
+};
+
+export type MenuLayout = {
+  shop_id: number;
+  columns: number;
+  show_dividers: boolean;
+  card_style: "photo" | "compact" | "list" | string;
+  config_json: Record<string, unknown>;
+};
+
+export type MenuPayload = {
+  layout: MenuLayout;
+  categories: Category[];
+  products: Product[];
 };
 
 export type StockJournalKind =
@@ -268,6 +303,8 @@ export type SaleItem = {
   id: number;
   product_id: number;
   product_name?: string | null;
+  variant_id?: number | null;
+  variant_name?: string | null;
   quantity: number;
   price_snapshot: string;
   cost_price_snapshot: string;
@@ -339,9 +376,11 @@ export type ReportSummary = {
 
 export type TopProduct = {
   product_id: number;
+  variant_id?: number | null;
   name: string;
   name_kk?: string | null;
   name_en?: string | null;
+  variant_name?: string | null;
   quantity: number;
   revenue: string;
   profit: string;

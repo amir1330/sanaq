@@ -1,5 +1,11 @@
 from app.models.cash_register import CashRegister
-from app.models.catalog import Category, Product, ProductIngredient
+from app.models.catalog import (
+    Category,
+    Product,
+    ProductIngredient,
+    ProductVariant,
+    ProductVariantIngredient,
+)
 from app.models.enums import (
     CashMovementType,
     DiscountType,
@@ -15,7 +21,7 @@ from app.models.finance import Expense
 from app.models.lead import Lead
 from app.models.sale import Sale, SaleItem
 from app.models.shift import Shift, ShiftCashMovement
-from app.models.shop import Shop
+from app.models.shop import MenuLayout, Shop
 from app.models.stock import StockItem, StockLog, StockLot, StockMovement, StockRevision, StockRevisionLine
 from app.models.upload import Upload
 from app.models.user import OwnerShop, User
@@ -28,10 +34,13 @@ __all__ = [
     "Expense",
     "FiscalStatus",
     "Lead",
+    "MenuLayout",
     "OwnerShop",
     "PaymentType",
     "Product",
     "ProductIngredient",
+    "ProductVariant",
+    "ProductVariantIngredient",
     "Sale",
     "SaleItem",
     "Shift",

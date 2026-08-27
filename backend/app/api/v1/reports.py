@@ -180,6 +180,8 @@ async def top_products(
     result = await session.execute(
         select(
             SaleItem.product_id,
+            SaleItem.variant_id,
+            SaleItem.variant_name_snapshot,
             Product.name,
             Product.name_kk,
             Product.name_en,
@@ -197,16 +199,25 @@ async def top_products(
             Sale.created_at >= start,
             Sale.created_at <= end,
         )
-        .group_by(SaleItem.product_id, Product.name, Product.name_kk, Product.name_en)
+        .group_by(
+            SaleItem.product_id,
+            SaleItem.variant_id,
+            SaleItem.variant_name_snapshot,
+            Product.name,
+            Product.name_kk,
+            Product.name_en,
+        )
         .order_by(func.sum(SaleItem.quantity).desc())
         .limit(limit)
     )
     return [
         TopProduct(
             product_id=row.product_id,
+            variant_id=row.variant_id,
             name=row.name,
             name_kk=row.name_kk,
             name_en=row.name_en,
+            variant_name=row.variant_name_snapshot,
             quantity=int(row.qty or 0),
             revenue=Decimal(str(row.revenue or 0)),
             profit=Decimal(str(row.profit or 0)),

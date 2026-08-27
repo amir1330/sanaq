@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
+import { defaultPriceLabel, MenuGrid } from "../../components/MenuGrid";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button, MoreMenu } from "../../components/ui";
@@ -13,11 +14,28 @@ import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import { SCALE_ZOOM, SCALES, useUiScale } from "../../store/uiScale";
-import type { CrewMember, Product, ShiftSale } from "../../types";
+import type { CrewMember, Product, ProductVariant, ShiftSale } from "../../types";
 
-type Line = { product: Product; quantity: number; discount?: Discount | null };
+type Line = {
+  product: Product;
+  variant: ProductVariant | null;
+  quantity: number;
+  discount?: Discount | null;
+};
 type MobileTab = "products" | "cart" | "shift";
 type DiscountDraft = { type: Discount["type"]; value: string };
+
+function lineKey(productId: number, variantId: number | null | undefined) {
+  return `${productId}:${variantId ?? ""}`;
+}
+
+function linePrice(line: Line): string {
+  return line.variant?.sale_price ?? line.product.sale_price;
+}
+
+function activeVariants(product: Product): ProductVariant[] {
+  return (product.variants ?? []).filter((v) => v.is_active);
+}
 
 const PRODUCT_PAGE = 60;
 const CASH_NOTES = [10_000, 5_000, 1_000] as const;
@@ -103,13 +121,14 @@ export function PosPage() {
   const [productSearch, setProductSearch] = useState("");
   const debouncedSearch = useDebouncedValue(productSearch, 250);
   const [receiptDiscount, setReceiptDiscount] = useState<Discount | null>(null);
-  const [lineDiscountEdit, setLineDiscountEdit] = useState<number | null>(null);
+  const [lineDiscountEdit, setLineDiscountEdit] = useState<string | null>(null);
   const [lineDiscountDraft, setLineDiscountDraft] = useState<DiscountDraft>({ type: "percent", value: "" });
   const [receiptDiscountEdit, setReceiptDiscountEdit] = useState(false);
   const [receiptDiscountDraft, setReceiptDiscountDraft] = useState<DiscountDraft>({
     type: "percent",
     value: "",
   });
+  const [variantPick, setVariantPick] = useState<Product | null>(null);
   const [findReceiptId, setFindReceiptId] = useState("");
   const [findReceiptError, setFindReceiptError] = useState<string | null>(null);
   const [cashPayOpen, setCashPayOpen] = useState(false);
@@ -148,6 +167,11 @@ export function PosPage() {
   const categories = useQuery({
     queryKey: ["categories", sid],
     queryFn: () => api.categories(sid),
+    enabled: Boolean(user) && sid > 0,
+  });
+  const menuLayout = useQuery({
+    queryKey: ["menu-layout", sid],
+    queryFn: () => api.menuLayout(sid),
     enabled: Boolean(user) && sid > 0,
   });
   const shift = useQuery({
@@ -217,7 +241,7 @@ export function PosPage() {
   );
 
   const totals = cartTotals(
-    cart.map((l) => ({ price: l.product.sale_price, quantity: l.quantity, discount: l.discount })),
+    cart.map((l) => ({ price: linePrice(l), quantity: l.quantity, discount: l.discount })),
     receiptDiscount,
   );
   const total = totals.total;
@@ -227,7 +251,7 @@ export function PosPage() {
   const canDiscount =
     user?.role === "owner" || user?.role === "super_admin" || Boolean(user?.can_apply_discount);
 
-  function add(product: Product) {
+  function addWithVariant(product: Product, variant: ProductVariant | null) {
     if (!shiftOpen) {
       setNotice({ tone: "warn", text: t("pos.needShift") });
       setPanel("open");
@@ -241,11 +265,47 @@ export function PosPage() {
       });
       return;
     }
+    const vId = variant?.id ?? null;
     setCart((prev) => {
-      const found = prev.find((l) => l.product.id === product.id);
-      if (found) return prev.map((l) => (l.product.id === product.id ? { ...l, quantity: l.quantity + 1 } : l));
-      return [...prev, { product, quantity: 1 }];
+      const found = prev.find(
+        (l) => l.product.id === product.id && (l.variant?.id ?? null) === vId,
+      );
+      if (found) {
+        return prev.map((l) =>
+          l.product.id === product.id && (l.variant?.id ?? null) === vId
+            ? { ...l, quantity: l.quantity + 1 }
+            : l,
+        );
+      }
+      return [...prev, { product, variant, quantity: 1 }];
     });
+    setVariantPick(null);
+  }
+
+  function add(product: Product) {
+    const variants = activeVariants(product);
+    if (variants.length === 0) {
+      addWithVariant(product, null);
+      return;
+    }
+    if (variants.length === 1) {
+      addWithVariant(product, variants[0]);
+      return;
+    }
+    if (!shiftOpen) {
+      setNotice({ tone: "warn", text: t("pos.needShift") });
+      setPanel("open");
+      setMobileTab("shift");
+      return;
+    }
+    if (salesFrozen) {
+      setNotice({
+        tone: "warn",
+        text: t("pos.revisionSales", { id: revisionId! }),
+      });
+      return;
+    }
+    setVariantPick(product);
   }
 
   const scanLock = useRef(false);
@@ -255,11 +315,22 @@ export function PosPage() {
     scanLock.current = true;
     try {
       const product = await api.productByCode(sid, code);
-      add(product);
+      const variants = activeVariants(product);
+      const matched =
+        variants.find((v) => v.barcode === code || v.sku === code) ??
+        (variants.length === 1 ? variants[0] : variants.find((v) => v.is_default) ?? null);
+      if (variants.length > 1 && !matched) {
+        setVariantPick(product);
+      } else {
+        addWithVariant(product, matched);
+      }
       setProductSearch("");
+      const label = matched
+        ? `${localizedName(product, locale)} — ${localizedName(matched, locale)}`
+        : localizedName(product, locale);
       setNotice({
         tone: "ok",
-        text: t("pos.scanAdded", { name: localizedName(product, locale) }),
+        text: t("pos.scanAdded", { name: label }),
       });
       setMobileTab("cart");
     } catch {
@@ -299,10 +370,14 @@ export function PosPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  function changeQty(id: number, delta: number) {
+  function changeQty(productId: number, variantId: number | null, delta: number) {
     setCart((prev) =>
       prev
-        .map((l) => (l.product.id === id ? { ...l, quantity: l.quantity + delta } : l))
+        .map((l) =>
+          l.product.id === productId && (l.variant?.id ?? null) === variantId
+            ? { ...l, quantity: l.quantity + delta }
+            : l,
+        )
         .filter((l) => l.quantity > 0),
     );
   }
@@ -346,6 +421,7 @@ export function PosPage() {
         sid,
         cart.map((l) => ({
           product_id: l.product.id,
+          variant_id: l.variant?.id ?? null,
           quantity: l.quantity,
           discount: l.discount
             ? { type: l.discount.type, value: Number(l.discount.value) }
@@ -777,32 +853,20 @@ export function PosPage() {
         )}
         {!shiftOpen && <Banner tone="warn">{t("pos.closedBanner")}</Banner>}
         {salesFrozen && <Banner tone="warn">{t("pos.revisionBanner", { id: revisionId! })}</Banner>}
-        <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3">
-          {visible.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => add(p)}
-              className={`min-h-[5.5rem] rounded-lg border-[1.5px] border-transparent bg-paper px-3 py-4 text-left text-ink transition hover:-translate-y-0.5 hover:border-gold sm:px-4 sm:py-[18px] ${!shiftOpen || salesFrozen ? "opacity-50" : ""}`}
-            >
-              <p className="truncate font-mono text-[9.5px] uppercase tracking-wide text-ink-soft">
-                {localizedName(
-                  {
-                    name: p.category_name ?? "",
-                    name_kk: p.category_name_kk,
-                    name_en: p.category_name_en,
-                  },
-                  locale,
-                )}
-              </p>
-              <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
-              {p.barcode || p.sku ? (
-                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.barcode || p.sku}</p>
-              ) : null}
-              <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
-            </button>
-          ))}
-        </div>
+        <MenuGrid
+          products={visible}
+          categories={categories.data ?? []}
+          layout={{
+            columns: menuLayout.data?.columns ?? 3,
+            show_dividers: menuLayout.data?.show_dividers ?? true,
+            card_style: menuLayout.data?.card_style ?? "photo",
+          }}
+          locale={locale}
+          disabled={!shiftOpen || salesFrozen}
+          onPick={add}
+          categoryFilter={categoryId}
+          priceLabel={defaultPriceLabel}
+        />
         {products.hasNextPage && (
           <div className="mt-4 flex justify-center">
             <Button
@@ -826,17 +890,22 @@ export function PosPage() {
           <p className="py-5 text-center text-[13px] text-ink-soft">{t("pos.cartEmpty")}</p>
         )}
         {cart.map((l) => {
-          const gross = lineGross(l.product.sale_price, l.quantity);
-          const net = lineTotal(l.product.sale_price, l.quantity, l.discount);
+          const key = lineKey(l.product.id, l.variant?.id);
+          const price = linePrice(l);
+          const gross = lineGross(price, l.quantity);
+          const net = lineTotal(price, l.quantity, l.discount);
           const hasDisc = Boolean(l.discount && Number(l.discount.value) > 0);
+          const title = l.variant
+            ? `${localizedName(l.product, locale)} — ${localizedName(l.variant, locale)}`
+            : localizedName(l.product, locale);
           return (
-            <div key={l.product.id} className="rounded-md bg-paper-2 px-3.5 py-2.5 text-[13.5px]">
+            <div key={key} className="rounded-md bg-paper-2 px-3.5 py-2.5 text-[13.5px]">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
-                    onClick={() => changeQty(l.product.id, -1)}
+                    onClick={() => changeQty(l.product.id, l.variant?.id ?? null, -1)}
                   >
                     −
                   </button>
@@ -844,12 +913,12 @@ export function PosPage() {
                   <button
                     type="button"
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-base leading-none text-ink lg:h-[22px] lg:w-[22px] lg:text-xs"
-                    onClick={() => changeQty(l.product.id, 1)}
+                    onClick={() => changeQty(l.product.id, l.variant?.id ?? null, 1)}
                   >
                     +
                   </button>
                 </div>
-                <span className="min-w-0 flex-1 break-words">{localizedName(l.product, locale)}</span>
+                <span className="min-w-0 flex-1 break-words">{title}</span>
                 <span className="shrink-0 text-right font-mono font-semibold text-gold">
                   {hasDisc ? (
                     <>
@@ -870,7 +939,7 @@ export function PosPage() {
               )}
               {canDiscount && (
                 <div className="mt-1.5">
-                  {lineDiscountEdit === l.product.id ? (
+                  {lineDiscountEdit === key ? (
                     <DiscountEditor
                       draft={lineDiscountDraft}
                       onChange={setLineDiscountDraft}
@@ -881,7 +950,9 @@ export function PosPage() {
                         const next = applyDraft(lineDiscountDraft);
                         setCart((prev) =>
                           prev.map((row) =>
-                            row.product.id === l.product.id ? { ...row, discount: next } : row,
+                            lineKey(row.product.id, row.variant?.id) === key
+                              ? { ...row, discount: next }
+                              : row,
                           ),
                         );
                         setLineDiscountEdit(null);
@@ -894,7 +965,7 @@ export function PosPage() {
                         type="button"
                         className="text-[11px] text-ink-soft underline"
                         onClick={() => {
-                          setLineDiscountEdit(l.product.id);
+                          setLineDiscountEdit(key);
                           setLineDiscountDraft({
                             type: l.discount?.type ?? "percent",
                             value: l.discount ? String(l.discount.value) : "",
@@ -910,7 +981,9 @@ export function PosPage() {
                           onClick={() =>
                             setCart((prev) =>
                               prev.map((row) =>
-                                row.product.id === l.product.id ? { ...row, discount: null } : row,
+                                lineKey(row.product.id, row.variant?.id) === key
+                                  ? { ...row, discount: null }
+                                  : row,
                               ),
                             )
                           }
@@ -1489,6 +1562,38 @@ export function PosPage() {
         </div>
       )}
       {receiveOpen && <ReceivePanel shopId={sid} onClose={() => setReceiveOpen(false)} />}
+      {variantPick && (
+        <div
+          className="fixed inset-0 z-40 grid place-items-end bg-roast/50 p-0 sm:place-items-center sm:p-4"
+          onClick={() => setVariantPick(null)}
+        >
+          <div
+            className="w-full max-w-md space-y-3 rounded-t-lg bg-paper p-6 shadow-soft sm:rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-2xl font-normal">{t("pos.pickVariant")}</h2>
+            <p className="text-sm text-mute">
+              {t("pos.pickVariantHint", { name: localizedName(variantPick, locale) })}
+            </p>
+            <div className="grid gap-2">
+              {activeVariants(variantPick).map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className="flex items-center justify-between rounded-md border-[1.5px] border-line bg-cream px-4 py-3 text-left hover:border-ink"
+                  onClick={() => addWithVariant(variantPick, v)}
+                >
+                  <span className="font-medium">{localizedName(v, locale)}</span>
+                  <span className="font-mono font-semibold text-gold">{money(v.sale_price)}</span>
+                </button>
+              ))}
+            </div>
+            <Button variant="ghost" onClick={() => setVariantPick(null)}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

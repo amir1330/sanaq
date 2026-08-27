@@ -58,6 +58,10 @@ class SaleItem(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     sale_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     product_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("products.id"), nullable=False)
+    variant_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("product_variants.id", ondelete="SET NULL")
+    )
+    variant_name_snapshot: Mapped[str | None] = mapped_column(Text)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     price_snapshot: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price_snapshot: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
