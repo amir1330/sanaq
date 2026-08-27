@@ -4,6 +4,7 @@ import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { StockSearchPicker } from "../../components/StockSearchPicker";
 import { Button, Check, Dialog, Empty, Field, Input, MoreMenu, PageTitle, Select, pill } from "../../components/ui";
+import { makeInternalBarcode } from "../../lib/barcode";
 import { parseBulkProductLines } from "../../lib/bulkProducts";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { money, publicUrl } from "../../lib/utils";
@@ -347,25 +348,25 @@ export function ProductsPage() {
             placeholder={t("pos.searchProducts")}
             className="max-w-xs"
           />
-          <div className="flex gap-1 rounded-md border border-line-2 p-0.5">
-          <button
-            type="button"
-            onClick={() => setView("list")}
-            className={`rounded px-3 py-1.5 text-[12.5px] ${
-              viewMode === "list" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
-            }`}
-          >
-            {t("products.viewList")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("tiles")}
-            className={`rounded px-3 py-1.5 text-[12.5px] ${
-              viewMode === "tiles" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
-            }`}
-          >
-            {t("products.viewTiles")}
-          </button>
+          <div className="grid h-10 grid-cols-2 items-stretch rounded-full border-[1.5px] border-line-2 p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`inline-flex items-center justify-center rounded-full px-4 text-[12.5px] font-medium leading-none ${
+                viewMode === "list" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {t("products.viewList")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("tiles")}
+              className={`inline-flex items-center justify-center rounded-full px-4 text-[12.5px] font-medium leading-none ${
+                viewMode === "tiles" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {t("products.viewTiles")}
+            </button>
           </div>
         </div>
       </div>
@@ -452,9 +453,16 @@ export function ProductsPage() {
                                 —
                               </div>
                             )}
-                            <span className="truncate font-medium">
-                              {localizedName(p, locale)}
-                              {openingId === p.id ? ` · ${t("common.loading")}` : ""}
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">
+                                {localizedName(p, locale)}
+                                {openingId === p.id ? ` · ${t("common.loading")}` : ""}
+                              </span>
+                              {p.barcode || p.sku ? (
+                                <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">
+                                  {p.barcode || p.sku}
+                                </span>
+                              ) : null}
                             </span>
                           </div>
                         </td>
@@ -490,6 +498,9 @@ export function ProductsPage() {
                     )}
                     <div className="px-5 py-4">
                       <p className="font-display text-[19px] font-normal">{localizedName(p, locale)}</p>
+                      {p.barcode || p.sku ? (
+                        <p className="mt-1 truncate font-mono text-[11px] text-mute">{p.barcode || p.sku}</p>
+                      ) : null}
                       <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
                     </div>
                   </button>
@@ -593,22 +604,37 @@ export function ProductsPage() {
                       placeholder="1200"
                     />
                   </Field>
-                  <Field label={t("products.sku")} hint={t("products.skuHint")}>
-                    <Input
-                      value={editing.sku}
-                      onChange={(e) => setEditing({ ...editing, sku: e.target.value })}
-                      placeholder={t("products.skuPh")}
-                    />
-                  </Field>
-                  <Field label={t("products.barcode")} hint={t("products.barcodeHint")}>
-                    <Input
-                      value={editing.barcode}
-                      onChange={(e) => setEditing({ ...editing, barcode: e.target.value })}
-                      placeholder={t("products.barcodePh")}
-                      inputMode="numeric"
-                      autoComplete="off"
-                    />
-                  </Field>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label={t("products.barcode")} hint={t("products.barcodeHint")}>
+                      <div className="flex gap-2">
+                        <Input
+                          value={editing.barcode}
+                          onChange={(e) => setEditing({ ...editing, barcode: e.target.value })}
+                          placeholder={t("products.barcodePh")}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          className="min-w-0 flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="quiet"
+                          className="h-auto self-stretch px-3"
+                          disabled={Boolean(editing.barcode.trim())}
+                          onClick={() => setEditing({ ...editing, barcode: makeInternalBarcode() })}
+                        >
+                          {t("products.barcodeGen")}
+                        </Button>
+                      </div>
+                    </Field>
+                    <Field label={t("products.sku")} hint={t("products.skuHint")}>
+                      <Input
+                        value={editing.sku}
+                        onChange={(e) => setEditing({ ...editing, sku: e.target.value })}
+                        placeholder={t("products.skuPh")}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  </div>
                 </div>
               </div>
               <div>

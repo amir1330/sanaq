@@ -796,8 +796,8 @@ export function PosPage() {
                 )}
               </p>
               <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
-              {p.sku ? (
-                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.sku}</p>
+              {p.barcode || p.sku ? (
+                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.barcode || p.sku}</p>
               ) : null}
               <p className="mt-3 font-mono text-sm font-semibold text-gold">{money(p.sale_price)}</p>
             </button>

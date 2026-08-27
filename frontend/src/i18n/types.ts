@@ -369,6 +369,7 @@ export type Messages = {
     barcode: string;
     barcodePh: string;
     barcodeHint: string;
+    barcodeGen: string;
     category: string;
     catPh: string;
     newCategory: string;
