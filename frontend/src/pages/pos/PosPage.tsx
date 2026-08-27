@@ -321,7 +321,7 @@ export function PosPage() {
       const product = await api.productByCode(sid, code);
       const variants = activeVariants(product);
       const matched =
-        variants.find((v) => v.barcode === code || v.sku === code) ??
+        variants.find((v) => v.barcode === code) ??
         (variants.length === 1 ? variants[0] : variants.find((v) => v.is_default) ?? null);
       if (variants.length > 1 && !matched) {
         setVariantPick(product);
@@ -838,7 +838,7 @@ export function PosPage() {
             e.preventDefault();
             const code = productSearch.trim();
             if (!code) return;
-            // Exact barcode/SKU → cart; plain text search stays as filter
+            // Exact barcode → cart; plain text search stays as filter
             void scanCode(code, { soft: !/^[0-9A-Za-z._-]{4,64}$/.test(code) });
           }}
           placeholder={t("pos.searchProducts")}
@@ -876,8 +876,8 @@ export function PosPage() {
                 )}
               </p>
               <p className="mt-2 break-words text-[14.5px] font-medium leading-snug">{localizedName(p, locale)}</p>
-              {p.barcode || p.sku ? (
-                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.barcode || p.sku}</p>
+              {p.barcode ? (
+                <p className="mt-1 font-mono text-[11px] text-ink-soft">{p.barcode}</p>
               ) : null}
               <p className="mt-3 font-mono text-sm font-semibold text-gold">{productPriceLabel(p)}</p>
             </button>

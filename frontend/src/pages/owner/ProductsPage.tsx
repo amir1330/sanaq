@@ -41,7 +41,6 @@ type VariantRow = {
   name_kk: string;
   name_en: string;
   sale_price: string;
-  sku: string;
   barcode: string;
   is_default: boolean;
   is_active: boolean;
@@ -53,7 +52,6 @@ type Draft = {
   name: string;
   name_kk: string;
   name_en: string;
-  sku: string;
   barcode: string;
   sale_price: string;
   category_id: number | null;
@@ -141,7 +139,7 @@ export function ProductsPage() {
                 name_en: v.name_en.trim() || null,
                 sort_order: idx,
                 sale_price: v.sale_price.replace(",", "."),
-                sku: v.sku.trim() || null,
+                sku: null,
                 barcode: v.barcode.trim() || null,
                 is_default: v.is_default,
                 is_active: v.is_active,
@@ -158,7 +156,7 @@ export function ProductsPage() {
           name: editing.name.trim(),
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
-          sku: editing.sku.trim() || null,
+          sku: null,
           barcode: editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id,
@@ -174,7 +172,7 @@ export function ProductsPage() {
           name: editing.name.trim(),
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
-          sku: editing.sku.trim() || null,
+          sku: null,
           barcode: editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
@@ -256,7 +254,6 @@ export function ProductsPage() {
         name_kk: v.name_kk ?? "",
         name_en: v.name_en ?? "",
         sale_price: v.sale_price ?? "",
-        sku: v.sku ?? "",
         barcode: v.barcode ?? "",
         is_default: Boolean(v.is_default),
         is_active: v.is_active ?? true,
@@ -273,7 +270,6 @@ export function ProductsPage() {
       name: p.name ?? "",
       name_kk: p.name_kk ?? "",
       name_en: p.name_en ?? "",
-      sku: p.sku ?? "",
       barcode: p.barcode ?? "",
       sale_price: p.sale_price ?? "",
       category_id: p.category_id ?? categoryId ?? null,
@@ -314,7 +310,6 @@ export function ProductsPage() {
       name: "",
       name_kk: "",
       name_en: "",
-      sku: "",
       barcode: "",
       sale_price: "",
       category_id: categoryId ?? null,
@@ -335,7 +330,6 @@ export function ProductsPage() {
       name_kk: "",
       name_en: "",
       sale_price: "",
-      sku: "",
       barcode: "",
       is_default: isDefault,
       is_active: true,
@@ -575,9 +569,9 @@ export function ProductsPage() {
                                 {localizedName(p, locale)}
                                 {openingId === p.id ? ` · ${t("common.loading")}` : ""}
                               </span>
-                              {p.barcode || p.sku ? (
+                              {p.barcode ? (
                                 <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">
-                                  {p.barcode || p.sku}
+                                  {p.barcode}
                                 </span>
                               ) : null}
                             </span>
@@ -615,8 +609,8 @@ export function ProductsPage() {
                     )}
                     <div className="px-5 py-4">
                       <p className="font-display text-[19px] font-normal">{localizedName(p, locale)}</p>
-                      {p.barcode || p.sku ? (
-                        <p className="mt-1 truncate font-mono text-[11px] text-mute">{p.barcode || p.sku}</p>
+                      {p.barcode ? (
+                        <p className="mt-1 truncate font-mono text-[11px] text-mute">{p.barcode}</p>
                       ) : null}
                       <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
                     </div>
@@ -713,48 +707,19 @@ export function ProductsPage() {
                     </Field>
                   </div>
                   <p className="text-[12.5px] leading-snug text-mute">{t("products.nameLangHint")}</p>
-                  <Field label={t("products.price")}>
-                    <Input
-                      value={editing.sale_price}
-                      onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
-                      inputMode="decimal"
-                      placeholder="1200"
-                    />
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label={t("products.barcode")} hint={t("products.barcodeHint")}>
-                      <div className="flex gap-2">
-                        <Input
-                          value={editing.barcode}
-                          onChange={(e) => setEditing({ ...editing, barcode: e.target.value })}
-                          placeholder={t("products.barcodePh")}
-                          inputMode="numeric"
-                          autoComplete="off"
-                          className="min-w-0 flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="quiet"
-                          className="h-auto self-stretch px-3"
-                          disabled={Boolean(editing.barcode.trim())}
-                          onClick={() => setEditing({ ...editing, barcode: makeInternalBarcode() })}
-                        >
-                          {t("products.barcodeGen")}
-                        </Button>
-                      </div>
-                    </Field>
-                    <Field label={t("products.sku")} hint={t("products.skuHint")}>
-                      <Input
-                        value={editing.sku}
-                        onChange={(e) => setEditing({ ...editing, sku: e.target.value })}
-                        placeholder={t("products.skuPh")}
-                        autoComplete="off"
-                      />
-                    </Field>
-                  </div>
                 </div>
               </div>
-              <div>
+
+              <div className="space-y-3 rounded-md bg-cream px-4 py-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-faint">{t("products.sectionPos")}</p>
+                <Field label={t("products.price")}>
+                  <Input
+                    value={editing.sale_price}
+                    onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="1200"
+                  />
+                </Field>
                 <Field label={t("products.category")}>
                   <Select
                     value={editing.category_id ?? ""}
@@ -771,7 +736,7 @@ export function ProductsPage() {
                   </Select>
                 </Field>
                 {addingCat ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Input
                       className="min-w-0 flex-1"
                       value={catName}
@@ -807,43 +772,67 @@ export function ProductsPage() {
                 ) : (
                   <button
                     type="button"
-                    className="mt-2 text-[12.5px] text-mute hover:text-ink"
+                    className="text-[12.5px] text-mute hover:text-ink"
                     onClick={() => setAddingCat(true)}
                   >
                     {t("products.newCategory")}
                   </button>
                 )}
                 {addCat.isError && (
-                  <p className="mt-2 text-sm text-alert">{(addCat.error as Error).message}</p>
+                  <p className="text-sm text-alert">{(addCat.error as Error).message}</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={!editing.is_service ? "primary" : "quiet"}
+                    onClick={() => setEditing({ ...editing, is_service: false })}
+                  >
+                    {t("products.kindProduct")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={editing.is_service ? "primary" : "quiet"}
+                    onClick={() =>
+                      setEditing({
+                        ...editing,
+                        is_service: true,
+                        ingredients: [],
+                        has_variants: false,
+                        variants: [],
+                      })
+                    }
+                  >
+                    {t("products.kindService")}
+                  </Button>
+                </div>
+                <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
+                  {t("products.onPos")}
+                </Check>
+                {!editing.is_service && !editing.has_variants && (
+                  <Field label={t("products.barcode")} hint={t("products.barcodeHint")}>
+                    <div className="flex gap-2">
+                      <Input
+                        value={editing.barcode}
+                        onChange={(e) => setEditing({ ...editing, barcode: e.target.value })}
+                        placeholder={t("products.barcodePh")}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        className="min-w-0 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="quiet"
+                        className="h-auto self-stretch px-3"
+                        disabled={Boolean(editing.barcode.trim())}
+                        onClick={() => setEditing({ ...editing, barcode: makeInternalBarcode() })}
+                      >
+                        {t("products.barcodeGen")}
+                      </Button>
+                    </div>
+                  </Field>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={!editing.is_service ? "primary" : "quiet"}
-                  onClick={() => setEditing({ ...editing, is_service: false })}
-                >
-                  {t("products.kindProduct")}
-                </Button>
-                <Button
-                  type="button"
-                  variant={editing.is_service ? "primary" : "quiet"}
-                  onClick={() =>
-                    setEditing({
-                      ...editing,
-                      is_service: true,
-                      ingredients: [],
-                      has_variants: false,
-                      variants: [],
-                    })
-                  }
-                >
-                  {t("products.kindService")}
-                </Button>
-              </div>
-              <Check checked={editing.is_active} onChange={(is_active) => setEditing({ ...editing, is_active })}>
-                {t("products.onPos")}
-              </Check>
+
               {!editing.is_service && (
                 <Check
                   checked={editing.has_variants}
@@ -856,6 +845,7 @@ export function ProductsPage() {
                           ? editing.variants
                           : [emptyVariant(true)]
                         : [],
+                      barcode: has_variants ? "" : editing.barcode,
                     })
                   }
                 >
@@ -911,8 +901,8 @@ export function ProductsPage() {
                           />
                         </Field>
                       </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Field label={t("products.barcode")}>
+                      <Field label={t("products.barcode")}>
+                        <div className="flex gap-2">
                           <Input
                             value={v.barcode}
                             onChange={(e) => {
@@ -920,19 +910,25 @@ export function ProductsPage() {
                               variants[vIdx] = { ...v, barcode: e.target.value };
                               setEditing({ ...editing, variants });
                             }}
+                            placeholder={t("products.barcodePh")}
+                            inputMode="numeric"
+                            className="min-w-0 flex-1"
                           />
-                        </Field>
-                        <Field label={t("products.sku")}>
-                          <Input
-                            value={v.sku}
-                            onChange={(e) => {
+                          <Button
+                            type="button"
+                            variant="quiet"
+                            className="h-auto self-stretch px-3"
+                            disabled={Boolean(v.barcode.trim())}
+                            onClick={() => {
                               const variants = [...editing.variants];
-                              variants[vIdx] = { ...v, sku: e.target.value };
+                              variants[vIdx] = { ...v, barcode: makeInternalBarcode() };
                               setEditing({ ...editing, variants });
                             }}
-                          />
-                        </Field>
-                      </div>
+                          >
+                            {t("products.barcodeGen")}
+                          </Button>
+                        </div>
+                      </Field>
                       <div className="flex flex-wrap items-center gap-3">
                         <Check
                           checked={v.is_default}

@@ -365,6 +365,7 @@ const en: Messages = {
     editTitle: "Product",
     newTitle: "New product",
     price: "Price, ₸",
+    sectionPos: "On POS",
     sku: "SKU",
     skuPh: "WTR-05",
     skuHint: "Your short code, if you search by it.",

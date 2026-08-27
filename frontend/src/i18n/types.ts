@@ -370,6 +370,7 @@ export type Messages = {
     editTitle: string;
     newTitle: string;
     price: string;
+    sectionPos: string;
     sku: string;
     skuPh: string;
     skuHint: string;

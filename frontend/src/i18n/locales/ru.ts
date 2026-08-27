@@ -365,6 +365,7 @@ const ru: Messages = {
     editTitle: "Товар",
     newTitle: "Новый товар",
     price: "Цена, ₸",
+    sectionPos: "На кассе",
     sku: "Артикул",
     skuPh: "WTR-05",
     skuHint: "Свой короткий код, если так удобнее искать.",

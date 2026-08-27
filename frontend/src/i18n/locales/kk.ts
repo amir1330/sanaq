@@ -365,6 +365,7 @@ const kk: Messages = {
     editTitle: "Тауар",
     newTitle: "Жаңа тауар",
     price: "Баға, ₸",
+    sectionPos: "Кассада",
     sku: "Артикул",
     skuPh: "WTR-05",
     skuHint: "Өз қысқа кодыңыз, іздеуге ыңғайлы болса.",

@@ -68,10 +68,7 @@ export function StockSearchPicker({
               )}
               <span className="min-w-0">
                 <span className="block truncate">{item.name}</span>
-                <span className="text-mute">
-                  {item.sku ? `${item.sku} · ` : ""}
-                  {stockBalance(item)}
-                </span>
+              <span className="text-mute">{stockBalance(item)}</span>
               </span>
             </button>
           );
