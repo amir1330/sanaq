@@ -27,7 +27,6 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
       ? [
           { to: "/owner", label: t("nav.reports") },
           { to: "/owner/products", label: t("nav.products") },
-          { to: "/owner/vitrine", label: t("nav.vitrineBuilder") },
           { to: "/owner/stock", label: t("nav.stock") },
           { to: "/owner/stock/revisions", label: t("nav.revisions") },
           { to: "/owner/staff", label: t("nav.staff") },

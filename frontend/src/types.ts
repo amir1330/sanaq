@@ -136,18 +136,15 @@ export type Product = {
 export type VitrineItem = {
   id: number;
   product_id: number;
-  variant_id?: number | null;
   sort_order: number;
   product: Product;
-  variant?: ProductVariant | null;
 };
 
 export type VitrineColumn = {
   id: number;
   title: string;
-  title_kk?: string | null;
-  title_en?: string | null;
   sort_order: number;
+  header_style: "ornament" | "line" | "none" | string;
   items: VitrineItem[];
 };
 

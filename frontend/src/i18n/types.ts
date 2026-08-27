@@ -46,7 +46,6 @@ export type Messages = {
   nav: {
     reports: string;
     products: string;
-    vitrineBuilder: string;
     stock: string;
     revisions: string;
     staff: string;
@@ -461,6 +460,19 @@ export type Messages = {
     fullscreen: string;
     exitFullscreen: string;
     other: string;
+    editMenu: string;
+    done: string;
+    addProduct: string;
+    addColumn: string;
+    newColumn: string;
+    removeItem: string;
+    moveUp: string;
+    moveDown: string;
+    headerOrnament: string;
+    headerLine: string;
+    headerNone: string;
+    pickProduct: string;
+    deleteColumn: string;
   };
   expenses: {
     kicker: string;
@@ -800,23 +812,6 @@ export type Messages = {
     contacted: string;
     reopen: string;
     loadFailShort: string;
-  };
-  vitrineBuilder: {
-    kicker: string;
-    title: string;
-    hint: string;
-    catalog: string;
-    save: string;
-    saved: string;
-    addColumn: string;
-    newColumn: string;
-    columnTitle: string;
-    columnItems: string;
-    emptyColumn: string;
-    emptyCatalog: string;
-    pickColumn: string;
-    deleteColumn: string;
-    wholeProduct: string;
   };
 };
 

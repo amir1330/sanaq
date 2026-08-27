@@ -750,12 +750,13 @@ async def put_vitrine_layout(
         title = col_in.title.strip()
         if not title:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название колонки")
+        if col_in.header_style not in ("ornament", "line", "none"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неверный стиль заголовка")
         column = VitrineColumn(
             shop_id=shop_id,
             title=title,
-            title_kk=(col_in.title_kk or "").strip() or None,
-            title_en=(col_in.title_en or "").strip() or None,
             sort_order=col_in.sort_order if col_in.sort_order else col_idx,
+            header_style=col_in.header_style,
         )
         session.add(column)
         await session.flush()
@@ -765,22 +766,10 @@ async def put_vitrine_layout(
                 raise HTTPException(
                     status.HTTP_404_NOT_FOUND, f"Товар {item_in.product_id} не найден"
                 )
-            if item_in.variant_id is not None:
-                variant = await session.get(ProductVariant, item_in.variant_id)
-                if (
-                    variant is None
-                    or variant.product_id != product.id
-                    or not variant.is_active
-                ):
-                    raise HTTPException(
-                        status.HTTP_400_BAD_REQUEST,
-                        f"Вариант {item_in.variant_id} не принадлежит товару",
-                    )
             session.add(
                 VitrineItem(
                     column_id=column.id,
                     product_id=item_in.product_id,
-                    variant_id=item_in.variant_id,
                     sort_order=item_in.sort_order if item_in.sort_order else item_idx,
                 )
             )
@@ -796,9 +785,6 @@ async def _load_vitrine_layout(session: AsyncSession, shop_id: int) -> VitrineLa
             selectinload(VitrineColumn.items)
             .selectinload(VitrineItem.product)
             .options(*_product_load_options(with_ingredients=False)),
-            selectinload(VitrineColumn.items)
-            .selectinload(VitrineItem.variant)
-            .selectinload(ProductVariant.ingredients),
         )
         .where(VitrineColumn.shop_id == shop_id)
         .order_by(VitrineColumn.sort_order, VitrineColumn.id)
@@ -812,19 +798,16 @@ async def _load_vitrine_layout(session: AsyncSession, shop_id: int) -> VitrineLa
                 VitrineItemOut(
                     id=item.id,
                     product_id=item.product_id,
-                    variant_id=item.variant_id,
                     sort_order=item.sort_order,
                     product=_product_out(item.product, with_ingredients=False),
-                    variant=_variant_out(item.variant) if item.variant else None,
                 )
             )
         out_cols.append(
             VitrineColumnOut(
                 id=col.id,
                 title=col.title,
-                title_kk=col.title_kk,
-                title_en=col.title_en,
                 sort_order=col.sort_order,
+                header_style=col.header_style or "ornament",
                 items=items_out,
             )
         )

@@ -134,9 +134,8 @@ class VitrineColumn(Base):
         BigInteger, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    title_kk: Mapped[str | None] = mapped_column(Text)
-    title_en: Mapped[str | None] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    header_style: Mapped[str] = mapped_column(Text, nullable=False, default="ornament")
 
     shop: Mapped["Shop"] = relationship(back_populates="vitrine_columns")  # noqa: F821
     items: Mapped[list["VitrineItem"]] = relationship(
@@ -154,11 +153,7 @@ class VitrineItem(Base):
     product_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("products.id", ondelete="CASCADE"), nullable=False
     )
-    variant_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("product_variants.id", ondelete="SET NULL")
-    )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     column: Mapped[VitrineColumn] = relationship(back_populates="items")
     product: Mapped[Product] = relationship()
-    variant: Mapped[ProductVariant | None] = relationship()
