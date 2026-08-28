@@ -170,7 +170,7 @@ export function AdminUsersPage() {
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              placeholder="Айгерим"
+              placeholder={t("staff.namePh")}
             />
           </Field>
           <Field label={t("staff.email")}>

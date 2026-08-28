@@ -7,7 +7,7 @@ import { ReceivePanel } from "../../components/ReceivePanel";
 import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
-import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, defaultStockCreate, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost, unitLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
@@ -47,16 +47,7 @@ function CostHint({
   );
 }
 
-const emptyCreate = {
-  name: "",
-  sku: "",
-  base_unit: "мл",
-  purchase_unit: "пачка",
-  purchase_to_base: "1000",
-  min_quantity: "0",
-  cost_per_purchase: "0",
-  on_pos: true,
-};
+const emptyCreate = defaultStockCreate();
 
 export function StockPage() {
   const t = useT();
@@ -321,7 +312,7 @@ export function StockPage() {
           <Select value={create.base_unit} onChange={(e) => setUnits({ base_unit: e.target.value })}>
             {BASE_UNITS.map((u) => (
               <option key={u} value={u}>
-                {u}
+                {unitLabel(u)}
               </option>
             ))}
           </Select>
@@ -330,30 +321,30 @@ export function StockPage() {
           <Select value={create.purchase_unit} onChange={(e) => setUnits({ purchase_unit: e.target.value })}>
             {PURCHASE_UNITS.map((u) => (
               <option key={u} value={u}>
-                {u}
+                {unitLabel(u)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label={t("stock.oneEquals", { unit: create.purchase_unit })}>
+        <Field label={t("stock.oneEquals", { unit: unitLabel(create.purchase_unit) })}>
           <Input
             value={create.purchase_to_base}
             onChange={(e) => setCreate({ ...create, purchase_to_base: e.target.value })}
             inputMode="decimal"
-            placeholder={t("stock.howMany", { unit: create.base_unit })}
+            placeholder={t("stock.howMany", { unit: unitLabel(create.base_unit) })}
           />
           <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
-            {create.base_unit}
+            {unitLabel(create.base_unit)}
           </p>
         </Field>
-        <Field label={t("stock.minLabel", { unit: create.base_unit })} hint={t("stock.minHint")}>
+        <Field label={t("stock.minLabel", { unit: unitLabel(create.base_unit) })} hint={t("stock.minHint")}>
           <Input
             value={create.min_quantity}
             onChange={(e) => setCreate({ ...create, min_quantity: e.target.value })}
             inputMode="decimal"
           />
         </Field>
-        <Field label={t("stock.pricePer", { unit: create.purchase_unit })}>
+        <Field label={t("stock.pricePer", { unit: unitLabel(create.purchase_unit) })}>
           <Input
             value={create.cost_per_purchase}
             onChange={(e) => setCreate({ ...create, cost_per_purchase: e.target.value })}

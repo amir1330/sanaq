@@ -63,11 +63,19 @@ const UNIT_KEYS: Record<string, string> = {
   мешок: "units.bag",
   ящик: "units.box",
   шт: "units.pcs",
+  г: "units.g",
+  мл: "units.ml",
+  кг: "units.kg",
+  л: "units.l",
 };
 
-export function unitWord(_n: number, unit: string): string {
+export function unitLabel(unit: string): string {
   const key = UNIT_KEYS[unit];
   return key ? t(key) : unit;
+}
+
+export function unitWord(_n: number, unit: string): string {
+  return unitLabel(unit);
 }
 
 export function unitCost(value: string | number, unit?: string): string {
@@ -83,6 +91,19 @@ export function unitCost(value: string | number, unit?: string): string {
 
 export const BASE_UNITS = ["г", "мл", "шт"] as const;
 export const PURCHASE_UNITS = ["пачка", "мешок", "кг", "г", "л", "мл", "ящик", "шт"] as const;
+
+export function defaultStockCreate() {
+  return {
+    name: "",
+    sku: "",
+    base_unit: "мл",
+    purchase_unit: "пачка",
+    purchase_to_base: "1000",
+    min_quantity: "0",
+    cost_per_purchase: "0",
+    on_pos: true,
+  };
+}
 
 export function suggestPurchaseFactor(base: string, purchase: string): string {
   if (base === "шт" && purchase === "шт") return "1";

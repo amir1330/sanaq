@@ -9,7 +9,7 @@ import { Button, Check, Dialog, Field, Input, MoreMenu, PageTitle, Select } from
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { WRITEOFF_REASONS, deltaBase, formatDelta, kindTitle, writeoffReasonLabel } from "../../lib/stock";
-import { PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost } from "../../lib/utils";
+import { PURCHASE_UNITS, costPerBase, costPerPurchase, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost, unitLabel } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
@@ -603,12 +603,12 @@ export function StockItemPage() {
             >
               {[edit.purchase_unit, ...PURCHASE_UNITS.filter((u) => u !== edit.purchase_unit)].map((u) => (
                 <option key={u} value={u}>
-                  {u}
+                  {unitLabel(u)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label={t("stock.oneEquals", { unit: edit.purchase_unit })}>
+          <Field label={t("stock.oneEquals", { unit: unitLabel(edit.purchase_unit) })}>
             <Input
               value={edit.purchase_to_base}
               onChange={(e) => setEdit({ ...edit, purchase_to_base: e.target.value })}

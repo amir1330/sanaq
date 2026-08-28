@@ -647,7 +647,7 @@ export function ProductsPage() {
                     <Input
                       value={editing.name}
                       onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      placeholder="Капучино"
+                      placeholder={t("products.namePh")}
                       autoFocus
                     />
                   </Field>
@@ -656,14 +656,14 @@ export function ProductsPage() {
                       <Input
                         value={editing.name_kk}
                         onChange={(e) => setEditing({ ...editing, name_kk: e.target.value })}
-                        placeholder="Капучино"
+                        placeholder={t("products.nameKkPh")}
                       />
                     </Field>
                     <Field label={t("products.nameEn")}>
                       <Input
                         value={editing.name_en}
                         onChange={(e) => setEditing({ ...editing, name_en: e.target.value })}
-                        placeholder="Cappuccino"
+                        placeholder={t("products.nameEnPh")}
                       />
                     </Field>
                   </div>
@@ -678,7 +678,7 @@ export function ProductsPage() {
                     value={editing.sale_price}
                     onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
                     inputMode="decimal"
-                    placeholder="1200"
+                    placeholder={t("products.pricePh")}
                   />
                 </Field>
                 <Field label={t("products.category")}>
