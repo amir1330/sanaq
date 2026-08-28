@@ -27,27 +27,21 @@
 - Frontend: React 19, Vite, TypeScript, Tailwind, TanStack Query, Zustand
 - Прод: Docker-образы в GHCR, Traefik, GitHub Actions по SSH (forced-command, не root)
 
-## Запуск локально
+## Разработка
 
-Нужны Docker и Docker Compose v2.
+Локальный Docker-стек не используем — проверяем на [живом стенде](https://sanaq.abuyunus.cc) после push в `main` (CI деплоит автоматически).
+
+Если нужно только покрутить UI до деплоя:
 
 ```bash
-git clone https://github.com/amir1330/sanaq.git
-cd sanaq
-docker compose up --build
+cd frontend
+npm install
+npm run dev
 ```
 
-Открыть [http://localhost:8080](http://localhost:8080).
+Vite на `:5173` проксирует `/api` на prod (`https://sanaq.abuyunus.cc`). Другой бэкенд: `VITE_API_PROXY=https://… npm run dev`.
 
-Локальный compose поднимает демо-данные (`SEED_DEMO=1`). На проде сид выключен.
-
-| Роль | Как войти |
-|---|---|
-| Super admin | `admin@coffeeos.local` / `admin123` |
-| Owner | `owner@erassyl.local` / `owner123` |
-| Сотрудник | `barista@erassyl.local` / `barista123` → касса |
-
-Только локальная демка. На живом стенде эти пароли не работают.
+Бэкенд-тесты в CI: `docker build ./backend && docker run … pytest`.
 
 ## Структура
 

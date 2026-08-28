@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://coffee:coffee@localhost:5432/coffeeos"
     )
-    cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost"
+    cors_origins: str = "http://localhost:5173"
     upload_dir: str = "uploads"
     seed_demo: bool = False
     admin_email: str = "admin@coffeeos.local"
