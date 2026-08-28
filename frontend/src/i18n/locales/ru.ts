@@ -412,6 +412,10 @@ const ru: Messages = {
     ofdHint: "На упрощёнке оставь 0 и 0.",
     vat: "НДС %",
     taxCode: "Код налога",
+    deleteTitle: "Удалить · {name}",
+    deleteHint: "Товар пропадёт из меню. Продажи в отчётах останутся.",
+    deleteCategoryTitle: "Удалить категорию · {name}",
+    deleteCategoryHint: "Товары из этой категории станут без категории.",
   },
   dashboard: {
     kicker: "Деньги",

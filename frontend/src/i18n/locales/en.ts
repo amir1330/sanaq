@@ -412,6 +412,10 @@ const en: Messages = {
     ofdHint: "On simplified tax leave 0 and 0.",
     vat: "VAT %",
     taxCode: "Tax code",
+    deleteTitle: "Delete · {name}",
+    deleteHint: "Product is removed from the menu. Past sales stay in reports.",
+    deleteCategoryTitle: "Delete category · {name}",
+    deleteCategoryHint: "Products in this category become uncategorized.",
   },
   dashboard: {
     kicker: "Money",

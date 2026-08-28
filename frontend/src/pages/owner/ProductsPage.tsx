@@ -97,6 +97,8 @@ export function ProductsPage() {
   const [dropPhoto, setDropPhoto] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
   const [openingId, setOpeningId] = useState<number | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<{ id: number; name: string } | null>(null);
+  const [deleteCategory, setDeleteCategory] = useState<{ id: number; name: string } | null>(null);
 
   function closeEdit() {
     setEditing(null);
@@ -219,8 +221,17 @@ export function ProductsPage() {
   const dropCat = useMutation({
     mutationFn: (id: number) => api.deleteCategory(shopId, id),
     onSuccess: () => {
+      setDeleteCategory(null);
       setFilterCat("all");
       void qc.invalidateQueries({ queryKey: ["categories", shopId] });
+      void qc.invalidateQueries({ queryKey: ["products", shopId] });
+    },
+  });
+  const dropProduct = useMutation({
+    mutationFn: (id: number) => api.deleteProduct(shopId, id),
+    onSuccess: () => {
+      setDeleteProduct(null);
+      closeEdit();
       void qc.invalidateQueries({ queryKey: ["products", shopId] });
     },
   });
@@ -483,7 +494,7 @@ export function ProductsPage() {
                         const cat = cats.find((c) => c.id === group.id);
                         setRename({ id: group.id!, name: cat?.name ?? group.name });
                       } },
-                      { label: t("common.delete"), danger: true, onClick: () => dropCat.mutate(group.id!) },
+                      { label: t("common.delete"), danger: true, onClick: () => setDeleteCategory({ id: group.id!, name: group.name }) },
                     ]}
                   />
                 )}
@@ -1044,10 +1055,72 @@ export function ProductsPage() {
               <Button type="button" size="lg" variant="ghost" onClick={closeEdit}>
                 {t("common.cancel")}
               </Button>
+              {editing.id ? (
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="danger"
+                  className="ml-auto"
+                  onClick={() =>
+                    setDeleteProduct({
+                      id: editing.id!,
+                      name: editing.name.trim() || localizedName(editing, locale),
+                    })
+                  }
+                >
+                  {t("common.delete")}
+                </Button>
+              ) : null}
             </div>
           </form>
         )}
       </Dialog>
+
+      {deleteProduct && (
+        <Dialog
+          open
+          title={t("products.deleteTitle", { name: deleteProduct.name })}
+          onClose={() => setDeleteProduct(null)}
+        >
+          <p className="text-sm text-mute">{t("products.deleteHint")}</p>
+          {dropProduct.isError && (
+            <p role="alert" className="text-sm text-alert">
+              {(dropProduct.error as Error).message}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button variant="danger" onClick={() => dropProduct.mutate(deleteProduct.id)} disabled={dropProduct.isPending}>
+              {t("common.delete")}
+            </Button>
+            <Button variant="ghost" onClick={() => setDeleteProduct(null)}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </Dialog>
+      )}
+
+      {deleteCategory && (
+        <Dialog
+          open
+          title={t("products.deleteCategoryTitle", { name: deleteCategory.name })}
+          onClose={() => setDeleteCategory(null)}
+        >
+          <p className="text-sm text-mute">{t("products.deleteCategoryHint")}</p>
+          {dropCat.isError && (
+            <p role="alert" className="text-sm text-alert">
+              {(dropCat.error as Error).message}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button variant="danger" onClick={() => dropCat.mutate(deleteCategory.id)} disabled={dropCat.isPending}>
+              {t("common.delete")}
+            </Button>
+            <Button variant="ghost" onClick={() => setDeleteCategory(null)}>
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

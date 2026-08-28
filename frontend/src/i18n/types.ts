@@ -417,6 +417,10 @@ export type Messages = {
     ofdHint: string;
     vat: string;
     taxCode: string;
+    deleteTitle: string;
+    deleteHint: string;
+    deleteCategoryTitle: string;
+    deleteCategoryHint: string;
   };
   dashboard: {
     kicker: string;

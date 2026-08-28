@@ -412,6 +412,10 @@ const kk: Messages = {
     ofdHint: "Жеңілдетілгенде 0 және 0 қалдырыңыз.",
     vat: "ҚҚС %",
     taxCode: "Салық коды",
+    deleteTitle: "Жою · {name}",
+    deleteHint: "Тауар мәзірден жойылады. Бұрынғы сатулар есепте қалады.",
+    deleteCategoryTitle: "Санатты жою · {name}",
+    deleteCategoryHint: "Бұл санаттағы тауарлар санатсыз болады.",
   },
   dashboard: {
     kicker: "Ақша",
