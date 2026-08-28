@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Card, Check, Field, Input, PageTitle, Select } from "../../components/ui";
+import { isNavActive, SETTINGS_TABS } from "../../components/navRoutes";
 import { useT } from "../../i18n";
-import { publicUrl, TIMEZONES } from "../../lib/utils";
+import { cn, publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Shop } from "../../types";
 
@@ -11,6 +13,7 @@ type SettingsSection = "branch" | "pos" | "network";
 
 export function SettingsPage({ section = "branch" }: { section?: SettingsSection }) {
   const t = useT();
+  const { pathname } = useLocation();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -86,6 +89,30 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
         title={sectionTitle}
         hint={tab === "branch" ? t("settings.hint") : undefined}
       />
+
+      <nav
+        aria-label={t("nav.settings")}
+        className="mb-6 flex gap-1 overflow-x-auto border-b border-line pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {SETTINGS_TABS.map((item) => {
+          const active = isNavActive(pathname, item.to, { end: item.end });
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={cn(
+                "min-h-11 shrink-0 border-b-2 px-4 py-2.5 text-[14px] font-medium touch-manipulation transition-colors",
+                active
+                  ? "border-sun text-ink"
+                  : "border-transparent text-ink-soft hover:border-line-2 hover:text-ink",
+              )}
+            >
+              {t(item.labelKey)}
+            </NavLink>
+          );
+        })}
+      </nav>
 
       {shop && tab === "branch" && (
         <p className="mb-4 rounded-md border border-line bg-paper-2 px-4 py-3 text-sm text-ink-soft">
