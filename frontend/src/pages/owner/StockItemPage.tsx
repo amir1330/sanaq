@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { StockSearchPicker } from "../../components/StockSearchPicker";
-import { Button, Check, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
+import { Button, Check, Dialog, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { WRITEOFF_REASONS, deltaBase, formatDelta, kindTitle, writeoffReasonLabel } from "../../lib/stock";
@@ -359,7 +359,7 @@ export function StockItemPage() {
       )}
 
       {panel === "writeoff" && (
-        <Modal title={t("stock.writeoffTitle", { name: item.name })} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.writeoffTitle", { name: item.name })} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.writeoffHint", { unit: item.base_unit })}</p>
           <Field label={t("stock.howMuch", { unit: item.base_unit })}>
             <Input
@@ -403,11 +403,11 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
 
       {panel === "regrade" && (
-        <Modal title={t("stock.regradeTitle")} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.regradeTitle")} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.regradeHint")}</p>
           <Field label={t("stock.to")}>
             {regradeToItem ? (
@@ -473,11 +473,11 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
 
       {panel === "transfer" && (
-        <Modal title={t("stock.transferTitle")} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.transferTitle")} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.transferHint")}</p>
           <Field label={t("stock.to")}>
             <Select
@@ -559,11 +559,11 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
 
       {panel === "edit" && (
-        <Modal title={t("stock.editTitle", { name: item.name })} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.editTitle", { name: item.name })} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.editHint", { unit: item.base_unit })}</p>
           <PhotoField
             src={photo}
@@ -638,11 +638,11 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
 
       {panel === "makeProduct" && (
-        <Modal title={t("stock.makeProductTitle")} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.makeProductTitle")} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.makeProductHint")}</p>
           <Field label={t("products.price")}>
             <Input
@@ -679,11 +679,11 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
 
       {panel === "remove" && (
-        <Modal title={t("stock.deleteTitle", { name: item.name })} onClose={() => setPanel(null)}>
+        <Dialog open title={t("stock.deleteTitle", { name: item.name })} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.deleteHint")}</p>
           {Number(item.quantity) > 0 && (
             <p className="text-sm text-alert">{t("stock.deleteQty", { qty: stockBalance(item) })}</p>
@@ -697,22 +697,8 @@ export function StockItemPage() {
               {t("common.cancel")}
             </Button>
           </div>
-        </Modal>
+        </Dialog>
       )}
-    </div>
-  );
-}
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-md space-y-3 overflow-auto rounded-lg bg-paper p-7 shadow-soft"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="font-display text-2xl font-normal">{title}</h2>
-        {children}
-      </div>
     </div>
   );
 }
