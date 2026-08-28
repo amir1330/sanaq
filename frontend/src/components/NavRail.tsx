@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { cn } from "../lib/utils";
+import { isNavActive } from "./navRoutes";
+
+export { isNavActive } from "./navRoutes";
 
 export type NavLinkDef = {
   kind: "link";
@@ -28,32 +31,6 @@ export type NavGroupDef = {
   collapsible?: boolean;
   items: NavEntry[];
 };
-
-export function isNavActive(pathname: string, to: string, end?: boolean) {
-  if (to === "/owner/stock") {
-    return pathname === "/owner/stock" || pathname.startsWith("/owner/stock/item/");
-  }
-  if (to === "/owner/stock/moves") {
-    return pathname === "/owner/stock/moves";
-  }
-  if (to === "/owner/stock/revisions") {
-    return pathname === "/owner/stock/revisions" || pathname.startsWith("/owner/stock/revisions/");
-  }
-  if (to === "/owner/settings") {
-    return pathname === "/owner/settings";
-  }
-  if (to === "/owner/settings/pos") {
-    return pathname === "/owner/settings/pos";
-  }
-  if (to === "/owner/settings/network") {
-    return pathname === "/owner/settings/network";
-  }
-  if (to === "/owner/account") {
-    return pathname === "/owner/account";
-  }
-  if (end) return pathname === to;
-  return pathname === to || pathname.startsWith(`${to}/`);
-}
 
 function groupHasActive(pathname: string, group: NavGroupDef) {
   return group.items.some((item) => {
