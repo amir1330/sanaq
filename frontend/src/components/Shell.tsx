@@ -7,6 +7,7 @@ import { useAuth, useAuthSessionReady } from "../store/auth";
 import { cn } from "../lib/utils";
 import { Brand } from "./Mark";
 import { flattenNavLinks, isNavActive, NavRailGroups, railLinkClass, type NavGroupDef } from "./NavRail";
+import { OWNER_MOBILE_TABS, OWNER_MORE_SECTIONS } from "./navRoutes";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { ShopBrand } from "./ShopBrand";
 import { SkipLink } from "./SkipLink";
@@ -108,20 +109,42 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
 
   const mobileTabs = useMemo(() => {
     if (kind === "owner") {
-      const till = allItems.find((i) => i.to === "/pos")!;
-      const reports = allItems.find((i) => i.to === "/owner")!;
-      const products = allItems.find((i) => i.to === "/owner/products")!;
-      return [till, reports, products];
+      return OWNER_MOBILE_TABS.map((tab) => ({
+        ...tab,
+        label: t(tab.labelKey),
+      }));
     }
     const shopsItem = allItems.find((i) => i.to === "/admin")!;
     const users = allItems.find((i) => i.to === "/admin/users")!;
     const leads = allItems.find((i) => i.to === "/admin/leads")!;
     return [shopsItem, users, leads];
-  }, [allItems, kind]);
+  }, [allItems, kind, t]);
+
+  const ownerMoreSections = useMemo(
+    () =>
+      OWNER_MORE_SECTIONS.map((section) => ({
+        ...section,
+        label: t(section.labelKey),
+        items: section.items.map((item) => ({
+          ...item,
+          label: t(item.labelKey),
+        })),
+      })),
+    [t],
+  );
 
   const moreActive =
-    allItems.some((item) => !mobileTabs.some((tab) => tab.to === item.to) && isNavActive(location.pathname, item.to, item.end)) ||
-    (kind === "owner" && isNavActive(location.pathname, footerLink.to));
+    kind === "owner"
+      ? ownerMoreSections.some((section) =>
+          section.items.some((item) =>
+            isNavActive(location.pathname, item.to, { end: item.end, activeRule: item.activeRule }),
+          ),
+        )
+      : allItems.some(
+          (item) =>
+            !mobileTabs.some((tab) => tab.to === item.to) &&
+            isNavActive(location.pathname, item.to, item.end),
+        );
 
   useEffect(() => {
     setMoreOpen(false);
@@ -235,7 +258,13 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
         >
           <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
             {mobileTabs.map((item) => {
-              const active = isNavActive(location.pathname, item.to, item.end);
+              const active =
+                "activeRule" in item && item.activeRule !== undefined
+                  ? isNavActive(location.pathname, item.to, {
+                      end: item.end,
+                      activeRule: item.activeRule,
+                    })
+                  : isNavActive(location.pathname, item.to, item.end);
               return (
                 <NavLink key={item.to} to={item.to} end={item.end} className={mobileTabClass(active)}>
                   <NavIcon name={item.icon} className={cn(active && "text-sun")} />
@@ -277,58 +306,77 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                       </select>
                     </label>
                   )}
-                  {groups.map((group) => {
-                    const items = group.items.flatMap((item) => {
-                      if (item.kind === "link") return [item];
-                      return item.children.map((child) => ({
-                        kind: "link" as const,
-                        to: child.to,
-                        label: child.label,
-                        icon: item.icon,
-                        end: child.end,
-                      }));
-                    }).filter((item) => !mobileTabs.some((tab) => tab.to === item.to));
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={group.id} className="border-b border-line px-2 py-2">
-                        <p className="px-2 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">
-                          {group.label}
-                        </p>
-                        {items.map((item) => {
-                          const active = isNavActive(location.pathname, item.to, item.end);
-                          return (
-                            <NavLink
-                              key={item.to}
-                              to={item.to}
-                              end={item.end}
-                              role="menuitem"
-                              onClick={() => setMoreOpen(false)}
-                              className={cn(
-                                "flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] touch-manipulation",
-                                active ? "bg-paper-2 text-ink" : "text-ink-soft hover:bg-paper-2",
-                              )}
-                            >
-                              <NavIcon name={item.icon} />
-                              {item.label}
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                  {kind === "owner" && (
-                    <div className="px-2 py-2">
-                      <NavLink
-                        to={footerLink.to}
-                        role="menuitem"
-                        onClick={() => setMoreOpen(false)}
-                        className="flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] text-ink-soft hover:bg-paper-2 touch-manipulation"
-                      >
-                        <NavIcon name={footerLink.icon} />
-                        {footerLink.label}
-                      </NavLink>
-                    </div>
-                  )}
+                  {kind === "owner"
+                    ? ownerMoreSections.map((section) => (
+                        <div key={section.id} className="border-b border-line px-2 py-2">
+                          <p className="px-2 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">
+                            {section.label}
+                          </p>
+                          {section.items.map((item) => {
+                            const active = isNavActive(location.pathname, item.to, {
+                              end: item.end,
+                              activeRule: item.activeRule,
+                            });
+                            return (
+                              <NavLink
+                                key={item.to}
+                                to={item.to}
+                                end={item.end}
+                                role="menuitem"
+                                onClick={() => setMoreOpen(false)}
+                                className={cn(
+                                  "flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] touch-manipulation",
+                                  active ? "bg-paper-2 text-ink" : "text-ink-soft hover:bg-paper-2",
+                                )}
+                              >
+                                <NavIcon name={item.icon} />
+                                {item.label}
+                              </NavLink>
+                            );
+                          })}
+                        </div>
+                      ))
+                    : groups.map((group) => {
+                        const items = group.items
+                          .flatMap((item) => {
+                            if (item.kind === "link") return [item];
+                            return item.children.map((child) => ({
+                              kind: "link" as const,
+                              to: child.to,
+                              label: child.label,
+                              icon: item.icon,
+                              end: child.end,
+                            }));
+                          })
+                          .filter((item) => !mobileTabs.some((tab) => tab.to === item.to));
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={group.id} className="border-b border-line px-2 py-2">
+                            <p className="px-2 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">
+                              {group.label}
+                            </p>
+                            {items.map((item) => {
+                              const active = isNavActive(location.pathname, item.to, item.end);
+                              return (
+                                <NavLink
+                                  key={item.to}
+                                  to={item.to}
+                                  end={item.end}
+                                  role="menuitem"
+                                  onClick={() => setMoreOpen(false)}
+                                  className={cn(
+                                    "flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] touch-manipulation",
+                                    active ? "bg-paper-2 text-ink" : "text-ink-soft hover:bg-paper-2",
+                                  )}
+                                >
+                                  <NavIcon name={item.icon} />
+                                  {item.label}
+                                </NavLink>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                 </div>
               )}
             </div>
