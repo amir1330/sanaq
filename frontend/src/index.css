@@ -165,3 +165,32 @@ textarea {
     transition: none !important;
   }
 }
+
+@media print {
+  .vitrine-chrome {
+    display: none !important;
+  }
+
+  .vitrine-page {
+    min-height: auto !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .vitrine-menu-grid {
+    gap: 1.5rem !important;
+  }
+
+  .vitrine-menu-grid section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  html[data-vitrine-print="landscape"] .vitrine-page {
+    font-size: 11px;
+  }
+
+  html[data-vitrine-print="portrait"] .vitrine-page {
+    font-size: 12px;
+  }
+}

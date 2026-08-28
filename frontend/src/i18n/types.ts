@@ -497,6 +497,16 @@ export type Messages = {
     pickProduct: string;
     deleteColumn: string;
     columnTitle: string;
+    editing: string;
+    editHint: string;
+    fillFromCatalog: string;
+    fillConfirm: string;
+    dragHandle: string;
+    dragColumn: string;
+    columnSettings: string;
+    alreadyInColumn: string;
+    pdfPortrait: string;
+    pdfLandscape: string;
   };
   expenses: {
     kicker: string;
