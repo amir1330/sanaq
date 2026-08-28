@@ -348,7 +348,6 @@ const ru: Messages = {
     subtotal: "Подытог",
     amountReceived: "Получено",
     changeDue: "Сдача",
-    printReceipts: "Печать чеков",
     tenderHint: "Сколько дали наличными",
     tenderExact: "Ровно",
     tenderClear: "Сброс",

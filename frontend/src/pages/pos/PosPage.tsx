@@ -143,7 +143,6 @@ export function PosPage() {
   const [findReceiptError, setFindReceiptError] = useState<string | null>(null);
   const [cashPayOpen, setCashPayOpen] = useState(false);
   const [tendered, setTendered] = useState(0);
-  const [printReceipts, setPrintReceipts] = useState(true);
   const [headerOpen, setHeaderOpen] = useState(false);
 
   const shops = useQuery({
@@ -1142,15 +1141,6 @@ export function PosPage() {
             <span>{t("pos.changeDue")}</span>
             <span className={changeDue > 0 ? "font-semibold text-ink" : ""}>{money(changeDue)}</span>
           </div>
-          <label className="mt-1 flex cursor-pointer items-center gap-2 font-sans text-[12.5px] text-ink-soft">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-maroon"
-              checked={printReceipts}
-              onChange={(e) => setPrintReceipts(e.target.checked)}
-            />
-            <span>{t("pos.printReceipts")}</span>
-          </label>
         </div>
 
         {cashPayOpen ? (

@@ -348,7 +348,6 @@ const kk: Messages = {
     subtotal: "Аралық қорытынды",
     amountReceived: "Алынды",
     changeDue: "Қайтарым",
-    printReceipts: "Чек басып шығару",
     tenderHint: "Қанша қолма-қол берді",
     tenderExact: "Дәл",
     tenderClear: "Тазалау",

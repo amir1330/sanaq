@@ -354,7 +354,6 @@ export type Messages = {
     subtotal: string;
     amountReceived: string;
     changeDue: string;
-    printReceipts: string;
     tenderHint: string;
     tenderExact: string;
     tenderClear: string;

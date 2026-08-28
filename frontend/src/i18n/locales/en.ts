@@ -348,7 +348,6 @@ const en: Messages = {
     subtotal: "Subtotal",
     amountReceived: "Amount received",
     changeDue: "Change",
-    printReceipts: "Print receipts",
     tenderHint: "How much cash did they give?",
     tenderExact: "Exact",
     tenderClear: "Clear",
