@@ -62,13 +62,25 @@ function groupHasActive(pathname: string, group: NavGroupDef) {
   });
 }
 
-function railLinkClass(active: boolean, primary?: boolean) {
+export function railLinkClass(active: boolean, primary?: boolean) {
   return cn(
-    "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium transition",
+    "flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] font-medium transition touch-manipulation",
     active
-      ? "border-l-2 border-sun bg-paper-2 pl-[10px] text-ink"
-      : "border-l-2 border-transparent text-ink-soft hover:bg-paper-2 hover:text-ink",
+      ? "border-l-[3px] border-sun bg-paper pl-[9px] text-ink"
+      : "border-l-[3px] border-transparent text-ink-soft hover:bg-paper hover:text-ink",
     primary && !active && "text-sun",
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden
+      className={cn("h-4 w-4 shrink-0 text-faint transition-transform", open && "rotate-180")}
+    >
+      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -81,31 +93,26 @@ function NavSubmenu({ item, pathname }: { item: NavSubmenuDef; pathname: string 
   }, [childActive]);
 
   return (
-    <div>
+    <div className="flex flex-col gap-0.5">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className={cn(
-          railLinkClass(childActive),
-          "w-full justify-between",
-        )}
+        className={cn(railLinkClass(childActive), "w-full justify-between text-left")}
       >
-        <span className="flex items-center gap-3">
-          <NavIcon name={item.icon} />
-          {item.label}
+        <span className="flex min-w-0 items-center gap-3">
+          <NavIcon name={item.icon} className="h-5 w-5" />
+          <span className="truncate">{item.label}</span>
         </span>
-        <span className="font-mono text-xs text-faint" aria-hidden>
-          {open ? "−" : "+"}
-        </span>
+        <Chevron open={open} />
       </button>
       {open && (
-        <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-line pl-2">
+        <div className="ml-4 flex flex-col gap-0.5 border-l-2 border-line pl-2">
           {item.children.map((child) => {
             const active = isNavActive(pathname, child.to, child.end);
             return (
               <NavLink key={child.to} to={child.to} end={child.end} className={railLinkClass(active)}>
-                <span className="pl-6">{child.label}</span>
+                <span className="truncate pl-1">{child.label}</span>
               </NavLink>
             );
           })}
@@ -135,10 +142,10 @@ function NavCollapsibleGroup({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="mb-2 flex w-full items-center justify-between px-3 font-mono text-[9px] uppercase tracking-[0.14em] text-faint hover:text-ink-soft"
+        className="mb-2 flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-faint hover:bg-paper hover:text-ink-soft touch-manipulation"
       >
         <span>{group.label}</span>
-        <span aria-hidden>{open ? "−" : "+"}</span>
+        <Chevron open={open} />
       </button>
       {open && (
         <div className="flex flex-col gap-0.5">
@@ -152,7 +159,7 @@ function NavCollapsibleGroup({
                 end={item.end}
                 className={railLinkClass(isNavActive(pathname, item.to, item.end), item.primary)}
               >
-                <NavIcon name={item.icon} />
+                <NavIcon name={item.icon} className="h-5 w-5" />
                 <span>{item.label}</span>
               </NavLink>
             ),
@@ -169,12 +176,12 @@ export function NavRailGroups({ groups }: { groups: NavGroupDef[] }) {
   return (
     <>
       {groups.map((group, groupIndex) => (
-        <div key={group.id} className={cn(groupIndex > 0 && "mt-6")}>
+        <div key={group.id} className={cn(groupIndex > 0 && "mt-5")}>
           {group.collapsible ? (
             <NavCollapsibleGroup group={group} pathname={pathname} />
           ) : (
             <>
-              <p className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">{group.label}</p>
+              <p className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">{group.label}</p>
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) =>
                   item.kind === "submenu" ? (
@@ -186,7 +193,7 @@ export function NavRailGroups({ groups }: { groups: NavGroupDef[] }) {
                       end={item.end}
                       className={railLinkClass(isNavActive(pathname, item.to, item.end), item.primary)}
                     >
-                      <NavIcon name={item.icon} />
+                      <NavIcon name={item.icon} className="h-5 w-5" />
                       <span>{item.label}</span>
                     </NavLink>
                   ),

@@ -6,7 +6,7 @@ import { useT } from "../i18n";
 import { useAuth, useAuthSessionReady } from "../store/auth";
 import { cn } from "../lib/utils";
 import { Brand } from "./Mark";
-import { flattenNavLinks, isNavActive, NavRailGroups, type NavGroupDef } from "./NavRail";
+import { flattenNavLinks, isNavActive, NavRailGroups, railLinkClass, type NavGroupDef } from "./NavRail";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { ShopBrand } from "./ShopBrand";
 import { SkipLink } from "./SkipLink";
@@ -55,11 +55,18 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
             {
               id: "stock",
               label: t("nav.groupStock"),
-              collapsible: true,
               items: [
-                { kind: "link", to: "/owner/stock", label: t("nav.stockBalances"), icon: "stock", end: true },
-                { kind: "link", to: "/owner/stock/moves", label: t("nav.stockMoves"), icon: "moves" },
-                { kind: "link", to: "/owner/stock/revisions", label: t("nav.revisions"), icon: "revisions" },
+                {
+                  kind: "submenu",
+                  id: "stock",
+                  label: t("nav.groupStock"),
+                  icon: "stock",
+                  children: [
+                    { to: "/owner/stock", label: t("nav.stockBalances"), end: true },
+                    { to: "/owner/stock/moves", label: t("nav.stockMoves") },
+                    { to: "/owner/stock/revisions", label: t("nav.revisions") },
+                  ],
+                },
               ],
             },
             {
@@ -138,19 +145,9 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
     };
   }, [moreOpen]);
 
-  function railLinkClass(active: boolean, primary?: boolean) {
-    return cn(
-      "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium transition",
-      active
-        ? "border-l-2 border-sun bg-paper-2 pl-[10px] text-ink"
-        : "border-l-2 border-transparent text-ink-soft hover:bg-paper-2 hover:text-ink",
-      primary && !active && "text-sun",
-    );
-  }
-
   function mobileTabClass(active: boolean) {
     return cn(
-      "flex min-h-11 min-w-[4.5rem] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[10px] font-medium",
+      "flex min-h-14 min-w-[4.75rem] flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[11px] font-medium touch-manipulation",
       active ? "text-sun" : "text-faint",
     );
   }
@@ -168,7 +165,12 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
             {kind === "admin" ? (
               <Brand className="text-[16px]" markClass="h-[17px] w-[24px]" />
             ) : (
-              <ShopBrand shop={currentShop} fallback={t("nav.pointFallback")} />
+              <div className="min-w-0">
+                <ShopBrand shop={currentShop} fallback={t("nav.pointFallback")} />
+                <p className="mt-1.5 truncate text-[11px] leading-snug text-faint">
+                  {currentShop?.address?.trim() || t("admin.noAddress")}
+                </p>
+              </div>
             )}
           </button>
         </div>
@@ -180,7 +182,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                 {t("nav.branch")}
               </span>
               <select
-                className="w-full rounded-md border border-line-2 bg-paper px-3 py-2 text-[13px] text-ink outline-none focus:border-sun"
+                className="w-full min-h-12 rounded-md border border-line-2 bg-paper px-3 py-2 text-[15px] text-ink outline-none focus:border-sun touch-manipulation"
                 value={shopId ?? ""}
                 onChange={(e) => setShopId(Number(e.target.value))}
               >
@@ -302,7 +304,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                               role="menuitem"
                               onClick={() => setMoreOpen(false)}
                               className={cn(
-                                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px]",
+                                "flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] touch-manipulation",
                                 active ? "bg-paper-2 text-ink" : "text-ink-soft hover:bg-paper-2",
                               )}
                             >
@@ -320,7 +322,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                         to={footerLink.to}
                         role="menuitem"
                         onClick={() => setMoreOpen(false)}
-                        className="flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] text-ink-soft hover:bg-paper-2"
+                        className="flex min-h-12 items-center gap-3 rounded-md px-3 py-3 text-[15px] text-ink-soft hover:bg-paper-2 touch-manipulation"
                       >
                         <NavIcon name={footerLink.icon} />
                         {footerLink.label}

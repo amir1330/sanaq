@@ -53,7 +53,7 @@ export function NavIcon({
       strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={cn("h-[18px] w-[18px] shrink-0", className)}
+      className={cn("h-5 w-5 shrink-0 sm:h-[20px] sm:w-[20px]", className)}
       aria-hidden
     >
       <path d={paths[name]} />

@@ -28,7 +28,7 @@ export function Button({
     <button
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition disabled:opacity-40",
-        size === "lg" ? "h-12 px-6 text-[14px]" : "h-10 px-4 text-[13px]",
+        size === "lg" ? "h-14 px-7 text-[16px]" : "h-12 px-5 text-[15px]",
         styles,
         className,
       )}
@@ -38,7 +38,7 @@ export function Button({
 }
 
 export const pill =
-  "inline-flex h-10 items-center justify-center rounded-md border px-4 text-[13px] font-medium transition";
+  "inline-flex min-h-12 items-center justify-center rounded-md border px-5 text-[15px] font-medium transition touch-manipulation";
 
 export function Field({
   label,
@@ -77,10 +77,10 @@ export function Check({
   children: ReactNode;
 }) {
   return (
-    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] text-ink">
+    <label className="flex min-h-12 cursor-pointer items-center gap-3 text-[15px] text-ink touch-manipulation">
       <input
         type="checkbox"
-        className="h-5 w-5 shrink-0 rounded border border-line-2 accent-sun"
+        className="h-6 w-6 shrink-0 rounded border border-line-2 accent-sun"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
@@ -89,7 +89,8 @@ export function Check({
   );
 }
 
-const fieldControl = "w-full rounded-md border px-4 py-3 text-[14px] outline-none transition";
+const fieldControl =
+  "w-full min-h-12 rounded-md border px-4 py-3 text-[15px] outline-none transition touch-manipulation";
 
 export function Input({
   tone = "light",
@@ -137,23 +138,27 @@ export function Dialog({
   children,
   wide,
   dark,
+  size,
 }: {
   open: boolean;
   title: string;
   hint?: string;
   onClose: () => void;
   children: ReactNode;
+  /** @deprecated use size="lg" */
   wide?: boolean;
   dark?: boolean;
+  size?: "md" | "lg" | "xl";
 }) {
   if (!open) return null;
+  const resolvedSize = size ?? (wide ? "lg" : "md");
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-roast/70 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-40 grid place-items-center bg-roast/70 p-3 sm:p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="presentation"
     >
-      <DialogBody title={title} hint={hint} onClose={onClose} wide={wide} dark={dark}>
+      <DialogBody title={title} hint={hint} onClose={onClose} size={resolvedSize} dark={dark}>
         {children}
       </DialogBody>
     </div>
@@ -165,14 +170,14 @@ function DialogBody({
   hint,
   onClose,
   children,
-  wide,
+  size,
   dark,
 }: {
   title: string;
   hint?: string;
   onClose: () => void;
   children: ReactNode;
-  wide?: boolean;
+  size: "md" | "lg" | "xl";
   dark?: boolean;
 }) {
   const t = useT();
@@ -187,28 +192,31 @@ function DialogBody({
       aria-modal="true"
       aria-labelledby={titleId}
       className={cn(
-        "max-h-[90vh] w-full overflow-auto rounded-md border p-6 shadow-soft",
+        "flex max-h-[min(92vh,900px)] w-full flex-col overflow-hidden rounded-lg border shadow-soft",
         dark ? "border-line-dark bg-roast text-cream" : "border-line bg-paper",
-        wide ? "max-w-2xl" : "max-w-lg",
+        size === "xl" ? "max-w-3xl" : size === "lg" ? "max-w-2xl" : "max-w-lg",
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <h2 id={titleId} className="font-display text-xl font-medium tracking-tight">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line px-5 py-5 sm:px-6">
+        <div className="min-w-0">
+          <h2 id={titleId} className="font-display text-2xl font-medium tracking-tight sm:text-[26px]">
             {title}
           </h2>
-          {hint && <p className={cn("mt-1.5 text-sm", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
+          {hint && <p className={cn("mt-2 text-[15px] leading-relaxed", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
         </div>
         <button
           type="button"
-          className={cn("font-mono text-[10px] uppercase tracking-[0.08em]", dark ? "text-cream-soft" : "text-faint")}
+          className={cn(
+            "min-h-11 shrink-0 rounded-md px-3 font-mono text-[11px] uppercase tracking-[0.08em] touch-manipulation hover:bg-paper-2",
+            dark ? "text-cream-soft" : "text-faint",
+          )}
           onClick={onClose}
         >
           {t("common.close")}
         </button>
       </div>
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">{children}</div>
     </div>
   );
 }
@@ -327,7 +335,7 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        className="grid h-10 w-10 place-items-center rounded-md border border-transparent text-[18px] leading-none text-faint hover:border-line hover:bg-paper-2 hover:text-ink"
+        className="grid h-12 w-12 place-items-center rounded-md border border-transparent text-[20px] leading-none text-faint hover:border-line hover:bg-paper-2 hover:text-ink touch-manipulation"
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
@@ -353,7 +361,7 @@ export function MoreMenu({ items, label }: { items: MoreMenuItem[]; label?: stri
                 role="menuitem"
                 disabled={item.disabled}
                 className={cn(
-                  "block w-full px-4 py-2.5 text-left text-[13px] disabled:opacity-40",
+                  "block min-h-12 w-full px-4 py-3 text-left text-[15px] disabled:opacity-40 touch-manipulation",
                   item.danger ? "text-maroon hover:bg-maroon/8" : "text-ink hover:bg-paper-2",
                 )}
                 onClick={(e) => {

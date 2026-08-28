@@ -53,7 +53,7 @@ export default {
         rail: "1px 0 0 rgb(var(--line))",
       },
       spacing: {
-        rail: "15.5rem",
+        rail: "17.5rem",
       },
     },
   },

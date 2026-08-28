@@ -29,7 +29,7 @@ export function PhotoField({
           type="button"
           disabled={busy}
           onClick={() => ref.current?.click()}
-          className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-md bg-cream text-[12.5px] text-mute hover:ring-1 hover:ring-ink disabled:opacity-40"
+          className="grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-cream text-[14px] text-mute hover:ring-2 hover:ring-ink disabled:opacity-40 touch-manipulation sm:h-32 sm:w-32"
         >
           {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : t("common.photo")}
         </button>
