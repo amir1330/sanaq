@@ -35,11 +35,12 @@
 
 ```bash
 cd frontend
+cp .env.local.example .env.local   # set VITE_API_PROXY — required
 npm install
 npm run dev
 ```
 
-Vite на `:5173` проксирует `/api` на prod (`https://sanaq.abuyunus.cc`). Другой бэкенд: `VITE_API_PROXY=https://… npm run dev`.
+`npm run dev` **will not start** without `VITE_API_PROXY` in `.env.local` (avoids accidentally proxying to prod). For UI-only work against the live stand, set `VITE_API_PROXY=https://sanaq.abuyunus.cc` explicitly — that mutates production data.
 
 Бэкенд-тесты в CI: `docker build ./backend && docker run … pytest`.
 
