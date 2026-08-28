@@ -2,51 +2,20 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
-import { Button, Card, Check, Dialog, Field, Input, PageTitle, Select } from "../../components/ui";
+import { StockBalancesTable } from "../../components/stock/StockBalancesTable";
+import { StockCreateForm } from "../../components/stock/StockCreateForm";
+import { StockImportDialog, StockMakeProductDialog } from "../../components/stock/StockDialogs";
+import { Button, Card, PageTitle } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
-import { BASE_UNITS, PURCHASE_UNITS, costPerBase, costPerPurchase, defaultStockCreate, money, publicUrl, qty, shelfValue, shortDay, stockBalance, suggestPurchaseFactor, unitCost, unitLabel } from "../../lib/utils";
+import { costPerBase, defaultStockCreate, stockBalance } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { StockItem } from "../../types";
 
 type ImportPreviewRow = Awaited<ReturnType<typeof api.previewStockImport>>["rows"][number];
 
 const PAGE_SIZE = 50;
-
-function CostHint({
-  purchasePrice,
-  factor,
-  purchaseUnit,
-  baseUnit,
-}: {
-  purchasePrice: string;
-  factor: string;
-  purchaseUnit: string;
-  baseUnit: string;
-}) {
-  const t = useT();
-  const perBase = Number(costPerBase(purchasePrice, factor));
-  const pack = Number(purchasePrice);
-  const n = Number(factor);
-  if (!n || n <= 0) {
-    return (
-      <p className="mt-1 text-[12.5px] text-mute">
-        {t("stock.costHintUnits", { base: baseUnit, purchase: purchaseUnit })}
-      </p>
-    );
-  }
-  if (!(pack > 0) || (n === 1 && purchaseUnit === baseUnit)) {
-    return <p className="mt-1 text-[12.5px] text-mute">{t("stock.costHintZero")}</p>;
-  }
-  return (
-    <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
-      → {unitCost(perBase, baseUnit)}
-    </p>
-  );
-}
-
 const emptyCreate = defaultStockCreate();
 
 export function StockPage() {
@@ -194,14 +163,6 @@ export function StockPage() {
     },
   });
 
-  function setUnits(patch: Partial<typeof create>) {
-    const next = { ...create, ...patch };
-    if (patch.base_unit || patch.purchase_unit) {
-      next.purchase_to_base = suggestPurchaseFactor(next.base_unit, next.purchase_unit);
-    }
-    setCreate(next);
-  }
-
   function toggleCreate() {
     if (creating) {
       add.reset();
@@ -279,205 +240,43 @@ export function StockPage() {
         </Card>
       )}
       {creating && (
-      <Card className="mb-4 grid gap-3 md:grid-cols-3">
-        <div className="md:col-span-3">
-          <PhotoField
-            src={createPreview}
-            onFile={(file) => {
+        <Card>
+          <StockCreateForm
+            create={create}
+            onCreateChange={setCreate}
+            createPreview={createPreview}
+            onPhotoFile={(file) => {
               setCreatePhoto(file);
               setCreatePreview(URL.createObjectURL(file));
             }}
-            onClear={() => {
+            onPhotoClear={() => {
               setCreatePhoto(null);
               setCreatePreview(null);
             }}
-            hint={t("stock.photoHint")}
+            onSave={() => add.mutate()}
+            onCancel={toggleCreate}
+            savePending={add.isPending}
+            saveError={add.isError ? (add.error as Error) : null}
           />
-        </div>
-        <Field label={t("stock.name")}>
-          <Input
-            placeholder={t("stock.namePh")}
-            value={create.name}
-            onChange={(e) => setCreate({ ...create, name: e.target.value })}
-          />
-        </Field>
-        <Field label={t("stock.sku")} hint={t("stock.skuHint")}>
-          <Input
-            placeholder={t("stock.skuPh")}
-            value={create.sku}
-            onChange={(e) => setCreate({ ...create, sku: e.target.value })}
-          />
-        </Field>
-        <Field label={t("stock.baseUnit")}>
-          <Select value={create.base_unit} onChange={(e) => setUnits({ base_unit: e.target.value })}>
-            {BASE_UNITS.map((u) => (
-              <option key={u} value={u}>
-                {unitLabel(u)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("stock.purchaseUnit")}>
-          <Select value={create.purchase_unit} onChange={(e) => setUnits({ purchase_unit: e.target.value })}>
-            {PURCHASE_UNITS.map((u) => (
-              <option key={u} value={u}>
-                {unitLabel(u)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("stock.oneEquals", { unit: unitLabel(create.purchase_unit) })}>
-          <Input
-            value={create.purchase_to_base}
-            onChange={(e) => setCreate({ ...create, purchase_to_base: e.target.value })}
-            inputMode="decimal"
-            placeholder={t("stock.howMany", { unit: unitLabel(create.base_unit) })}
-          />
-          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
-            {unitLabel(create.base_unit)}
-          </p>
-        </Field>
-        <Field label={t("stock.minLabel", { unit: unitLabel(create.base_unit) })} hint={t("stock.minHint")}>
-          <Input
-            value={create.min_quantity}
-            onChange={(e) => setCreate({ ...create, min_quantity: e.target.value })}
-            inputMode="decimal"
-          />
-        </Field>
-        <Field label={t("stock.pricePer", { unit: unitLabel(create.purchase_unit) })}>
-          <Input
-            value={create.cost_per_purchase}
-            onChange={(e) => setCreate({ ...create, cost_per_purchase: e.target.value })}
-            inputMode="decimal"
-            placeholder={t("stock.pricePh")}
-          />
-          <CostHint
-            purchasePrice={create.cost_per_purchase}
-            factor={create.purchase_to_base}
-            purchaseUnit={create.purchase_unit}
-            baseUnit={create.base_unit}
-          />
-        </Field>
-        <div className="md:col-span-3">
-          <Check
-            checked={create.on_pos}
-            onChange={(on_pos) => setCreate({ ...create, on_pos })}
-          >
-            {t("stock.onPos")}
-          </Check>
-          <p className="mt-1 text-[12.5px] text-mute">{t("stock.onPosHint")}</p>
-        </div>
-        <div className="flex flex-wrap items-end gap-2 md:col-span-3">
-          <Button onClick={() => add.mutate()} disabled={!create.name || add.isPending}>
-            {t("common.save")}
-          </Button>
-          <Button variant="ghost" onClick={toggleCreate}>
-            {t("common.cancel")}
-          </Button>
-        </div>
-        {add.isError && <p className="text-sm text-alert md:col-span-3">{(add.error as Error).message}</p>}
-      </Card>
+        </Card>
       )}
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t("stock.searchPh")}
-          className="max-w-xs"
-        />
-        <p className="font-mono text-[12.5px] text-mute">
-          {totalCount === 1
-            ? t("stock.nItems", { n: totalCount })
-            : t("stock.nItemsMany", { n: totalCount })}
-          {rows.length < totalCount ? ` · ${rows.length}` : ""}
-          {lowCount ? ` · ${t("stock.runningLow", { n: lowCount })}` : ""}
-          {" · "}
-          {t("stock.shelfSum", { n: money(shelfTotal) })}
-        </p>
-      </div>
-      <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-            <tr className="border-b border-line text-left">
-              <th className="px-5 py-3.5">{t("stock.colItem")}</th>
-              <th>{t("stock.colNow")}</th>
-              <th>{t("stock.colMin")}</th>
-              <th>{t("stock.colCost")}</th>
-              <th className="text-right">{t("stock.colShelf")}</th>
-              <th className="pr-5 text-right">{t("stock.colLastIn")}</th>
-              <th className="pr-5 text-center">{t("stock.colOnPos")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((i) => {
-              const src = publicUrl(i.image_url);
-              return (
-              <tr
-                key={i.id}
-                className={`cursor-pointer border-b border-line last:border-0 ${i.is_low ? "bg-maroon/5" : ""}`}
-                onClick={() => navigate(`/owner/stock/item/${i.id}`)}
-              >
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    {src ? (
-                      <img src={src} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
-                    ) : (
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-paper font-mono text-[9px] uppercase tracking-wide text-mute">
-                        {t("common.photo")}
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-medium">{i.name}</span>
-                      {i.sku ? (
-                        <span className="mt-0.5 block font-mono text-[11px] text-mute">{i.sku}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </td>
-                <td className="font-mono">{stockBalance(i)}</td>
-                <td className="font-mono text-mute">{qty(i.min_quantity, i.base_unit)}</td>
-                <td className="font-mono">
-                  {unitCost(costPerPurchase(i.cost_per_base_unit, i.purchase_to_base), i.purchase_unit)}
-                  {Number(i.purchase_to_base) !== 1 || i.purchase_unit !== i.base_unit ? (
-                    <span className="mt-0.5 block text-[11px] text-mute">
-                      {unitCost(i.cost_per_base_unit, i.base_unit)}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="pr-4 text-right font-mono font-semibold">{money(shelfValue(i))}</td>
-                <td className="pr-5 text-right font-mono text-[12.5px] text-mute">{shortDay(i.last_income_at)}</td>
-                <td className="pr-5 text-center" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 cursor-pointer rounded-[4px] border-[1.5px] border-line-2 accent-maroon"
-                    checked={Boolean(i.on_pos)}
-                    disabled={setOnPos.isPending && setOnPos.variables?.id === i.id}
-                    aria-label={t("stock.onPos")}
-                    onChange={(e) => togglePos(i, e.target.checked)}
-                  />
-                </td>
-              </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length === 0 && !stock.isLoading && (
-          <p className="px-5 py-8 text-center text-sm text-mute">
-            {q.trim() ? t("stock.emptySearch") : t("stock.empty")}
-          </p>
-        )}
-      </div>
-      {stock.hasNextPage && (
-        <div className="mt-3 flex justify-center">
-          <Button
-            variant="quiet"
-            disabled={stock.isFetchingNextPage}
-            onClick={() => void stock.fetchNextPage()}
-          >
-            {stock.isFetchingNextPage ? t("common.loading") : t("common.loadMore")}
-          </Button>
-        </div>
-      )}
+      <StockBalancesTable
+        t={t}
+        q={q}
+        onQChange={setQ}
+        totalCount={totalCount}
+        rowsLength={rows.length}
+        lowCount={lowCount}
+        shelfTotal={shelfTotal}
+        rows={rows}
+        isLoading={stock.isLoading}
+        hasNextPage={Boolean(stock.hasNextPage)}
+        isFetchingNextPage={stock.isFetchingNextPage}
+        onLoadMore={() => void stock.fetchNextPage()}
+        onRowClick={(item) => navigate(`/owner/stock/item/${item.id}`)}
+        onTogglePos={togglePos}
+        togglePosPendingId={setOnPos.isPending ? setOnPos.variables?.id : undefined}
+      />
       {receive != null && (
         <ReceivePanel
           shopId={shopId}
@@ -485,144 +284,33 @@ export function StockPage() {
           onClose={() => setReceive(null)}
         />
       )}
-      <Dialog
-        open={makeFor != null}
-        title={t("stock.makeProductTitle")}
-        hint={makeFor ? `${makeFor.name}. ${t("stock.makeProductHint")}` : undefined}
+      <StockMakeProductDialog
+        t={t}
+        item={makeFor}
+        makePrice={makePrice}
+        onMakePriceChange={setMakePrice}
+        makeCategoryId={makeCategoryId}
+        onMakeCategoryIdChange={setMakeCategoryId}
+        categories={categories.data}
+        makeProduct={makeProduct}
         onClose={() => setMakeFor(null)}
-      >
-        <div className="grid gap-3">
-          <Field label={t("products.price")}>
-            <Input
-              value={makePrice}
-              onChange={(e) => setMakePrice(e.target.value)}
-              inputMode="decimal"
-              placeholder="0"
-            />
-          </Field>
-          <Field label={t("products.category")}>
-            <Select
-              value={makeCategoryId === "" ? "" : String(makeCategoryId)}
-              onChange={(e) => setMakeCategoryId(e.target.value ? Number(e.target.value) : "")}
-            >
-              <option value="">{t("products.noCategory")}</option>
-              {(categories.data ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {makeProduct.isError && (
-            <p className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => makeProduct.mutate()}
-              disabled={!makePrice || Number(makePrice) <= 0 || makeProduct.isPending}
-            >
-              {t("common.save")}
-            </Button>
-            <Button variant="ghost" onClick={() => setMakeFor(null)}>
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-      <Dialog
+      />
+      <StockImportDialog
+        t={t}
+        locale={locale}
+        shopId={shopId}
         open={importOpen}
-        title={t("stock.importBtn")}
-        size="lg"
         onClose={() => {
           setImportOpen(false);
           setImportRows(null);
         }}
-      >
-        <div className="grid gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="quiet"
-              onClick={() => void api.downloadStockImportTemplate(shopId, locale)}
-            >
-              {t("stock.importTemplate")}
-            </Button>
-            <Button variant="quiet" onClick={() => importInput.current?.click()}>
-              {t("stock.importPreview")}
-            </Button>
-            <input
-              ref={importInput}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) previewImport.mutate(file);
-              }}
-            />
-          </div>
-          {previewImport.isError && (
-            <p className="text-sm text-alert">{(previewImport.error as Error).message}</p>
-          )}
-          {importRows && (
-            <>
-              <p className="text-sm text-mute">
-                {t("stock.importOk", { n: importOk })}
-                {importErr ? ` · ${t("stock.importErrors", { n: importErr })}` : ""}
-              </p>
-              <div className="max-h-[40vh] overflow-auto rounded-md border border-line">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="sticky top-0 bg-cream font-mono text-[10px] uppercase tracking-wide text-faint">
-                    <tr>
-                      <th className="px-3 py-2">#</th>
-                      <th className="px-3 py-2">{t("stock.name")}</th>
-                      <th className="px-3 py-2">{t("stock.colNow")}</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {importRows.map((r) => (
-                      <tr
-                        key={r.row}
-                        className={`border-t border-line ${r.ok ? "" : "bg-alert/10"}`}
-                      >
-                        <td className="px-3 py-2 font-mono text-mute">{r.row}</td>
-                        <td className="px-3 py-2">{r.data?.name ?? "—"}</td>
-                        <td className="px-3 py-2 font-mono">
-                          {r.data ? `${r.data.quantity} ${r.data.purchase_unit}` : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-[12.5px]">
-                          {r.ok ? "OK" : r.errors.join("; ")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {confirmImport.isError && (
-                <p className="text-sm text-alert">{(confirmImport.error as Error).message}</p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => confirmImport.mutate()}
-                  disabled={importOk === 0 || confirmImport.isPending}
-                >
-                  {t("stock.importConfirm")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setImportOpen(false);
-                    setImportRows(null);
-                  }}
-                >
-                  {t("common.cancel")}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </Dialog>
+        importInput={importInput}
+        importRows={importRows}
+        importOk={importOk}
+        importErr={importErr}
+        previewImport={previewImport}
+        confirmImport={confirmImport}
+      />
     </div>
   );
 }
