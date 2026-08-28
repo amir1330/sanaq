@@ -1,32 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { SessionCard } from "../../components/SessionCard";
-import { Button, Card, Check, Field, Input, PageTitle, Select, pill } from "../../components/ui";
+import { Button, Card, Check, Field, Input, PageTitle, Select } from "../../components/ui";
 import { useT } from "../../i18n";
 import { publicUrl, TIMEZONES } from "../../lib/utils";
 import { useAuth } from "../../store/auth";
 import type { Shop } from "../../types";
 
-type Tab = "account" | "branch" | "pos" | "network";
+type SettingsSection = "branch" | "pos" | "network";
 
-const TAB_IDS: Tab[] = ["branch", "pos", "network", "account"];
-
-function parseTab(value: string | null): Tab {
-  if (value && TAB_IDS.includes(value as Tab)) return value as Tab;
-  return "branch";
-}
-
-export function SettingsPage() {
+export function SettingsPage({ section = "branch" }: { section?: SettingsSection }) {
   const t = useT();
   const shopId = useAuth((s) => s.shopId)!;
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [params, setParams] = useSearchParams();
   const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops });
   const shop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
-  const [tab, setTab] = useState<Tab>(() => parseTab(params.get("tab")));
+  const tab = section;
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -45,18 +35,6 @@ export function SettingsPage() {
     });
     setPreview(null);
   }, [shop]);
-
-  useEffect(() => {
-    setTab(parseTab(params.get("tab")));
-  }, [params]);
-
-  function selectTab(next: Tab) {
-    setTab(next);
-    const search = new URLSearchParams(params);
-    if (next === "branch") search.delete("tab");
-    else search.set("tab", next);
-    setParams(search, { replace: true });
-  }
 
   function refreshShops() {
     void qc.invalidateQueries({ queryKey: ["shops"] });
@@ -94,47 +72,28 @@ export function SettingsPage() {
     (upload.error as Error | null)?.message ||
     (removeLogo.error as Error | null)?.message;
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "branch", label: t("settings.tabBranch") },
-    { id: "pos", label: t("settings.tabPos") },
-    { id: "network", label: t("settings.tabNetwork") },
-    { id: "account", label: t("settings.tabAccount") },
-  ];
+  const sectionTitle =
+    tab === "pos"
+      ? t("settings.tabPos")
+      : tab === "network"
+        ? t("settings.tabNetwork")
+        : t("settings.tabBranch");
 
   return (
     <div>
       <PageTitle
-        kicker={shop?.name ?? t("settings.kicker")}
-        title={t("settings.title")}
-        hint={t("settings.hint")}
+        kicker={t("nav.settings")}
+        title={sectionTitle}
+        hint={tab === "branch" ? t("settings.hint") : undefined}
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => selectTab(item.id)}
-            className={`${pill} ${
-              tab === item.id
-                ? "border-ink bg-ink text-paper"
-                : "border-line-2 text-ink-soft hover:border-ink hover:text-ink"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {tab !== "account" && shop && (
+      {shop && tab === "branch" && (
         <p className="mb-4 rounded-md border border-line bg-paper-2 px-4 py-3 text-sm text-ink-soft">
           <span className="font-medium text-ink">{shop.name}</span>
           {shop.address ? <span className="text-mute"> · {shop.address}</span> : null}
           <span className="text-mute"> — {t("settings.editingHere")}</span>
         </p>
       )}
-
-      {tab === "account" && <SessionCard />}
 
       {tab === "branch" && (
         <div className="space-y-4">

@@ -15,6 +15,7 @@ import type {
   LeadStatus,
   Page,
   Product,
+  PublicVitrineMenu,
   VitrineLayout,
   ReportSummary,
   Sale,
@@ -50,7 +51,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
 
-  if (res.status === 401 && retry && refreshToken && !path.startsWith("/auth/")) {
+  if (res.status === 401 && retry && refreshToken && !path.startsWith("/auth/") && !path.startsWith("/public/")) {
     const refreshed = await fetch(`${BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -159,6 +160,8 @@ export const api = {
   vitrineLayout: (shopId: number) => request<VitrineLayout>(`/shops/${shopId}/vitrine-layout`),
   putVitrineLayout: (shopId: number, body: { columns: object[] }) =>
     request<VitrineLayout>(`/shops/${shopId}/vitrine-layout`, { method: "PUT", body: json(body) }),
+  publicVitrineMenu: (shopId: number) =>
+    request<PublicVitrineMenu>(`/public/shops/${shopId}/vitrine-menu`),
 
   products: (
     shopId: number,

@@ -152,6 +152,13 @@ export type VitrineLayout = {
   columns: VitrineColumn[];
 };
 
+export type PublicVitrineMenu = {
+  shop: { id: number; name: string; logo_url: string | null };
+  layout: VitrineLayout;
+  categories: Category[];
+  products: Product[];
+};
+
 export type StockJournalKind =
   | "income"
   | "writeoff"

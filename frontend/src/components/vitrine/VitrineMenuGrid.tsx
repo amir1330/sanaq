@@ -70,83 +70,62 @@ function ColumnHeader({
   dragHandle?: ReactNode;
 }) {
   const t = useT();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const titleClass =
+    "font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint";
 
   return (
     <div className="relative mb-5 flex flex-col items-center text-center">
       {editMode && (
-        <div className="mb-2 flex w-full items-center justify-between gap-2">
+        <div className="mb-2 flex w-full items-center gap-2">
           {dragHandle}
-          <div className="relative ml-auto">
-            <button
-              type="button"
-              className="rounded-md border border-line bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wide text-mute hover:border-gold hover:text-ink"
-              onClick={() => setSettingsOpen((o) => !o)}
-              aria-expanded={settingsOpen}
-            >
-              {t("vitrine.columnSettings")}
-            </button>
-            {settingsOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] rounded-md border border-line bg-paper py-1 shadow-soft">
-                {(["ornament", "line", "none"] as HeaderStyle[]).map((style) => (
-                  <button
-                    key={style}
-                    type="button"
-                    className={cn(
-                      "block w-full px-3 py-2 text-left text-sm hover:bg-cream",
-                      headerStyle === style && "bg-cream font-medium",
-                    )}
-                    onClick={() => {
-                      onStyleChange?.(style);
-                      setSettingsOpen(false);
-                    }}
-                  >
-                    {style === "ornament"
-                      ? t("vitrine.headerOrnament")
-                      : style === "line"
-                        ? t("vitrine.headerLine")
-                        : t("vitrine.headerNone")}
-                  </button>
-                ))}
-                {onDelete ? (
-                  <button
-                    type="button"
-                    className="block w-full border-t border-line px-3 py-2 text-left text-sm text-maroon hover:bg-cream"
-                    onClick={() => {
-                      onDelete();
-                      setSettingsOpen(false);
-                    }}
-                  >
-                    {t("vitrine.deleteColumn")}
-                  </button>
-                ) : null}
-              </div>
-            )}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+            {(["ornament", "line", "none"] as HeaderStyle[]).map((style) => (
+              <button
+                key={style}
+                type="button"
+                className={cn(
+                  "rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-wide",
+                  headerStyle === style
+                    ? "border-ink bg-ink text-paper"
+                    : "border-line text-mute hover:border-gold",
+                )}
+                onClick={() => onStyleChange?.(style)}
+              >
+                {style === "ornament"
+                  ? t("vitrine.headerOrnament")
+                  : style === "line"
+                    ? t("vitrine.headerLine")
+                    : t("vitrine.headerNone")}
+              </button>
+            ))}
+            {onDelete ? (
+              <button
+                type="button"
+                className="rounded-md border border-line px-2 py-1 text-[11px] text-maroon hover:bg-cream"
+                onClick={onDelete}
+              >
+                {t("vitrine.deleteColumn")}
+              </button>
+            ) : null}
           </div>
         </div>
       )}
+      {headerStyle === "ornament" && (
+        <Glyph name="ornament" className="h-6 w-full max-w-[220px] text-maroon md:h-7 md:max-w-[260px]" />
+      )}
+      {headerStyle === "line" && <div className="h-px w-full max-w-[220px] bg-line-2" />}
       {editMode ? (
         <input
           value={title}
           onChange={(e) => onTitleChange?.(e.target.value)}
           aria-label={t("vitrine.columnTitle")}
-          className="w-full max-w-[280px] rounded-lg border border-line bg-paper px-4 py-2.5 text-center font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-ink outline-none focus:border-gold"
+          className={cn(
+            titleClass,
+            "mt-3 w-full max-w-[280px] border-0 border-b border-dashed border-line bg-transparent text-center outline-none focus:border-gold",
+          )}
         />
       ) : (
-        <>
-          {headerStyle === "ornament" && (
-            <Glyph name="ornament" className="h-6 w-full max-w-[220px] text-maroon md:h-7 md:max-w-[260px]" />
-          )}
-          {headerStyle === "line" && <div className="h-px w-full max-w-[220px] bg-line-2" />}
-          <h2
-            className={cn(
-              "font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint",
-              headerStyle === "none" ? "mt-0" : "mt-3",
-            )}
-          >
-            {title}
-          </h2>
-        </>
+        <h2 className={cn(titleClass, headerStyle === "none" ? "mt-0" : "mt-3")}>{title}</h2>
       )}
     </div>
   );
@@ -194,7 +173,7 @@ function MenuRowBody({
         className={cn(
           "group flex items-center gap-2 rounded-md px-1 py-1.5 md:gap-3 md:px-2 md:py-2",
           striped ? "bg-paper-2" : "bg-transparent",
-          editMode && "ring-1 ring-transparent hover:ring-line",
+          editMode && "ring-1 ring-sun/25",
         )}
       >
         {editMode ? dragHandle : <span className="w-10 shrink-0 md:w-12" />}
@@ -233,11 +212,20 @@ function MenuRowBody({
       className={cn(
         "group flex items-end gap-2 rounded-md px-1 py-1.5 md:gap-3 md:px-2 md:py-2",
         striped ? "bg-paper-2" : "bg-transparent",
-        editMode && "ring-1 ring-transparent hover:ring-line",
+        editMode && "ring-1 ring-sun/25",
       )}
     >
       {editMode ? (
-        dragHandle
+        <div className="relative h-14 w-14 shrink-0 md:h-[4.5rem] md:w-[4.5rem]">
+          {src ? (
+            <img src={src} alt={label} className="h-full w-full rounded-md object-cover opacity-90" />
+          ) : (
+            <span className="grid h-full w-full place-items-center rounded-md bg-paper-2 font-display text-2xl text-maroon">
+              {label.slice(0, 1)}
+            </span>
+          )}
+          <div className="absolute -left-1 -top-1">{dragHandle}</div>
+        </div>
       ) : src ? (
         <img src={src} alt={label} className="h-14 w-14 shrink-0 rounded-md object-cover md:h-[4.5rem] md:w-[4.5rem]" />
       ) : (
@@ -347,7 +335,7 @@ function SortableColumnShell({
       className={cn(
         "min-w-0 px-4 md:px-6",
         colIdx > 0 && "border-l border-line",
-        editMode && "rounded-lg bg-paper/60 pb-4 pt-2",
+        editMode && "rounded-lg pb-4 pt-2 ring-1 ring-sun/20",
       )}
     >
       <ColumnHeader

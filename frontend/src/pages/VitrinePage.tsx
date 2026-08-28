@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { ShopBrand } from "../components/ShopBrand";
@@ -17,9 +17,10 @@ import {
 } from "../lib/vitrineLayout";
 import { cn } from "../lib/utils";
 import { homePath, useAuth } from "../store/auth";
-import type { Product } from "../types";
+import type { Product, Shop } from "../types";
 
 const PAGE = 100;
+const DEFAULT_SHOP_ID = Number(import.meta.env.VITE_DEFAULT_SHOP_ID || 1);
 
 function ProductPicker({
   shopId,
@@ -109,10 +110,14 @@ function ProductPicker({
 export function VitrinePage() {
   const t = useT();
   const locale = useLocale((s) => s.locale);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const { user, shopId } = useAuth();
-  const sid = shopId ?? user?.shop_id ?? 0;
-  const canEdit = user?.role === "owner" || user?.role === "super_admin";
+  const { user, shopId, accessToken } = useAuth();
+  const shopParam = Number(searchParams.get("shop") || DEFAULT_SHOP_ID);
+  const isAuthed = Boolean(user && accessToken);
+  const sid = shopId ?? user?.shop_id ?? shopParam;
+  const canEdit = isAuthed && (user?.role === "owner" || user?.role === "super_admin");
   const rootRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => new Date());
   const [full, setFull] = useState(false);
@@ -131,11 +136,17 @@ export function VitrinePage() {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops, enabled: sid > 0 });
+  const shops = useQuery({ queryKey: ["shops"], queryFn: api.shops, enabled: isAuthed && sid > 0 });
+  const publicMenu = useQuery({
+    queryKey: ["public-vitrine", sid],
+    queryFn: () => api.publicVitrineMenu(sid),
+    enabled: sid > 0 && !isAuthed,
+    refetchInterval: editMode ? false : 20_000,
+  });
   const savedLayout = useQuery({
     queryKey: ["vitrine-layout", sid],
     queryFn: () => api.vitrineLayout(sid),
-    enabled: sid > 0,
+    enabled: sid > 0 && isAuthed,
     refetchInterval: editMode ? false : 20_000,
   });
   const products = useInfiniteQuery({
@@ -147,23 +158,36 @@ export function VitrinePage() {
       const loaded = all.reduce((n, p) => n + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
     },
-    enabled: sid > 0,
+    enabled: sid > 0 && isAuthed,
     refetchInterval: editMode ? false : 20_000,
   });
   const categories = useQuery({
     queryKey: ["categories", sid],
     queryFn: () => api.categories(sid),
-    enabled: sid > 0,
+    enabled: sid > 0 && isAuthed,
     refetchInterval: editMode ? false : 20_000,
   });
 
   useEffect(() => {
-    if (products.hasNextPage && !products.isFetchingNextPage) {
-      void products.fetchNextPage();
-    }
-  }, [products.hasNextPage, products.isFetchingNextPage, products.data]);
+    if (!isAuthed || !products.hasNextPage || products.isFetchingNextPage) return;
+    void products.fetchNextPage();
+  }, [isAuthed, products.hasNextPage, products.isFetchingNextPage, products.data]);
 
-  const shop = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
+  const shop = useMemo((): Shop | undefined => {
+    const fromAuth = shops.data?.find((s) => s.id === sid) ?? shops.data?.[0];
+    if (fromAuth) return fromAuth;
+    const pub = publicMenu.data?.shop;
+    if (!pub) return undefined;
+    return {
+      id: pub.id,
+      name: pub.name,
+      logo_url: pub.logo_url,
+      address: null,
+      timezone: "Asia/Almaty",
+      is_active: true,
+      created_at: "",
+    };
+  }, [shops.data, publicMenu.data, sid]);
   const otherLabel = t("vitrine.other");
   const allProducts = useMemo(
     () => products.data?.pages.flatMap((p) => p.items) ?? [],
@@ -171,12 +195,18 @@ export function VitrinePage() {
   );
 
   const displayColumns = useMemo((): EditorColumn[] => {
-    const saved = savedLayout.data?.columns ?? [];
-    if (saved.length > 0) return savedToEditor(saved);
-    return autoColumnsFromCatalog(allProducts, categories.data ?? [], otherLabel, locale);
-  }, [savedLayout.data, allProducts, categories.data, otherLabel, locale]);
+    if (isAuthed) {
+      const saved = savedLayout.data?.columns ?? [];
+      if (saved.length > 0) return savedToEditor(saved);
+      return autoColumnsFromCatalog(allProducts, categories.data ?? [], otherLabel, locale);
+    }
+    const bundle = publicMenu.data;
+    if (!bundle) return [];
+    if (bundle.layout.columns.length > 0) return savedToEditor(bundle.layout.columns);
+    return autoColumnsFromCatalog(bundle.products, bundle.categories, otherLabel, locale);
+  }, [isAuthed, savedLayout.data, allProducts, categories.data, publicMenu.data, otherLabel, locale]);
 
-  const columns = editMode && draft ? draft : displayColumns;
+  const columns = editMode && draft !== null ? draft : displayColumns;
 
   const saveLayout = useMutation({
     mutationFn: () =>
@@ -199,6 +229,10 @@ export function VitrinePage() {
   });
 
   function startEdit() {
+    if (!canEdit) {
+      navigate("/login");
+      return;
+    }
     setDraft(structuredClone(displayColumns));
     setEditMode(true);
   }
@@ -272,7 +306,7 @@ export function VitrinePage() {
               <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
                 {t("vitrine.editing")}
               </p>
-              <p className="mt-0.5 text-sm text-mute">{t("vitrine.editHint")}</p>
+              <p className="mt-0.5 text-sm text-mute">{t("vitrine.livePreview")}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="quiet" onClick={fillFromCatalog}>
@@ -310,15 +344,21 @@ export function VitrinePage() {
           onAddProduct={(columnKey) => setPickColumnKey(columnKey)}
           onAddColumn={addColumn}
         />
-        {!editMode && products.isSuccess && columns.length === 0 && (
+        {!editMode && (isAuthed ? products.isSuccess : publicMenu.isSuccess) && columns.length === 0 && (
           <p className="px-6 font-display text-2xl text-mute">{t("vitrine.empty")}</p>
         )}
       </main>
 
       <footer className="vitrine-chrome mt-auto flex items-center justify-between gap-4 px-6 py-4 md:px-10">
-        <Link to={homePath(user?.role)} className="text-[12.5px] text-faint hover:text-ink">
-          {t("vitrine.back")}
-        </Link>
+        {user ? (
+          <Link to={homePath(user.role)} className="text-[12.5px] text-faint hover:text-ink">
+            {t("vitrine.back")}
+          </Link>
+        ) : (
+          <Link to="/" className="text-[12.5px] text-faint hover:text-ink">
+            {t("vitrine.guestBack")}
+          </Link>
+        )}
         <button type="button" className="text-[12.5px] text-faint hover:text-ink" onClick={() => void toggleFull()}>
           {full ? t("vitrine.exitFullscreen") : t("vitrine.fullscreen")}
         </button>

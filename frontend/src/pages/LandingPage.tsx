@@ -57,6 +57,9 @@ export function LandingPage() {
       <header className="flex items-center justify-between border-b border-line px-6 py-5 md:px-12">
         <Brand className="text-[18px]" markClass="h-[18px] w-[26px]" />
         <nav className="flex items-center gap-4 text-[13px]">
+          <Link to="/vitrine" className="hidden text-ink-soft hover:text-ink sm:inline">
+            {t("landing.viewMenu")}
+          </Link>
           <a href="#features" className="hidden text-ink-soft hover:text-ink sm:inline">
             {t("landing.featuresNav")}
           </a>

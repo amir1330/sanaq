@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+declare const process: { env: Record<string, string | undefined> };
+
 /** Prod API for local UI dev (no local Docker stack). Override with VITE_API_PROXY. */
 const apiTarget = process.env.VITE_API_PROXY ?? "https://sanaq.abuyunus.cc";
 

@@ -13,6 +13,7 @@ from app.models import (
     ProductIngredient,
     ProductVariant,
     ProductVariantIngredient,
+    Shop,
     StockItem,
     User,
     UserRole,
@@ -39,6 +40,7 @@ from app.schemas.vitrine import (
     VitrineLayoutOut,
     VitrineLayoutUpdate,
 )
+from app.schemas.public import PublicShopOut, PublicVitrineMenuOut
 from app.services.access import assert_shop_access
 from app.services.uploads import delete_upload, replace_upload
 
@@ -776,6 +778,45 @@ async def put_vitrine_layout(
 
     await session.commit()
     return await _load_vitrine_layout(session, shop_id)
+
+
+@router.get("/public/shops/{shop_id}/vitrine-menu", response_model=PublicVitrineMenuOut)
+async def public_vitrine_menu(
+    shop_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    """Public menu board for guests (no auth). Active products and saved layout only."""
+    shop = await session.get(Shop, shop_id)
+    if shop is None or not shop.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+
+    layout = await _load_vitrine_layout(session, shop_id)
+    categories = (
+        await session.execute(
+            select(Category)
+            .where(Category.shop_id == shop_id)
+            .order_by(Category.sort_order, Category.name)
+        )
+    ).scalars().all()
+    products_result = await session.execute(
+        select(Product)
+        .options(*_product_load_options(with_ingredients=False))
+        .where(
+            Product.shop_id == shop_id,
+            Product.is_active.is_(True),
+            Product.is_service.is_(False),
+        )
+        .order_by(Product.sort_order, Product.name)
+        .limit(500)
+    )
+    products = products_result.scalars().unique().all()
+
+    return PublicVitrineMenuOut(
+        shop=PublicShopOut(id=shop.id, name=shop.name, logo_url=shop.logo_url),
+        layout=layout,
+        categories=[CategoryOut.model_validate(c) for c in categories],
+        products=[_product_out(p, with_ingredients=False) for p in products],
+    )
 
 
 async def _load_vitrine_layout(session: AsyncSession, shop_id: int) -> VitrineLayoutOut:

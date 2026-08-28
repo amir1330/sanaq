@@ -6,29 +6,10 @@ import { useT } from "../i18n";
 import { useAuth, useAuthSessionReady } from "../store/auth";
 import { cn } from "../lib/utils";
 import { Brand } from "./Mark";
+import { flattenNavLinks, isNavActive, NavRailGroups, type NavGroupDef } from "./NavRail";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { ShopBrand } from "./ShopBrand";
 import { SkipLink } from "./SkipLink";
-
-type NavItem = { to: string; label: string; icon: NavIconName; end?: boolean; primary?: boolean };
-type NavGroup = { id: string; label: string; items: NavItem[] };
-
-function isNavActive(pathname: string, to: string, end?: boolean) {
-  if (to === "/owner/stock") {
-    return pathname === "/owner/stock" || pathname.startsWith("/owner/stock/item/");
-  }
-  if (to === "/owner/stock/moves") {
-    return pathname === "/owner/stock/moves";
-  }
-  if (to === "/owner/stock/revisions") {
-    return pathname === "/owner/stock/revisions" || pathname.startsWith("/owner/stock/revisions/");
-  }
-  if (to === "/owner/settings") {
-    return pathname === "/owner/settings";
-  }
-  if (end) return pathname === to;
-  return pathname === to || pathname.startsWith(`${to}/`);
-}
 
 export function Shell({ kind }: { kind: "owner" | "admin" }) {
   const t = useT();
@@ -45,7 +26,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
   });
   const currentShop = shops.data?.find((s) => s.id === shopId) ?? shops.data?.[0];
 
-  const groups: NavGroup[] = useMemo(
+  const groups: NavGroupDef[] = useMemo(
     () =>
       kind === "owner"
         ? [
@@ -53,39 +34,50 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
               id: "today",
               label: t("nav.groupToday"),
               items: [
-                { to: "/pos", label: t("nav.till"), icon: "till", primary: true },
-                { to: "/vitrine", label: t("nav.vitrine"), icon: "vitrine" },
+                { kind: "link", to: "/pos", label: t("nav.till"), icon: "till", primary: true },
+                { kind: "link", to: "/vitrine", label: t("nav.vitrine"), icon: "vitrine" },
               ],
             },
             {
               id: "money",
               label: t("nav.groupMoney"),
               items: [
-                { to: "/owner", label: t("nav.reports"), icon: "reports", end: true },
-                { to: "/owner/expenses", label: t("nav.expenses"), icon: "expenses" },
-                { to: "/owner/shifts", label: t("nav.shiftsHistory"), icon: "shifts" },
+                { kind: "link", to: "/owner", label: t("nav.reports"), icon: "reports", end: true },
+                { kind: "link", to: "/owner/expenses", label: t("nav.expenses"), icon: "expenses" },
+                { kind: "link", to: "/owner/shifts", label: t("nav.shiftsHistory"), icon: "shifts" },
               ],
             },
             {
               id: "menu",
               label: t("nav.groupMenu"),
-              items: [{ to: "/owner/products", label: t("nav.products"), icon: "products" }],
+              items: [{ kind: "link", to: "/owner/products", label: t("nav.products"), icon: "products" }],
             },
             {
               id: "stock",
               label: t("nav.groupStock"),
+              collapsible: true,
               items: [
-                { to: "/owner/stock", label: t("nav.stockBalances"), icon: "stock", end: true },
-                { to: "/owner/stock/moves", label: t("nav.stockMoves"), icon: "moves" },
-                { to: "/owner/stock/revisions", label: t("nav.revisions"), icon: "revisions" },
+                { kind: "link", to: "/owner/stock", label: t("nav.stockBalances"), icon: "stock", end: true },
+                { kind: "link", to: "/owner/stock/moves", label: t("nav.stockMoves"), icon: "moves" },
+                { kind: "link", to: "/owner/stock/revisions", label: t("nav.revisions"), icon: "revisions" },
               ],
             },
             {
               id: "shop",
               label: t("nav.groupShop"),
               items: [
-                { to: "/owner/staff", label: t("nav.staff"), icon: "staff" },
-                { to: "/owner/settings", label: t("nav.settings"), icon: "settings" },
+                { kind: "link", to: "/owner/staff", label: t("nav.staff"), icon: "staff" },
+                {
+                  kind: "submenu",
+                  id: "settings",
+                  label: t("nav.settings"),
+                  icon: "settings",
+                  children: [
+                    { to: "/owner/settings", label: t("settings.tabBranch"), end: true },
+                    { to: "/owner/settings/pos", label: t("settings.tabPos") },
+                    { to: "/owner/settings/network", label: t("settings.tabNetwork") },
+                  ],
+                },
               ],
             },
           ]
@@ -94,21 +86,18 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
               id: "platform",
               label: t("nav.groupPlatform"),
               items: [
-                { to: "/admin", label: t("nav.shops"), icon: "shops", end: true },
-                { to: "/admin/users", label: t("nav.users"), icon: "users" },
-                { to: "/admin/leads", label: t("nav.leads"), icon: "leads" },
+                { kind: "link", to: "/admin", label: t("nav.shops"), icon: "shops", end: true },
+                { kind: "link", to: "/admin/users", label: t("nav.users"), icon: "users" },
+                { kind: "link", to: "/admin/leads", label: t("nav.leads"), icon: "leads" },
               ],
             },
           ],
     [kind, t],
   );
 
-  const footerLink =
-    kind === "owner"
-      ? { to: "/owner/settings?tab=account", label: t("nav.account"), icon: "account" as NavIconName }
-      : { to: "/admin/settings", label: t("nav.account"), icon: "account" as NavIconName };
+  const footerLink = { to: "/owner/account", label: t("nav.account"), icon: "account" as NavIconName };
 
-  const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  const allItems = useMemo(() => flattenNavLinks(groups), [groups]);
 
   const mobileTabs = useMemo(() => {
     if (kind === "owner") {
@@ -125,7 +114,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
 
   const moreActive =
     allItems.some((item) => !mobileTabs.some((tab) => tab.to === item.to) && isNavActive(location.pathname, item.to, item.end)) ||
-    isNavActive(location.pathname, footerLink.to.split("?")[0]);
+    (kind === "owner" && isNavActive(location.pathname, footerLink.to));
 
   useEffect(() => {
     setMoreOpen(false);
@@ -207,39 +196,24 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
         )}
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {groups.map((group, groupIndex) => (
-            <div key={group.id} className={cn(groupIndex > 0 && "mt-6")}>
-              <p className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.14em] text-faint">{group.label}</p>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const active = isNavActive(location.pathname, item.to, item.end);
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      className={railLinkClass(active, item.primary)}
-                    >
-                      <NavIcon name={item.icon} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <NavRailGroups groups={groups} />
         </nav>
 
         <div className="border-t border-line px-3 py-3">
-          <NavLink
-            to={footerLink.to}
-            className={({ isActive }) =>
-              railLinkClass(isActive || location.search.includes("tab=account"))
-            }
-          >
-            <NavIcon name={footerLink.icon} />
-            <span>{footerLink.label}</span>
-          </NavLink>
+          {kind === "owner" ? (
+            <NavLink
+              to={footerLink.to}
+              className={({ isActive }) => railLinkClass(isActive)}
+            >
+              <NavIcon name={footerLink.icon} />
+              <span>{footerLink.label}</span>
+            </NavLink>
+          ) : (
+            <NavLink to="/admin/settings" className={({ isActive }) => railLinkClass(isActive)}>
+              <NavIcon name="account" />
+              <span>{t("nav.account")}</span>
+            </NavLink>
+          )}
         </div>
 
         <div className="px-5 py-4">
@@ -302,7 +276,16 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                     </label>
                   )}
                   {groups.map((group) => {
-                    const items = group.items.filter((item) => !mobileTabs.some((tab) => tab.to === item.to));
+                    const items = group.items.flatMap((item) => {
+                      if (item.kind === "link") return [item];
+                      return item.children.map((child) => ({
+                        kind: "link" as const,
+                        to: child.to,
+                        label: child.label,
+                        icon: item.icon,
+                        end: child.end,
+                      }));
+                    }).filter((item) => !mobileTabs.some((tab) => tab.to === item.to));
                     if (items.length === 0) return null;
                     return (
                       <div key={group.id} className="border-b border-line px-2 py-2">
@@ -331,17 +314,19 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
                       </div>
                     );
                   })}
-                  <div className="px-2 py-2">
-                    <NavLink
-                      to={footerLink.to}
-                      role="menuitem"
-                      onClick={() => setMoreOpen(false)}
-                      className="flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] text-ink-soft hover:bg-paper-2"
-                    >
-                      <NavIcon name={footerLink.icon} />
-                      {footerLink.label}
-                    </NavLink>
-                  </div>
+                  {kind === "owner" && (
+                    <div className="px-2 py-2">
+                      <NavLink
+                        to={footerLink.to}
+                        role="menuitem"
+                        onClick={() => setMoreOpen(false)}
+                        className="flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] text-ink-soft hover:bg-paper-2"
+                      >
+                        <NavIcon name={footerLink.icon} />
+                        {footerLink.label}
+                      </NavLink>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

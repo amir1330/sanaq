@@ -8,6 +8,7 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { LeadsPage } from "./pages/admin/LeadsPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { AccountPage } from "./pages/owner/AccountPage";
 import { DashboardPage } from "./pages/owner/DashboardPage";
 import { ExpensesPage } from "./pages/owner/ExpensesPage";
 import { ProductsPage } from "./pages/owner/ProductsPage";
@@ -31,9 +32,8 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pin" element={<Navigate to="/pos" replace />} />
         <Route path="/pos" element={<PosPage />} />
-        <Route element={<Guard roles={["barista", "owner", "super_admin"]} />}>
-          <Route path="/vitrine" element={<VitrinePage />} />
-        </Route>
+        <Route path="/vitrine" element={<VitrinePage />} />
+        <Route path="/menu" element={<Navigate to="/vitrine" replace />} />
         <Route element={<Guard roles={["owner", "super_admin"]} />}>
           <Route element={<Shell kind="owner" />}>
             <Route path="/owner" element={<DashboardPage />} />
@@ -46,7 +46,11 @@ export function App() {
             <Route path="/owner/staff" element={<StaffPage />} />
             <Route path="/owner/expenses" element={<ExpensesPage />} />
             <Route path="/owner/shifts" element={<ShiftsPage />} />
-            <Route path="/owner/settings" element={<SettingsPage />} />
+            <Route path="/owner/account" element={<AccountPage />} />
+            <Route path="/owner/settings" element={<SettingsPage section="branch" />} />
+            <Route path="/owner/settings/pos" element={<SettingsPage section="pos" />} />
+            <Route path="/owner/settings/network" element={<SettingsPage section="network" />} />
+            <Route path="/owner/settings/account" element={<Navigate to="/owner/account" replace />} />
           </Route>
         </Route>
         <Route element={<Guard roles={["super_admin"]} />}>

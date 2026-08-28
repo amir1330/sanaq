@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { StockSearchPicker } from "../../components/StockSearchPicker";
-import { StockHubNav } from "../../components/StockHubNav";
 import { Button, Empty, PageTitle, pill } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
@@ -108,7 +107,6 @@ export function StockMovesPage() {
         title={t("stock.movesTitle")}
         hint={t("stock.movesHint")}
       />
-      <StockHubNav />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {MOVE_TABS.map((f) => (
           <button

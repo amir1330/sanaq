@@ -5,7 +5,6 @@ import { api } from "../../api/client";
 import { PhotoField } from "../../components/PhotoField";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { StockSearchPicker } from "../../components/StockSearchPicker";
-import { StockHubNav } from "../../components/StockHubNav";
 import { Button, Check, Field, Input, MoreMenu, PageTitle, Select } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
@@ -271,7 +270,6 @@ export function StockItemPage() {
           </div>
         }
       />
-      <StockHubNav />
       <div className="mb-6 flex flex-wrap items-start gap-6">
         {publicUrl(item.image_url) ? (
           <img src={publicUrl(item.image_url)!} alt="" className="h-24 w-24 rounded-md object-cover" />

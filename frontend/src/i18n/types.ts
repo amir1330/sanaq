@@ -90,6 +90,7 @@ export type Messages = {
     languageEn: string;
     languageKk: string;
     logout: string;
+    pageHint: string;
     scale: string;
     scaleSm: string;
     scaleMd: string;
@@ -105,6 +106,7 @@ export type Messages = {
     lead: string;
     ctaRequest: string;
     ctaHow: string;
+    viewMenu: string;
     featTill: string;
     featTillNote: string;
     featStock: string;
@@ -499,6 +501,8 @@ export type Messages = {
     columnTitle: string;
     editing: string;
     editHint: string;
+    livePreview: string;
+    guestBack: string;
     fillFromCatalog: string;
     fillConfirm: string;
     dragHandle: string;
