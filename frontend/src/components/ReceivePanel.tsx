@@ -5,7 +5,7 @@ import { useT } from "../i18n";
 import { costPerPurchase, money, qty } from "../lib/utils";
 import type { StockItem } from "../types";
 import { StockSearchPicker } from "./StockSearchPicker";
-import { Button, Field, Input } from "./ui";
+import { Button, Dialog, Field, Input } from "./ui";
 
 type Line = { item: StockItem; qty: string; price: string; touched: boolean };
 
@@ -66,11 +66,8 @@ export function ReceivePanel({
   const ready = lines.some((l) => Number(l.qty) > 0);
 
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-paper p-7 text-ink shadow-soft">
-        <h2 className="font-display text-2xl font-normal">{t("receive.title")}</h2>
-        <p className="mt-2 text-sm text-ink-soft">{t("receive.hint")}</p>
-        <div className="mt-5 space-y-3">
+    <Dialog open title={t("receive.title")} hint={t("receive.hint")} onClose={onClose}>
+      <div className="space-y-3">
           {lines.map((line) => {
             const preview = Number(line.qty) > 0 ? Number(line.qty) * Number(line.item.purchase_to_base) : null;
             return (
@@ -119,30 +116,29 @@ export function ReceivePanel({
               </div>
             );
           })}
-        </div>
-        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">{t("receive.addLine")}</p>
-        <StockSearchPicker
-          className="mt-2"
-          shopId={shopId}
-          excludeIds={lines.map((l) => l.item.id)}
-          onPick={addItem}
-          placeholder={t("stock.searchPh")}
-        />
-        {lines.length > 0 && (
-          <p className="mt-4 font-mono text-[15px] font-semibold">
-            {t("common.total")} {money(total)}
-          </p>
-        )}
-        {apply.isError && <p className="mt-3 text-sm text-alert">{(apply.error as Error).message}</p>}
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
-            {t("receive.post")}
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            {t("common.close")}
-          </Button>
-        </div>
       </div>
-    </div>
+      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-faint">{t("receive.addLine")}</p>
+      <StockSearchPicker
+        className="mt-2"
+        shopId={shopId}
+        excludeIds={lines.map((l) => l.item.id)}
+        onPick={addItem}
+        placeholder={t("stock.searchPh")}
+      />
+      {lines.length > 0 && (
+        <p className="font-mono text-[15px] font-semibold">
+          {t("common.total")} {money(total)}
+        </p>
+      )}
+      {apply.isError && <p className="text-sm text-alert">{(apply.error as Error).message}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
+          {t("receive.post")}
+        </Button>
+        <Button variant="ghost" onClick={onClose}>
+          {t("common.close")}
+        </Button>
+      </div>
+    </Dialog>
   );
 }
