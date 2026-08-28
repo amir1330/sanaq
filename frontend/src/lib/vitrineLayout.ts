@@ -54,6 +54,20 @@ export function savedToEditor(cols: VitrineColumn[]): EditorColumn[] {
   }));
 }
 
+export function editorColumnsToPayload(columns: EditorColumn[], defaultTitle: string) {
+  return {
+    columns: columns.map((col, colIdx) => ({
+      title: col.title.trim() || defaultTitle,
+      sort_order: colIdx,
+      header_style: col.header_style,
+      items: col.items.map((item, itemIdx) => ({
+        product_id: item.product_id,
+        sort_order: itemIdx,
+      })),
+    })),
+  };
+}
+
 export function autoColumnsFromCatalog(
   allProducts: Product[],
   categories: Category[],

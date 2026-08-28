@@ -10,6 +10,7 @@ import { useLocale, useT } from "../i18n";
 import { localizedName } from "../lib/i18nName";
 import {
   autoColumnsFromCatalog,
+  editorColumnsToPayload,
   newEditorKey,
   printVitrineMenu,
   savedToEditor,
@@ -209,18 +210,7 @@ export function VitrinePage() {
   const columns = editMode && draft !== null ? draft : displayColumns;
 
   const saveLayout = useMutation({
-    mutationFn: () =>
-      api.putVitrineLayout(sid, {
-        columns: (draft ?? []).map((col, colIdx) => ({
-          title: col.title.trim() || t("vitrine.newColumn"),
-          sort_order: colIdx,
-          header_style: col.header_style,
-          items: col.items.map((item, itemIdx) => ({
-            product_id: item.product_id,
-            sort_order: itemIdx,
-          })),
-        })),
-      }),
+    mutationFn: () => api.putVitrineLayout(sid, editorColumnsToPayload(draft ?? [], t("vitrine.newColumn"))),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["vitrine-layout", sid] });
       setEditMode(false);
