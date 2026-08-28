@@ -24,6 +24,24 @@ function fieldLabel(loc: unknown): string {
   return path ? t(path) : key;
 }
 
+type ApiErrorDetail = {
+  code?: string;
+  params?: Record<string, string | number>;
+  message?: string;
+};
+
+function translateApiCode(detail: ApiErrorDetail): string | null {
+  if (!detail.code) return null;
+  const key = `errors.api.${detail.code}`;
+  const vars = detail.params
+    ? Object.fromEntries(Object.entries(detail.params).map(([k, v]) => [k, String(v)]))
+    : undefined;
+  const translated = t(key, vars);
+  if (translated !== key) return translated;
+  if (detail.message) return detail.message;
+  return null;
+}
+
 export function formatApiError(detail: unknown, fallback?: string): string {
   const fb = fallback ?? t("errors.saveFailed");
   if (typeof detail === "string" && detail.trim()) {
@@ -35,6 +53,13 @@ export function formatApiError(detail: unknown, fallback?: string): string {
       }
     }
     return detail;
+  }
+  if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+    const coded = translateApiCode(detail as ApiErrorDetail);
+    if (coded) return coded;
+    const msg = (detail as ApiErrorDetail).message;
+    if (typeof msg === "string" && msg.trim()) return msg;
+    return fb;
   }
   if (Array.isArray(detail)) {
     const parts = detail.map((err) => {
@@ -54,6 +79,5 @@ export function formatApiError(detail: unknown, fallback?: string): string {
     const text = parts.filter(Boolean).join(". ");
     return text || fb;
   }
-  if (detail && typeof detail === "object") return fb;
   return fb;
 }
