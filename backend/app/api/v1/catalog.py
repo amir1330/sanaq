@@ -1,10 +1,11 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.api_errors import api_error
 from app.api.deps import get_current_user, roles
 from app.database import get_session
 from app.models import (
@@ -74,7 +75,7 @@ async def _assert_product_sku_free(
     if exclude_id is not None:
         q = q.where(Product.id != exclude_id)
     if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул уже занят: {sku}")
+        raise api_error(status.HTTP_409_CONFLICT, "sku_taken", sku=sku)
 
 
 async def _assert_product_barcode_free(
@@ -91,7 +92,7 @@ async def _assert_product_barcode_free(
     if exclude_id is not None:
         q = q.where(Product.id != exclude_id)
     if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод уже занят: {barcode}")
+        raise api_error(status.HTTP_409_CONFLICT, "barcode_taken", barcode=barcode)
     vq = (
         select(ProductVariant.id)
         .join(Product, Product.id == ProductVariant.product_id)
@@ -100,7 +101,7 @@ async def _assert_product_barcode_free(
     if exclude_variant_id is not None:
         vq = vq.where(ProductVariant.id != exclude_variant_id)
     if (await session.execute(vq.limit(1))).scalar_one_or_none() is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод уже занят: {barcode}")
+        raise api_error(status.HTTP_409_CONFLICT, "barcode_taken", barcode=barcode)
 
 
 def _ingredient_out(ing: ProductIngredient | ProductVariantIngredient) -> IngredientOut:
@@ -231,7 +232,7 @@ async def update_category(
     await assert_shop_access(session, user, shop_id, write=True)
     category = await session.get(Category, category_id)
     if category is None or category.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "category_not_found")
     if body.name is not None:
         category.name = body.name.strip()
     data = body.model_dump(exclude_unset=True)
@@ -260,7 +261,7 @@ async def delete_category(
     await assert_shop_access(session, user, shop_id, write=True)
     category = await session.get(Category, category_id)
     if category is None or category.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "category_not_found")
     await session.delete(category)
     await session.commit()
 
@@ -345,7 +346,7 @@ async def lookup_product(
     await assert_shop_access(session, user, shop_id)
     needle = code.strip()
     if not needle:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
 
     active = [Product.is_active.is_(True)] if user.role == UserRole.barista else []
     options = _product_load_options(with_ingredients=True)
@@ -384,7 +385,7 @@ async def lookup_product(
             v.is_default = v.id == variant.id
         return out
 
-    raise HTTPException(status.HTTP_404_NOT_FOUND, "Товар не найден")
+    raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
 
 
 @router.get("/shops/{shop_id}/products/{product_id}", response_model=ProductOut)
@@ -402,7 +403,7 @@ async def get_product(
     )
     product = result.scalar_one_or_none()
     if product is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     return _product_out(product, with_ingredients=True)
 
 
@@ -455,7 +456,7 @@ async def update_product(
     await assert_shop_access(session, user, shop_id, write=True)
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     changes = body.model_dump(exclude_unset=True)
     variants = changes.pop("variants", None)
     ingredients = changes.pop("ingredients", None)
@@ -480,7 +481,7 @@ async def update_product(
         await _replace_ingredients(session, shop_id, product, ingredients)
     if variants is not None:
         if product.is_service and variants:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "У услуги не бывает вариантов")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "service_no_variants")
         await _upsert_variants(session, shop_id, product, variants)
         if variants:
             await _replace_ingredients(session, shop_id, product, [])
@@ -499,7 +500,7 @@ async def upload_product_image(
     await assert_shop_access(session, user, shop_id, write=True)
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     product.image = await replace_upload(
         session,
         file,
@@ -523,7 +524,7 @@ async def delete_product_image(
     await assert_shop_access(session, user, shop_id, write=True)
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     await delete_upload(session, product.image)
     product.image = None
     await session.commit()
@@ -540,7 +541,7 @@ async def delete_product(
     await assert_shop_access(session, user, shop_id, write=True)
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     await delete_upload(session, product.image)
     await session.delete(product)
     await session.commit()
@@ -557,7 +558,7 @@ async def set_ingredients(
     await assert_shop_access(session, user, shop_id, write=True)
     product = await session.get(Product, product_id)
     if product is None or product.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Product not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "product_not_found")
     await _replace_ingredients(session, shop_id, product, body)
     await session.commit()
     return await _reload_product(session, product.id)
@@ -575,7 +576,7 @@ async def _replace_ingredients(
     for ing in ingredients:
         item = await session.get(StockItem, ing.stock_item_id)
         if item is None or item.shop_id != shop_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Stock item not in this shop")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "stock_item_not_in_shop")
         session.add(
             ProductIngredient(
                 product_id=product.id,
@@ -656,7 +657,7 @@ async def _upsert_variants(
         for ing in body.ingredients:
             item = await session.get(StockItem, ing.stock_item_id)
             if item is None or item.shop_id != shop_id:
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Stock item not in this shop")
+                raise api_error(status.HTTP_400_BAD_REQUEST, "stock_item_not_in_shop")
             session.add(
                 ProductVariantIngredient(
                     variant_id=variant.id,
@@ -746,7 +747,7 @@ async def public_vitrine_menu(
     """Public menu board for guests (no auth). Active products and saved layout only."""
     shop = await session.get(Shop, shop_id)
     if shop is None or not shop.is_active:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "shop_not_found")
 
     layout = await _load_vitrine_layout(session, shop_id)
     categories = (

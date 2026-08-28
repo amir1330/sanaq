@@ -6,6 +6,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.api_errors import api_error
 from app.api.deps import get_current_user, roles
 from app.database import get_session
 from app.models import (
@@ -75,7 +76,7 @@ async def _assert_stock_sku_free(
     if exclude_id is not None:
         q = q.where(StockItem.id != exclude_id)
     if (await session.execute(q.limit(1))).scalar_one_or_none() is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул уже занят: {sku}")
+        raise api_error(status.HTTP_409_CONFLICT, "sku_taken", sku=sku)
 
 
 def _item_out(
@@ -373,7 +374,7 @@ async def get_stock_item(
     await assert_shop_access(session, user, shop_id)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     last = await _last_income_map(session, shop_id, item_id)
     return await _item_out_full(
         session,
@@ -420,7 +421,7 @@ async def update_stock_item(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Stock item not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     changes = body.model_dump(exclude_unset=True)
     on_pos = changes.pop("on_pos", None)
     if "sku" in changes:
@@ -432,7 +433,7 @@ async def update_stock_item(
     if on_pos is True:
         linked = await _direct_sale_products(session, shop_id, [item.id])
         if not linked.get(item.id):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Сначала укажите цену продажи")
+            raise api_error(status.HTTP_409_CONFLICT, "sale_price_required")
         await _set_on_pos(session, item, True)
     elif on_pos is False:
         await _set_on_pos(session, item, False)
@@ -456,7 +457,7 @@ async def upload_stock_image(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     item.image = await replace_upload(
         session,
         file,
@@ -481,7 +482,7 @@ async def delete_stock_image(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     await delete_upload(session, item.image)
     item.image = None
     await session.commit()
@@ -499,7 +500,7 @@ async def delete_stock_item(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     await remove_stock_item(session, item, user)
     await session.commit()
 
@@ -515,11 +516,11 @@ async def make_product_from_stock(
     await assert_shop_access(session, user, shop_id, write=True)
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     if body.category_id is not None:
         category = await session.get(Category, body.category_id)
         if category is None or category.shop_id != shop_id:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Категория не найдена")
+            raise api_error(status.HTTP_404_NOT_FOUND, "category_not_found")
     item.is_ingredient = False
     linked = (await _direct_sale_products(session, shop_id, [item.id])).get(item.id, [])
     if linked:
@@ -591,15 +592,15 @@ async def create_movement(
 ):
     await assert_shop_access(session, user, shop_id, write=True)
     if not can_receive_stock(user):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Нет права на склад")
+        raise api_error(status.HTTP_403_FORBIDDEN, "stock_forbidden")
     await assert_no_open_revision(session, shop_id)
     if user.role == UserRole.barista and body.type != StockMovementType.income:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Кассир может только принять товар")
+        raise api_error(status.HTTP_403_FORBIDDEN, "barista_receive_only")
     if body.type not in (StockMovementType.income, StockMovementType.writeoff):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Так двигают только приход и списание")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "invalid_movement_type")
     item = await session.get(StockItem, item_id)
     if item is None or item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Stock item not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     movement = await apply_stock_movement(
         session,
         shop_id=shop_id,
@@ -632,9 +633,9 @@ async def regrade_item(
     from_item = await session.get(StockItem, item_id)
     to_item = await session.get(StockItem, body.to_item_id)
     if from_item is None or from_item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     if to_item is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Куда переложить — не найдено")
+        raise api_error(status.HTTP_404_NOT_FOUND, "regrade_target_not_found")
     outgoing, incoming = await regrade_stock(
         session,
         shop_id=shop_id,
@@ -670,9 +671,9 @@ async def transfer_item(
     from_item = await session.get(StockItem, item_id)
     to_item = await session.get(StockItem, body.to_item_id)
     if from_item is None or from_item.shop_id != shop_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Позиция не найдена")
+        raise api_error(status.HTTP_404_NOT_FOUND, "stock_item_not_found")
     if to_item is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "На той точке нет такой позиции")
+        raise api_error(status.HTTP_404_NOT_FOUND, "transfer_item_not_found")
     outgoing, incoming = await transfer_stock(
         session,
         from_shop=from_shop,

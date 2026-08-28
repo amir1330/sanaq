@@ -1,4 +1,6 @@
 from fastapi import HTTPException, status
+
+from app.core.api_errors import api_error
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,14 +27,14 @@ async def assert_shop_access(
 ) -> Shop:
     shop = await session.get(Shop, shop_id)
     if shop is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "shop_not_found")
     if user.role == UserRole.super_admin:
         return shop
     allowed = await owned_shop_ids(session, user)
     if shop_id not in allowed:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "No access to this shop")
+        raise api_error(status.HTTP_403_FORBIDDEN, "shop_forbidden")
     if write and not shop.is_active and user.role != UserRole.super_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Shop is disabled")
+        raise api_error(status.HTTP_403_FORBIDDEN, "shop_disabled")
     return shop
 
 
@@ -66,7 +68,7 @@ def can_apply_discount(user: User) -> bool:
 def require_roles(*roles: UserRole):
     async def checker(user: User) -> User:
         if user.role not in roles:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient role")
+            raise api_error(status.HTTP_403_FORBIDDEN, "insufficient_role")
         return user
 
     return checker

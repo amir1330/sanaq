@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.api_errors import api_error
 from app.api.deps import get_current_user, roles
 from app.database import get_session
 from app.models import (
@@ -96,7 +97,7 @@ async def _load_shift(session: AsyncSession, shift_id: int) -> Shift:
     )
     shift = result.scalar_one_or_none()
     if shift is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shift not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "shift_not_found")
     return shift
 
 
@@ -153,12 +154,12 @@ async def open_shift(
     register = await resolve_cash_register(session, body.shop_id, body.cash_register_id)
     existing = await get_open_shift(session, body.shop_id, register.id)
     if existing:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "На этой кассе смена уже открыта")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "shift_already_open")
     opener_id = user.id
     if body.barista_id and body.barista_id != user.id:
         crew = {member.id for member in await shop_crew(session, body.shop_id)}
         if body.barista_id not in crew:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Этого человека нет на точке")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "barista_not_on_shop")
         opener_id = body.barista_id
     shift = Shift(
         shop_id=body.shop_id,
@@ -194,7 +195,7 @@ async def close_shift(
     shift = await _load_shift(session, shift_id)
     await assert_shop_access(session, user, shift.shop_id, write=True)
     if shift.status != ShiftStatus.open:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Shift already closed")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "shift_already_closed")
     shop = await session.get(Shop, shift.shop_id)
     pending = [
         s
@@ -202,19 +203,20 @@ async def close_shift(
         if not s.is_refunded and s.fiscal_status in (FiscalStatus.pending, FiscalStatus.failed)
     ]
     if shop and shop_ready(shop) and pending and not body.force:
-        raise HTTPException(
+        raise api_error(
             status.HTTP_409_CONFLICT,
-            f"Нельзя закрыть смену: {len(pending)} чеков не ушли в Webkassa. "
-            "Подожди повтор или закрой принудительно.",
+            "shift_close_fiscal_pending",
+            count=len(pending),
         )
     if shop and shop_ready(shop):
         try:
             await send_z_report(session, shift)
         except Exception as exc:
             if not body.force:
-                raise HTTPException(
+                raise api_error(
                     status.HTTP_409_CONFLICT,
-                    f"Z-отчёт не ушёл в ОФД: {exc}. Смену можно закрыть принудительно.",
+                    "shift_close_z_report_failed",
+                    reason=str(exc),
                 ) from exc
     shift.status = ShiftStatus.closed
     shift.closing_cash = body.closing_cash
@@ -233,18 +235,19 @@ async def add_cash_movement(
 ):
     shift = await session.get(Shift, shift_id)
     if shift is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shift not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "shift_not_found")
     await assert_shop_access(session, user, shift.shop_id, write=True)
     if shift.status != ShiftStatus.open:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Смена уже закрыта — изъятие и внесение только пока открыта")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "shift_closed_no_cash_move")
     if body.type == CashMovementType.withdrawal:
         shift = await _load_shift(session, shift_id)
         totals = shift_totals(shift, shift.sales, shift.cash_movements)
         expected = Decimal(str(totals["expected_cash"]))
         if body.amount > expected:
-            raise HTTPException(
+            raise api_error(
                 status.HTTP_400_BAD_REQUEST,
-                f"В ящике сейчас {expected} ₸ — нельзя изъять больше",
+                "withdrawal_exceeds_cash",
+                amount=expected,
             )
     movement = ShiftCashMovement(
         shift_id=shift.id,

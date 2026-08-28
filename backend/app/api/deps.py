@@ -1,4 +1,6 @@
 from fastapi import Depends, HTTPException, status
+
+from app.core.api_errors import api_error
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from sqlalchemy import select
@@ -17,23 +19,23 @@ async def get_current_user(
     session: AsyncSession = Depends(get_session),
 ) -> User:
     if creds is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "not_authenticated")
     try:
         payload = decode_token(creds.credentials, "access")
         user_id = int(payload["sub"])
     except (InvalidTokenError, KeyError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_token")
 
     user = await session.get(User, user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User inactive")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "user_inactive")
     return user
 
 
 def roles(*allowed: UserRole):
     async def _inner(user: User = Depends(get_current_user)) -> User:
         if user.role not in allowed:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient role")
+            raise api_error(status.HTTP_403_FORBIDDEN, "insufficient_role")
         return user
 
     return _inner

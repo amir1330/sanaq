@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from jwt import InvalidTokenError
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.api_errors import api_error
 from app.api.deps import get_current_user, user_out_payload
 from app.core.security import (
     create_access_token,
@@ -44,7 +44,7 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active or not verify_secret(body.password, user.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный логин или пароль")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials")
     return await _tokens(session, user)
 
 
@@ -61,7 +61,7 @@ async def login_pin(body: PinLoginRequest, session: AsyncSession = Depends(get_s
     for user in result.scalars().all():
         if user.pin_code and verify_secret(body.pin_code, user.pin_code):
             return await _tokens(session, user)
-    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid PIN")
+    raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_pin")
 
 
 @router.post("/refresh", response_model=TokenPair)
@@ -70,10 +70,10 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_sess
         payload = decode_token(body.refresh_token, "refresh")
         user_id = int(payload["sub"])
     except (InvalidTokenError, KeyError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_refresh_token")
     user = await session.get(User, user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User inactive")
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "user_inactive")
     return await _tokens(session, user)
 
 
@@ -100,7 +100,7 @@ async def identify_pin(
                 can_receive_stock=candidate.role != UserRole.barista or bool(candidate.can_receive_stock),
                 can_apply_discount=candidate.role != UserRole.barista or bool(candidate.can_apply_discount),
             )
-    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Неверный PIN")
+    raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_pin")
 
 
 @router.get("/me", response_model=UserOut)

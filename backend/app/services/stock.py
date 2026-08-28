@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
+
+from app.core.api_errors import api_error
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,15 +45,17 @@ def pair_quantity(
     quantity_to: Decimal | None,
 ) -> Decimal:
     if quantity_from <= 0:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Количество должно быть больше нуля")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "quantity_must_be_positive")
     if quantity_to is not None:
         if quantity_to <= 0:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сколько получается — больше нуля")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "output_qty_must_be_positive")
         return quantity_to.quantize(Decimal("0.001"))
     if from_unit != to_unit:
-        raise HTTPException(
+        raise api_error(
             status.HTTP_400_BAD_REQUEST,
-            f"Единицы разные ({from_unit} и {to_unit}) — укажи сколько получается",
+            "regrade_units_mismatch",
+            from_unit=from_unit,
+            to_unit=to_unit,
         )
     return quantity_from.quantize(Decimal("0.001"))
 

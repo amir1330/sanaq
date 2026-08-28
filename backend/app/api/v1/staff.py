@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+
+from app.core.api_errors import api_error
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,7 +91,7 @@ async def create_staff(
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "Такая почта или телефон уже заняты")
+        raise api_error(status.HTTP_409_CONFLICT, "email_phone_taken")
     await session.refresh(barista)
     return _staff_out(barista)
 
@@ -105,7 +107,7 @@ async def update_staff(
     await assert_shop_access(session, user, shop_id, write=True)
     barista = await session.get(User, staff_id)
     if barista is None or barista.shop_id != shop_id or barista.role != UserRole.barista:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Barista not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "barista_not_found")
     data = body.model_dump(exclude_unset=True)
     if data.get("password"):
         barista.password_hash = hash_secret(data.pop("password"))
@@ -121,6 +123,6 @@ async def update_staff(
         await session.commit()
     except IntegrityError:
         await session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "Такая почта или телефон уже заняты")
+        raise api_error(status.HTTP_409_CONFLICT, "email_phone_taken")
     await session.refresh(barista)
     return _staff_out(barista)
