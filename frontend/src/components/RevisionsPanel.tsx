@@ -1,13 +1,12 @@
-import { useMemo, useRef, useState, useId } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useLocale, useT } from "../i18n";
 import { dateLocaleTag } from "../lib/i18nName";
-import { useFocusTrap } from "../lib/useFocusTrap";
 import { money, qty } from "../lib/utils";
 import type { StockRevision, StockRevisionLine } from "../types";
-import { Button, Empty, Field, Input, Select } from "./ui";
+import { Button, Dialog, Empty, Field, Input, Select } from "./ui";
 
 type Filter = "all" | "open" | "diff";
 
@@ -353,40 +352,35 @@ export function RevisionWorkspace({
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4">
-          <div className="w-full max-w-sm space-y-3 rounded-lg bg-paper p-7 shadow-soft">
-            {confirm === "post" ? (
-              <>
-                <h2 className="font-display text-2xl font-normal">{t("revisions.postAsk")}</h2>
-                <p className="text-sm text-mute">{t("revisions.postHint")}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => post.mutate(true)} disabled={post.isPending}>
-                    {t("revisions.postExcel")}
-                  </Button>
-                  <Button onClick={() => post.mutate(false)} disabled={post.isPending} variant="quiet">
-                    {t("revisions.postOnly")}
-                  </Button>
-                  <Button variant="ghost" onClick={() => setConfirm(null)}>
-                    {t("common.back")}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="font-display text-2xl font-normal">{t("revisions.cancelAsk")}</h2>
-                <p className="text-sm text-mute">{t("revisions.cancelHint")}</p>
-                <div className="flex gap-2">
-                  <Button variant="danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
-                    {t("revisions.cancelRev")}
-                  </Button>
-                  <Button variant="ghost" onClick={() => setConfirm(null)}>
-                    {t("common.back")}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <Dialog
+          open
+          title={confirm === "post" ? t("revisions.postAsk") : t("revisions.cancelAsk")}
+          hint={confirm === "post" ? t("revisions.postHint") : t("revisions.cancelHint")}
+          onClose={() => setConfirm(null)}
+        >
+          {confirm === "post" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => post.mutate(true)} disabled={post.isPending}>
+                {t("revisions.postExcel")}
+              </Button>
+              <Button onClick={() => post.mutate(false)} disabled={post.isPending} variant="quiet">
+                {t("revisions.postOnly")}
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirm(null)}>
+                {t("common.back")}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="danger" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+                {t("revisions.cancelRev")}
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirm(null)}>
+                {t("common.back")}
+              </Button>
+            </div>
+          )}
+        </Dialog>
       )}
     </div>
   );
@@ -402,65 +396,45 @@ function RevisionLinesDialog({
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const dateTag = dateLocaleTag(locale);
-  const titleId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef, onClose);
   return (
-    <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4" onClick={onClose} role="presentation">
-      <div
-        ref={dialogRef}
-        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-paper p-7 shadow-soft"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 id={titleId} className="font-display text-2xl font-normal">
-              {t("stock.revision")} #{revision.id}
-            </h2>
-            <p className="mt-1 text-sm text-mute">
-              {statusLabel(t, revision.status)} · {when(revision.created_at, dateTag)}
-              {revision.comment ? ` · ${revision.comment}` : ""}
-            </p>
-          </div>
-          <button type="button" className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint" onClick={onClose}>
-            {t("common.close")}
-          </button>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
-            <tr className="border-b border-ink/10 text-left">
-              <th className="py-2">{t("revisions.colItem")}</th>
-              <th>{t("revisions.colSystem")}</th>
-              <th>{t("revisions.colFact")}</th>
-              <th>Δ</th>
-              <th>{t("revisions.sum")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {revision.lines.map((line) => {
-              const diff = line.difference_quantity == null ? null : Number(line.difference_quantity);
-              return (
-                <tr key={line.id} className="border-b border-ink/5">
-                  <td className="py-2">{line.stock_item_name}</td>
-                  <td className="font-mono">{qty(line.expected_quantity, line.base_unit)}</td>
-                  <td className="font-mono">
-                    {line.counted_quantity == null ? "—" : qty(line.counted_quantity, line.base_unit)}
-                  </td>
-                  <td className={`font-mono ${diff != null && diff < 0 ? "text-alert" : ""}`}>
-                    {diff == null ? "—" : `${diff > 0 ? "+" : ""}${qty(diff, line.base_unit)}`}
-                  </td>
-                  <td className={`font-mono ${Number(line.value) < 0 ? "text-alert" : ""}`}>
-                    {line.value == null ? "—" : money(line.value)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Dialog
+      open
+      size="lg"
+      title={`${t("stock.revision")} #${revision.id}`}
+      hint={`${statusLabel(t, revision.status)} · ${when(revision.created_at, dateTag)}${revision.comment ? ` · ${revision.comment}` : ""}`}
+      onClose={onClose}
+    >
+      <table className="w-full text-sm">
+        <thead className="font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
+          <tr className="border-b border-ink/10 text-left">
+            <th className="py-2">{t("revisions.colItem")}</th>
+            <th>{t("revisions.colSystem")}</th>
+            <th>{t("revisions.colFact")}</th>
+            <th>Δ</th>
+            <th>{t("revisions.sum")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {revision.lines.map((line) => {
+            const diff = line.difference_quantity == null ? null : Number(line.difference_quantity);
+            return (
+              <tr key={line.id} className="border-b border-ink/5">
+                <td className="py-2">{line.stock_item_name}</td>
+                <td className="font-mono">{qty(line.expected_quantity, line.base_unit)}</td>
+                <td className="font-mono">
+                  {line.counted_quantity == null ? "—" : qty(line.counted_quantity, line.base_unit)}
+                </td>
+                <td className={`font-mono ${diff != null && diff < 0 ? "text-alert" : ""}`}>
+                  {diff == null ? "—" : `${diff > 0 ? "+" : ""}${qty(diff, line.base_unit)}`}
+                </td>
+                <td className={`font-mono ${Number(line.value) < 0 ? "text-alert" : ""}`}>
+                  {line.value == null ? "—" : money(line.value)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Dialog>
   );
 }
