@@ -136,29 +136,25 @@ export function Dialog({
   hint,
   onClose,
   children,
-  wide,
   dark,
-  size,
+  size = "md",
 }: {
   open: boolean;
   title: string;
   hint?: string;
   onClose: () => void;
   children: ReactNode;
-  /** @deprecated use size="lg" */
-  wide?: boolean;
   dark?: boolean;
   size?: "md" | "lg" | "xl";
 }) {
   if (!open) return null;
-  const resolvedSize = size ?? (wide ? "lg" : "md");
   return (
     <div
       className="fixed inset-0 z-40 grid place-items-center bg-roast/70 p-3 sm:p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="presentation"
     >
-      <DialogBody title={title} hint={hint} onClose={onClose} size={resolvedSize} dark={dark}>
+      <DialogBody title={title} hint={hint} onClose={onClose} size={size} dark={dark}>
         {children}
       </DialogBody>
     </div>

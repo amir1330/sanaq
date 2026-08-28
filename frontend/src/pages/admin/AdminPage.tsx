@@ -267,7 +267,7 @@ export function AdminPage() {
         onClose={() => setCreateOpen(false)}
         title={t("admin.newShopTitle")}
         hint={t("admin.newShopHint")}
-        wide
+        size="lg"
       >
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-3">

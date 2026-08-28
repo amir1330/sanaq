@@ -541,7 +541,7 @@ export function StockPage() {
       <Dialog
         open={importOpen}
         title={t("stock.importBtn")}
-        wide
+        size="lg"
         onClose={() => {
           setImportOpen(false);
           setImportRows(null);
