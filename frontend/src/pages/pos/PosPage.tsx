@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { SkipLink } from "../../components/SkipLink";
 import { ShopBrand } from "../../components/ShopBrand";
-import { Banner, Button, MoreMenu } from "../../components/ui";
+import { Banner, Button, Dialog, MoreMenu } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
 import { storageGetMigrated, storageSetMigrated, STORAGE_KEYS } from "../../lib/migratedStorage";
 import { cartTotals, lineGross, lineTotal, type Discount } from "../../lib/discount";
@@ -565,6 +565,55 @@ export function PosPage() {
   const scaleIdx = SCALES.indexOf(scale);
   const sellerName = seller?.name ?? user.full_name;
   const tillName = currentRegister?.name ?? t("pos.tillFallback");
+
+  function closePosPanel() {
+    if (refundTarget) {
+      setRefundTarget(null);
+      setRestoreStock(false);
+      return;
+    }
+    if (panel === "receipts") {
+      setFindReceiptId("");
+      setFindReceiptError(null);
+    }
+    setPanel("none");
+  }
+
+  const panelTitle =
+    panel === "open"
+      ? t("pos.openShiftTitle")
+      : panel === "close"
+        ? t("pos.closeShiftTitle")
+        : panel === "seller"
+          ? t("pos.sellerTitle")
+          : panel === "receipts" && refundTarget
+            ? t("pos.refundTitle", { id: refundTarget.id })
+            : panel === "receipts"
+              ? t("pos.receipts")
+              : panel === "move"
+                ? moveType === "withdrawal"
+                  ? t("pos.drawerOutTitle")
+                  : t("pos.drawerInTitle")
+                : "";
+
+  const panelHint =
+    panel === "open"
+      ? currentRegister
+        ? t("pos.openShiftHintTill", { name: currentRegister.name })
+        : t("pos.openShiftHint")
+      : panel === "close"
+        ? t("pos.closeShiftHint")
+        : panel === "seller"
+          ? t("pos.sellerHint")
+          : panel === "receipts" && refundTarget
+            ? `${money(refundTarget.total_amount)} · ${payLabel(refundTarget.payment_type)}. ${t("pos.refundAlwaysMoney")}`
+            : panel === "receipts"
+              ? t("pos.receiptsHint")
+              : panel === "move"
+                ? moveType === "withdrawal"
+                  ? t("pos.drawerOutHint")
+                  : t("pos.drawerInHint")
+                : undefined;
 
   const moreItems = [
     {
@@ -1235,17 +1284,16 @@ export function PosPage() {
       </div>
 
       {panel !== "none" && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-roast/70 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-paper p-7 text-ink shadow-soft">
+        <Dialog
+          open
+          title={panelTitle}
+          hint={panelHint}
+          onClose={closePosPanel}
+          size={panel === "receipts" && !refundTarget ? "lg" : "md"}
+        >
             {panel === "open" && (
               <>
-                <h2 className="font-display text-2xl font-normal">{t("pos.openShiftTitle")}</h2>
-                <p className="mt-2 text-sm text-ink-soft">
-                  {currentRegister
-                    ? t("pos.openShiftHintTill", { name: currentRegister.name })
-                    : t("pos.openShiftHint")}
-                </p>
-                <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                   {t("pos.cashInDrawer")}
                   <input
                     className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
@@ -1268,9 +1316,7 @@ export function PosPage() {
             )}
             {panel === "close" && (
               <>
-                <h2 className="font-display text-2xl font-normal">{t("pos.closeShiftTitle")}</h2>
-                <p className="mt-2 text-sm text-ink-soft">{t("pos.closeShiftHint")}</p>
-                <div className="mt-4 rounded-md bg-paper-2 px-4 py-3 text-sm">
+                <div className="rounded-md bg-paper-2 px-4 py-3 text-sm">
                   <div className="flex justify-between py-0.5">
                     <span className="text-ink-soft">{t("pos.closeStart")}</span>
                     <span className="font-mono">{money(shift.data?.opening_cash)}</span>
@@ -1342,9 +1388,7 @@ export function PosPage() {
             )}
             {panel === "seller" && (
               <>
-                <h2 className="font-display text-2xl font-normal">{t("pos.sellerTitle")}</h2>
-                <p className="mt-2 text-sm text-ink-soft">{t("pos.sellerHint")}</p>
-                <div className="mt-4">
+                <div>
                   {(crew.data ?? []).map((member) => (
                     <button
                       key={member.id}
@@ -1365,9 +1409,7 @@ export function PosPage() {
             )}
             {panel === "receipts" && !refundTarget && (
               <>
-                <h2 className="font-display text-2xl font-normal">{t("pos.receipts")}</h2>
-                <p className="mt-2 text-sm text-ink-soft">{t("pos.receiptsHint")}</p>
-                <div className="mt-4 rounded-md border border-line bg-paper-2 p-3">
+                <div className="rounded-md border border-line bg-paper-2 p-3">
                   <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
                     {t("pos.findReceipt")}
                   </p>
@@ -1445,13 +1487,7 @@ export function PosPage() {
             )}
             {panel === "receipts" && refundTarget && (
               <>
-                <h2 className="font-display text-2xl font-normal">
-                  {t("pos.refundTitle", { id: refundTarget.id })}
-                </h2>
-                <p className="mt-2 text-sm text-ink-soft">
-                  {money(refundTarget.total_amount)} · {payLabel(refundTarget.payment_type)}. {t("pos.refundAlwaysMoney")}
-                </p>
-                <fieldset className="mt-5 space-y-3">
+                <fieldset className="space-y-3">
                   <legend className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint">
                     {t("pos.refundAsk")}
                   </legend>
@@ -1510,13 +1546,7 @@ export function PosPage() {
             )}
             {panel === "move" && (
               <>
-                <h2 className="font-display text-2xl font-normal">
-                  {moveType === "withdrawal" ? t("pos.drawerOutTitle") : t("pos.drawerInTitle")}
-                </h2>
-                <p className="mt-2 text-sm text-ink-soft">
-                  {moveType === "withdrawal" ? t("pos.drawerOutHint") : t("pos.drawerInHint")}
-                </p>
-                <p className="mt-3 rounded-md bg-paper-2 px-3 py-2 font-mono text-[13px]">
+                <p className="rounded-md bg-paper-2 px-3 py-2 font-mono text-[13px]">
                   {t("pos.drawerNow", { n: money(shift.data?.expected_cash) })}
                 </p>
                 <div className="mt-4 flex gap-2">
@@ -1577,24 +1607,17 @@ export function PosPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
+        </Dialog>
       )}
       {receiveOpen && <ReceivePanel shopId={sid} onClose={() => setReceiveOpen(false)} />}
       {variantPick && (
-        <div
-          className="fixed inset-0 z-40 grid place-items-end bg-roast/50 p-0 sm:place-items-center sm:p-4"
-          onClick={() => setVariantPick(null)}
+        <Dialog
+          open
+          title={t("pos.pickVariant")}
+          hint={t("pos.pickVariantHint", { name: localizedName(variantPick, locale) })}
+          onClose={() => setVariantPick(null)}
         >
-          <div
-            className="w-full max-w-md space-y-3 rounded-t-lg bg-paper p-6 shadow-soft sm:rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="font-display text-2xl font-normal">{t("pos.pickVariant")}</h2>
-            <p className="text-sm text-mute">
-              {t("pos.pickVariantHint", { name: localizedName(variantPick, locale) })}
-            </p>
-            <div className="grid gap-2">
+          <div className="grid gap-2">
               {activeVariants(variantPick).map((v) => (
                 <button
                   key={v.id}
@@ -1607,11 +1630,10 @@ export function PosPage() {
                 </button>
               ))}
             </div>
-            <Button variant="ghost" onClick={() => setVariantPick(null)}>
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
+          <Button variant="ghost" onClick={() => setVariantPick(null)}>
+            {t("common.cancel")}
+          </Button>
+        </Dialog>
       )}
     </div>
   );
