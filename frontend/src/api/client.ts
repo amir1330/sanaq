@@ -190,10 +190,6 @@ export const api = {
     request<Product>(`/shops/${shopId}/products/lookup?code=${encodeURIComponent(code.trim())}`),
   createProduct: (shopId: number, body: object) =>
     request<Product>(`/shops/${shopId}/products`, { method: "POST", body: json(body) }),
-  createProductsBulk: (
-    shopId: number,
-    body: { category_id: number | null; items: { name: string; sale_price: string }[] },
-  ) => request<Product[]>(`/shops/${shopId}/products/bulk`, { method: "POST", body: json(body) }),
   patchProduct: (shopId: number, id: number, body: object) =>
     request<Product>(`/shops/${shopId}/products/${id}`, { method: "PATCH", body: json(body) }),
   deleteProduct: (shopId: number, id: number) =>

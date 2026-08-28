@@ -369,7 +369,6 @@ export type Messages = {
     title: string;
     hint: string;
     addOne: string;
-    addBulk: string;
     viewList: string;
     viewTiles: string;
     colName: string;
@@ -423,18 +422,6 @@ export type Messages = {
     ofdHint: string;
     vat: string;
     taxCode: string;
-    bulkTitle: string;
-    bulkHint: string;
-    bulkCategory: string;
-    bulkNoCategory: string;
-    bulkList: string;
-    bulkReady: string;
-    bulkErrors: string;
-    bulkCreate: string;
-    bulkCreating: string;
-    bulkErrNoPrice: string;
-    bulkErrNoName: string;
-    bulkErrPrice: string;
   };
   dashboard: {
     kicker: string;

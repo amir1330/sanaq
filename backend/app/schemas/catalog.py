@@ -94,16 +94,6 @@ class ProductCreate(BaseModel):
     variants: list[VariantIn] = Field(default_factory=list)
 
 
-class ProductBulkItem(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-    sale_price: Decimal = Field(gt=0)
-
-
-class ProductBulkCreate(BaseModel):
-    category_id: int | None = None
-    items: list[ProductBulkItem] = Field(min_length=1, max_length=200)
-
-
 class ProductUpdate(BaseModel):
     name: str | None = None
     name_kk: str | None = None

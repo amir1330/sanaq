@@ -657,7 +657,7 @@ export function StockItemPage() {
               value={makeCategoryId === "" ? "" : String(makeCategoryId)}
               onChange={(e) => setMakeCategoryId(e.target.value ? Number(e.target.value) : "")}
             >
-              <option value="">{t("products.bulkNoCategory")}</option>
+              <option value="">{t("products.noCategory")}</option>
               {(categories.data ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
