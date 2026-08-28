@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { Button, Dialog, Field, Input, PageTitle } from "../../components/ui";
+import { useCloseShiftMutation } from "../../hooks/useCloseShiftMutation";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { money, payLabel } from "../../lib/utils";
@@ -17,13 +18,10 @@ export function ShiftsPage() {
   const [closeId, setCloseId] = useState<number | null>(null);
   const [cashClose, setCashClose] = useState("");
 
-  const closeShift = useMutation({
-    mutationFn: (force: boolean) => api.closeShift(closeId!, Number(cashClose || 0), force),
-    onSuccess: () => {
-      setCloseId(null);
-      setCashClose("");
-      void qc.invalidateQueries({ queryKey: ["shifts", shopId] });
-    },
+  const closeShift = useCloseShiftMutation(closeId, cashClose, () => {
+    setCloseId(null);
+    setCashClose("");
+    void qc.invalidateQueries({ queryKey: ["shifts", shopId] });
   });
 
   return (

@@ -14,15 +14,15 @@ import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { money, payLabel } from "../../lib/utils";
 import { storageGetMigrated, storageSetMigrated, STORAGE_KEYS } from "../../lib/migratedStorage";
 import { usePosBarcodeScanner } from "../../hooks/usePosBarcodeScanner";
+import { useCloseShiftMutation } from "../../hooks/useCloseShiftMutation";
+import { activeVariants, productPriceLabel } from "../../lib/productVariants";
 import { useLocale, useT } from "../../i18n";
 import { useAuth } from "../../store/auth";
 import { SCALE_ZOOM, SCALES, useUiScale } from "../../store/uiScale";
 import type { CrewMember, Product, ProductVariant, ShiftSale } from "../../types";
 import {
-  activeVariants,
   linePrice,
   PRODUCT_PAGE,
-  productPriceLabel,
   type DiscountDraft,
   type Line,
   type MobileTab,
@@ -396,26 +396,23 @@ export function PosPage() {
       void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
     },
   });
-  const closeShift = useMutation({
-    mutationFn: (force: boolean) => api.closeShift(shift.data!.id, Number(cashClose || 0), force),
-    onSuccess: (s) => {
-      setPanel("none");
-      const z = s.z_report_number ? ` ${t("pos.zReport", { n: s.z_report_number })}` : "";
-      const diff = Number(s.cash_difference ?? 0);
-      setNotice({
-        tone: diff === 0 ? "ok" : "warn",
-        text:
-          (diff === 0
-            ? t("pos.shiftClosedOk", { cash: money(s.closing_cash) })
-            : t("pos.shiftClosedDiff", {
-                expected: money(s.expected_cash),
-                counted: money(s.closing_cash),
-                diff: money(s.cash_difference),
-              })) + z,
-      });
-      void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
-      void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
-    },
+  const closeShift = useCloseShiftMutation(shift.data?.id, cashClose, (s) => {
+    setPanel("none");
+    const z = s.z_report_number ? ` ${t("pos.zReport", { n: s.z_report_number })}` : "";
+    const diff = Number(s.cash_difference ?? 0);
+    setNotice({
+      tone: diff === 0 ? "ok" : "warn",
+      text:
+        (diff === 0
+          ? t("pos.shiftClosedOk", { cash: money(s.closing_cash) })
+          : t("pos.shiftClosedDiff", {
+              expected: money(s.expected_cash),
+              counted: money(s.closing_cash),
+              diff: money(s.cash_difference),
+            })) + z,
+    });
+    void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
+    void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
   });
   const refund = useMutation({
     mutationFn: (restore: boolean) => api.refundSale(sid, refundTarget!.id, restore),

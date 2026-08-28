@@ -3,7 +3,8 @@ import { Button, Dialog } from "../ui";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { money, payLabel } from "../../lib/utils";
 import type { Locale } from "../../i18n/types";
-import { activeVariants, type PosPanel } from "../../pages/pos/types";
+import { activeVariants } from "../../lib/productVariants";
+import type { PosPanel } from "../../pages/pos/types";
 import type { CrewMember, Product, ProductVariant, Shift, ShiftSale } from "../../types";
 
 export function PosShiftDialog({

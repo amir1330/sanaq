@@ -1,5 +1,4 @@
 import type { Discount } from "../../lib/discount";
-import { money } from "../../lib/utils";
 import type { Product, ProductVariant } from "../../types";
 
 export type Line = {
@@ -21,20 +20,6 @@ export function lineKey(productId: number, variantId: number | null | undefined)
 
 export function linePrice(line: Line): string {
   return line.variant?.sale_price ?? line.product.sale_price;
-}
-
-export function activeVariants(product: Product): ProductVariant[] {
-  return (product.variants ?? []).filter((v) => v.is_active);
-}
-
-export function productPriceLabel(product: Product): string {
-  const vs = activeVariants(product);
-  if (vs.length === 0) return money(product.sale_price);
-  if (vs.length === 1) return money(vs[0].sale_price);
-  const prices = vs.map((v) => Number(v.sale_price));
-  const lo = Math.min(...prices);
-  const hi = Math.max(...prices);
-  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
 }
 
 export const PRODUCT_PAGE = 60;

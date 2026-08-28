@@ -1,4 +1,5 @@
 import { localizedName } from "./i18nName";
+import { activeVariants } from "./productVariants";
 import type { Locale } from "../i18n/types";
 import type { Category, Product, VitrineColumn } from "../types";
 
@@ -21,9 +22,7 @@ export function newEditorKey() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function activeVariants(product: Product) {
-  return (product.variants ?? []).filter((v) => v.is_active);
-}
+export { activeVariants } from "./productVariants";
 
 export function hasVariantPrices(product: Product) {
   return activeVariants(product).length > 0;
