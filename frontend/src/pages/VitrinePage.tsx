@@ -21,6 +21,7 @@ import { homePath, useAuth } from "../store/auth";
 import type { Product, Shop } from "../types";
 
 const PAGE = 100;
+// Public guest vitrine defaults to one shop (env or id 1). Pass ?shop=<id> for another branch menu.
 const DEFAULT_SHOP_ID = Number(import.meta.env.VITE_DEFAULT_SHOP_ID || 1);
 
 function ProductPicker({
@@ -125,6 +126,7 @@ export function VitrinePage() {
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<EditorColumn[] | null>(null);
   const [pickColumnKey, setPickColumnKey] = useState<string | null>(null);
+  const [fillConfirmOpen, setFillConfirmOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -237,7 +239,6 @@ export function VitrinePage() {
   }
 
   function fillFromCatalog() {
-    if (!window.confirm(t("vitrine.fillConfirm"))) return;
     setDraft(
       autoColumnsFromCatalog(allProducts, categories.data ?? [], otherLabel, locale).map((col) => ({
         ...col,
@@ -245,6 +246,7 @@ export function VitrinePage() {
         items: col.items.map((item) => ({ ...item, key: newEditorKey() })),
       })),
     );
+    setFillConfirmOpen(false);
   }
 
   function addProductToColumn(colKey: string, product: Product) {
@@ -299,7 +301,12 @@ export function VitrinePage() {
               <p className="mt-0.5 text-sm text-mute">{t("vitrine.livePreview")}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="quiet" onClick={fillFromCatalog}>
+              {saveLayout.isError && (
+                <p role="alert" className="w-full text-sm text-alert">
+                  {t("errors.saveFailed")}: {(saveLayout.error as Error).message}
+                </p>
+              )}
+              <Button type="button" variant="quiet" onClick={() => setFillConfirmOpen(true)}>
                 {t("vitrine.fillFromCatalog")}
               </Button>
               <Button type="button" variant="ghost" onClick={cancelEdit}>
@@ -363,6 +370,18 @@ export function VitrinePage() {
         }}
         existingProductIds={pickExistingIds}
       />
+
+      <Dialog open={fillConfirmOpen} title={t("vitrine.fillFromCatalog")} onClose={() => setFillConfirmOpen(false)}>
+        <p className="text-sm text-mute">{t("vitrine.fillConfirm")}</p>
+        <div className="flex gap-2">
+          <Button variant="danger" onClick={fillFromCatalog}>
+            {t("common.yes")}
+          </Button>
+          <Button variant="ghost" onClick={() => setFillConfirmOpen(false)}>
+            {t("common.cancel")}
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }
