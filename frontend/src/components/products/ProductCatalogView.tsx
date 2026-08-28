@@ -187,7 +187,11 @@ export function ProductCatalogView({
                         <td className="px-5 py-3.5">
                           <div className="flex min-w-0 items-center gap-3">
                             {src ? (
-                              <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+                              <img
+                                src={src}
+                                alt={localizedName(p, locale)}
+                                className="h-10 w-10 shrink-0 rounded-md object-cover"
+                              />
                             ) : (
                               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-paper font-mono text-[8px] uppercase tracking-wide text-mute">
                                 —
@@ -232,7 +236,11 @@ export function ProductCatalogView({
                     }`}
                   >
                     {src ? (
-                      <img src={src} alt="" className="h-40 w-full object-cover" />
+                      <img
+                        src={src}
+                        alt={localizedName(p, locale)}
+                        className="h-40 w-full object-cover"
+                      />
                     ) : (
                       <div className="grid h-40 place-items-center bg-paper text-sm text-mute">{t("products.noPhoto")}</div>
                     )}

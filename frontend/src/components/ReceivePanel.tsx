@@ -130,7 +130,9 @@ export function ReceivePanel({
           {t("common.total")} {money(total)}
         </p>
       )}
-      {apply.isError && <p className="text-sm text-alert">{(apply.error as Error).message}</p>}
+      {apply.isError && (
+        <p role="alert" className="text-sm text-alert">{(apply.error as Error).message}</p>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button disabled={!ready || apply.isPending} onClick={() => apply.mutate()}>
           {t("receive.post")}

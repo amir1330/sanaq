@@ -203,7 +203,9 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
               </div>
             </Card>
           </div>
-          {error && <p className="text-sm text-rust">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-rust">{error}</p>
+          )}
         </div>
       )}
 
@@ -349,7 +351,9 @@ function CashRegistersCard({ shopId }: { shopId: number }) {
             {t("settings.tillAdd")}
           </Button>
         </div>
-        {error && <p className="text-sm text-rust">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-rust">{error}</p>
+        )}
       </Card>
     </div>
   );
@@ -476,7 +480,9 @@ function BranchesCard({ shopId, shops }: { shopId: number; shops: Shop[] }) {
               </Check>
             </div>
           </div>
-          {add.isError && <p className="text-sm text-alert">{(add.error as Error).message}</p>}
+          {add.isError && (
+            <p role="alert" className="text-sm text-alert">{(add.error as Error).message}</p>
+          )}
           <Button disabled={!form.name.trim() || add.isPending} onClick={() => add.mutate()}>
             {t("settings.createBranch")}
           </Button>
@@ -580,7 +586,9 @@ function WebkassaCard({
         <Check checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })}>
           {t("settings.wkEnabled")}
         </Check>
-        {save.isError && <p className="text-sm text-alert">{(save.error as Error).message}</p>}
+        {save.isError && (
+          <p role="alert" className="text-sm text-alert">{(save.error as Error).message}</p>
+        )}
         {testMsg && <p className="text-sm text-mute">{testMsg}</p>}
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => save.mutate()} disabled={save.isPending}>

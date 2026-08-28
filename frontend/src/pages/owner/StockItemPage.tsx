@@ -394,7 +394,9 @@ export function StockItemPage() {
               placeholder={t("stock.writeoffPh")}
             />
           </div>
-          {applyWriteoff.isError && <p className="text-sm text-alert">{(applyWriteoff.error as Error).message}</p>}
+          {applyWriteoff.isError && (
+            <p role="alert" className="text-sm text-alert">{(applyWriteoff.error as Error).message}</p>
+          )}
           <div className="flex gap-2">
             <Button onClick={() => applyWriteoff.mutate()} disabled={!writeoff.qty || applyWriteoff.isPending}>
               {t("stock.writeoff")}
@@ -461,7 +463,9 @@ export function StockItemPage() {
               placeholder={t("common.optional")}
             />
           </Field>
-          {applyRegrade.isError && <p className="text-sm text-alert">{(applyRegrade.error as Error).message}</p>}
+          {applyRegrade.isError && (
+            <p role="alert" className="text-sm text-alert">{(applyRegrade.error as Error).message}</p>
+          )}
           <div className="flex gap-2">
             <Button
               onClick={() => applyRegrade.mutate()}
@@ -547,7 +551,9 @@ export function StockItemPage() {
               />
             </Field>
           )}
-          {applyTransfer.isError && <p className="text-sm text-alert">{(applyTransfer.error as Error).message}</p>}
+          {applyTransfer.isError && (
+            <p role="alert" className="text-sm text-alert">{(applyTransfer.error as Error).message}</p>
+          )}
           <div className="flex gap-2">
             <Button
               onClick={() => applyTransfer.mutate()}
@@ -629,7 +635,9 @@ export function StockItemPage() {
               inputMode="decimal"
             />
           </Field>
-          {saveEdit.isError && <p className="text-sm text-alert">{(saveEdit.error as Error).message}</p>}
+          {saveEdit.isError && (
+            <p role="alert" className="text-sm text-alert">{(saveEdit.error as Error).message}</p>
+          )}
           <div className="flex gap-2">
             <Button onClick={() => saveEdit.mutate()} disabled={!edit.name || saveEdit.isPending}>
               {t("common.save")}
@@ -666,7 +674,7 @@ export function StockItemPage() {
             </Select>
           </Field>
           {makeProduct.isError && (
-            <p className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
+            <p role="alert" className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
           )}
           <div className="flex gap-2">
             <Button
@@ -686,9 +694,11 @@ export function StockItemPage() {
         <Dialog open title={t("stock.deleteTitle", { name: item.name })} onClose={() => setPanel(null)}>
           <p className="text-sm text-mute">{t("stock.deleteHint")}</p>
           {Number(item.quantity) > 0 && (
-            <p className="text-sm text-alert">{t("stock.deleteQty", { qty: stockBalance(item) })}</p>
+            <p role="alert" className="text-sm text-alert">{t("stock.deleteQty", { qty: stockBalance(item) })}</p>
           )}
-          {drop.isError && <p className="text-sm text-alert">{(drop.error as Error).message}</p>}
+          {drop.isError && (
+            <p role="alert" className="text-sm text-alert">{(drop.error as Error).message}</p>
+          )}
           <div className="flex gap-2">
             <Button variant="danger" onClick={() => drop.mutate()} disabled={drop.isPending}>
               {t("common.delete")}

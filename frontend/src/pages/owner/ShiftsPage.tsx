@@ -27,8 +27,8 @@ export function ShiftsPage() {
   return (
     <div>
       <PageTitle kicker={t("shifts.kicker")} title={t("shifts.title")} hint={t("shifts.hint")} />
-      <div className="border border-line">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto border border-line">
+        <table className="w-full min-w-[960px] text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-mute">
             <tr className="border-b border-line text-left">
               <th className="px-4 py-3">{t("shifts.colWhen")}</th>
@@ -101,7 +101,7 @@ export function ShiftsPage() {
             />
           </Field>
           {closeShift.isError && (
-            <p className="text-sm text-rust">{(closeShift.error as Error).message}</p>
+            <p role="alert" className="text-sm text-rust">{(closeShift.error as Error).message}</p>
           )}
           <div className="flex flex-wrap gap-2">
             <Button className="flex-1" onClick={() => closeShift.mutate(false)}>

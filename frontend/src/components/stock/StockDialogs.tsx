@@ -58,7 +58,7 @@ export function StockMakeProductDialog({
           </Select>
         </Field>
         {makeProduct.isError && (
-          <p className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
+          <p role="alert" className="text-sm text-alert">{(makeProduct.error as Error).message}</p>
         )}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -129,7 +129,7 @@ export function StockImportDialog({
           />
         </div>
         {previewImport.isError && (
-          <p className="text-sm text-alert">{(previewImport.error as Error).message}</p>
+          <p role="alert" className="text-sm text-alert">{(previewImport.error as Error).message}</p>
         )}
         {importRows && (
           <>
@@ -167,7 +167,7 @@ export function StockImportDialog({
               </table>
             </div>
             {confirmImport.isError && (
-              <p className="text-sm text-alert">{(confirmImport.error as Error).message}</p>
+              <p role="alert" className="text-sm text-alert">{(confirmImport.error as Error).message}</p>
             )}
             <div className="flex flex-wrap gap-2">
               <Button

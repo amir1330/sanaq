@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { ShopBrand } from "../components/ShopBrand";
+import { SkipLink } from "../components/SkipLink";
 import { VitrineMenuGrid } from "../components/vitrine/VitrineMenuGrid";
 import { Button, Dialog, Input, MoreMenu } from "../components/ui";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
@@ -291,6 +292,7 @@ export function VitrinePage() {
 
   return (
     <div ref={rootRef} className="vitrine-page flex min-h-screen flex-col bg-paper text-ink">
+      <SkipLink />
       {editMode && (
         <div className="vitrine-chrome sticky top-0 z-30 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-sm md:px-8">
           <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3">
@@ -333,7 +335,7 @@ export function VitrinePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 md:px-8 print:px-6">
+      <main id="main-content" className="mx-auto w-full max-w-[1400px] flex-1 px-4 md:px-8 print:px-6">
         <VitrineMenuGrid
           columns={columns}
           editMode={editMode}

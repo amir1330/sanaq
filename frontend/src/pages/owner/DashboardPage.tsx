@@ -196,8 +196,8 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-lg bg-cream shadow-soft">
-        <table className="w-full text-[13px]">
+      <div className="overflow-x-auto rounded-lg bg-cream shadow-soft">
+        <table className="w-full min-w-[640px] text-[13px]">
           <thead>
             <tr className="border-b border-line text-left font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-faint">
               <th className="px-6 py-3.5">{t("dashboard.colProduct")}</th>
@@ -232,12 +232,12 @@ export function DashboardPage() {
       </div>
 
       {(fiscal.data ?? []).length > 0 && (
-        <div className="mt-4 overflow-hidden rounded-lg bg-cream shadow-soft">
+        <div className="mt-4 overflow-x-auto rounded-lg bg-cream shadow-soft">
           <div className="px-6 py-3">
             <h4 className="font-display text-[17px] font-normal">{t("dashboard.fiscalTitle")}</h4>
             <p className="text-sm text-mute">{t("dashboard.fiscalHint")}</p>
           </div>
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[720px] text-[13px]">
             <thead>
               <tr className="border-b border-line text-left font-mono text-[10px] uppercase tracking-[0.06em] text-faint">
                 <th className="px-6 py-3">{t("dashboard.colWhen")}</th>

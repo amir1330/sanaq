@@ -161,7 +161,7 @@ export function ProductEditorForm({
           </button>
         )}
         {addCat.isError && (
-          <p className="text-sm text-alert">{(addCat.error as Error).message}</p>
+          <p role="alert" className="text-sm text-alert">{(addCat.error as Error).message}</p>
         )}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -280,7 +280,9 @@ export function ProductEditorForm({
           </Field>
         </div>
       </details>
-      {save.isError && <p className="text-[15px] text-alert">{(save.error as Error).message}</p>}
+      {save.isError && (
+        <p role="alert" className="text-[15px] text-alert">{(save.error as Error).message}</p>
+      )}
       <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-line bg-paper pt-5">
         <Button type="submit" size="lg" className="min-w-36" disabled={save.isPending}>
           {save.isPending ? t("common.saving") : t("common.save")}

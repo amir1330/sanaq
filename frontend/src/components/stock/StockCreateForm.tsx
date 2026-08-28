@@ -159,7 +159,11 @@ export function StockCreateForm({
           {t("common.cancel")}
         </Button>
       </div>
-      {saveError && <p className="text-sm text-alert md:col-span-3">{saveError.message}</p>}
+      {saveError && (
+        <p role="alert" className="text-sm text-alert md:col-span-3">
+          {saveError.message}
+        </p>
+      )}
     </div>
   );
 }
