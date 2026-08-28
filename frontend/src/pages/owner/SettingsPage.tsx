@@ -24,7 +24,6 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
     name: "",
     address: "",
     timezone: "Asia/Almaty",
-    business_type: "cafe",
   });
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -34,7 +33,6 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
       name: shop.name,
       address: shop.address ?? "",
       timezone: shop.timezone,
-      business_type: shop.business_type || "cafe",
     });
     setPreview(null);
   }, [shop]);
@@ -49,7 +47,6 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
         name: form.name.trim(),
         address: form.address.trim() || undefined,
         timezone: form.timezone,
-        business_type: form.business_type,
       }),
     onSuccess: refreshShops,
   });
@@ -151,16 +148,6 @@ export function SettingsPage({ section = "branch" }: { section?: SettingsSection
                         {z}
                       </option>
                     ))}
-                  </Select>
-                </Field>
-                <Field label={t("settings.businessType")} hint={t("settings.businessTypeHint")}>
-                  <Select
-                    value={form.business_type}
-                    onChange={(e) => setForm({ ...form, business_type: e.target.value })}
-                  >
-                    <option value="cafe">{t("settings.bizCafe")}</option>
-                    <option value="retail">{t("settings.bizRetail")}</option>
-                    <option value="bakery">{t("settings.bizBakery")}</option>
                   </Select>
                 </Field>
               </div>

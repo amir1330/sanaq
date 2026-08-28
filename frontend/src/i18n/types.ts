@@ -200,11 +200,6 @@ export type Messages = {
     address: string;
     addressPh: string;
     timezone: string;
-    businessType: string;
-    businessTypeHint: string;
-    bizCafe: string;
-    bizRetail: string;
-    bizBakery: string;
     saved: string;
     logo: string;
     logoHint: string;
