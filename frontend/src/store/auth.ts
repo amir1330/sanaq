@@ -1,7 +1,9 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { useEffect, useState } from "react";
 import type { User } from "../types";
+import { createMigratedPersistStorage } from "../lib/persistStorage";
+import { STORAGE_KEYS } from "../lib/migratedStorage";
 
 type AuthState = {
   accessToken: string | null;
@@ -28,7 +30,7 @@ export const useAuth = create<AuthState>()(
       logout: () =>
         set({ accessToken: null, refreshToken: null, user: null, shopId: null }),
     }),
-    { name: "coffeeos-auth" },
+    { name: STORAGE_KEYS.auth.current, storage: createJSONStorage(() => createMigratedPersistStorage(STORAGE_KEYS.auth.legacy)) },
   ),
 );
 

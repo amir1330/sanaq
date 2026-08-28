@@ -7,9 +7,14 @@
     <script>
       (function () {
         try {
-          var t = localStorage.getItem("coffeeos-theme");
+          var t = localStorage.getItem("sanaq-theme");
           if (t !== "dark" && t !== "light") {
-            t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            t = localStorage.getItem("coffeeos-theme");
+            if (t === "dark" || t === "light") {
+              try { localStorage.setItem("sanaq-theme", t); localStorage.removeItem("coffeeos-theme"); } catch (e) {}
+            } else {
+              t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            }
           }
           document.documentElement.classList.toggle("dark", t === "dark");
           document.documentElement.dataset.theme = t;

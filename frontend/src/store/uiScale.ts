@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { storageGet, storageSet } from "../lib/storage";
+import { storageGetMigrated, storageSetMigrated, STORAGE_KEYS } from "../lib/migratedStorage";
 
 export type UiScale = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
 
 export const SCALES: UiScale[] = ["sm", "md", "lg", "xl", "2xl", "3xl", "4xl"];
 
-const KEY = "coffeeos-ui-scale";
+const KEY = STORAGE_KEYS.uiScale.current;
+const LEGACY_KEY = STORAGE_KEYS.uiScale.legacy;
 
 /** CSS zoom factors for POS (MVP — fixed px text classes don't follow html font-size). */
 export const SCALE_ZOOM: Record<UiScale, number> = {
@@ -19,7 +20,7 @@ export const SCALE_ZOOM: Record<UiScale, number> = {
 };
 
 function readScale(): UiScale {
-  const saved = storageGet(KEY);
+  const saved = storageGetMigrated(KEY, LEGACY_KEY);
   if (saved && (SCALES as string[]).includes(saved)) return saved as UiScale;
   return "md";
 }
@@ -32,7 +33,7 @@ type UiScaleState = {
 export const useUiScale = create<UiScaleState>((set) => ({
   scale: readScale(),
   setScale: (scale) => {
-    storageSet(KEY, scale);
+    storageSetMigrated(KEY, LEGACY_KEY, scale);
     set({ scale });
   },
 }));

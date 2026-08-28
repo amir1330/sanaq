@@ -7,7 +7,7 @@ import { SkipLink } from "../../components/SkipLink";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button, MoreMenu } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
-import { storageGet, storageSet } from "../../lib/storage";
+import { storageGetMigrated, storageSetMigrated, STORAGE_KEYS } from "../../lib/migratedStorage";
 import { cartTotals, lineGross, lineTotal, type Discount } from "../../lib/discount";
 import { dateLocaleTag, localizedName } from "../../lib/i18nName";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
@@ -197,7 +197,7 @@ export function PosPage() {
       setSeller({ id: user.id, name: user.full_name });
       return;
     }
-    const raw = storageGet(`coffeeos-seller-${sid}`);
+    const raw = storageGetMigrated(STORAGE_KEYS.seller(sid).current, STORAGE_KEYS.seller(sid).legacy);
     if (raw) {
       try {
         setSeller(JSON.parse(raw) as { id: number; name: string });
@@ -212,7 +212,7 @@ export function PosPage() {
   useEffect(() => {
     const list = registers.data;
     if (!list?.length) return;
-    const raw = storageGet(`coffeeos-register-${sid}`);
+    const raw = storageGetMigrated(STORAGE_KEYS.register(sid).current, STORAGE_KEYS.register(sid).legacy);
     const saved = raw ? Number(raw) : NaN;
     if (Number.isFinite(saved) && list.some((r) => r.id === saved)) {
       setRegisterId(saved);
@@ -223,7 +223,7 @@ export function PosPage() {
 
   function pickRegister(id: number) {
     setRegisterId(id);
-    storageSet(`coffeeos-register-${sid}`, String(id));
+    storageSetMigrated(STORAGE_KEYS.register(sid).current, STORAGE_KEYS.register(sid).legacy, String(id));
     setCart([]);
     setPanel("none");
   }
@@ -231,7 +231,7 @@ export function PosPage() {
   function pickSeller(next: { id: number; name: string }) {
     setSeller(next);
     if (user?.role !== "barista") {
-      storageSet(`coffeeos-seller-${sid}`, JSON.stringify(next));
+      storageSetMigrated(STORAGE_KEYS.seller(sid).current, STORAGE_KEYS.seller(sid).legacy, JSON.stringify(next));
     }
     setPanel("none");
   }

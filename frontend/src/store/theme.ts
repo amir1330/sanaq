@@ -1,10 +1,11 @@
 import { create } from "zustand";
-import { storageGet, storageSet } from "../lib/storage";
+import { storageGetMigrated, storageSetMigrated, STORAGE_KEYS } from "../lib/migratedStorage";
 
 export type Theme = "light" | "dark";
 export type ThemePreference = "auto" | Theme;
 
-const KEY = "coffeeos-theme";
+const KEY = STORAGE_KEYS.theme.current;
+const LEGACY_KEY = STORAGE_KEYS.theme.legacy;
 
 function systemTheme(): Theme {
   if (typeof window === "undefined") return "light";
@@ -13,7 +14,7 @@ function systemTheme(): Theme {
 
 function readPreference(): ThemePreference {
   if (typeof window === "undefined") return "auto";
-  const saved = storageGet(KEY);
+  const saved = storageGetMigrated(KEY, LEGACY_KEY);
   if (saved === "dark" || saved === "light" || saved === "auto") return saved;
   return "auto";
 }
@@ -46,7 +47,7 @@ type ThemeState = {
 export const useTheme = create<ThemeState>((set) => ({
   preference: readPreference(),
   setPreference: (preference) => {
-    storageSet(KEY, preference);
+    storageSetMigrated(KEY, LEGACY_KEY, preference);
     applyTheme(resolveTheme(preference));
     set({ preference });
   },
