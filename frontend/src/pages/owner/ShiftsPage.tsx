@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
-import { Button, PageTitle } from "../../components/ui";
+import { Button, Dialog, Field, Input, PageTitle } from "../../components/ui";
 import { useLocale, useT } from "../../i18n";
 import { dateLocaleTag } from "../../lib/i18nName";
 import { money, payLabel } from "../../lib/utils";
@@ -92,36 +92,33 @@ export function ShiftsPage() {
         </table>
       </div>
       {closeId !== null && (
-        <div className="fixed inset-0 z-30 grid place-items-center bg-ink/50 p-4">
-          <div className="w-full max-w-sm border border-line bg-paper p-7">
-            <h2 className="font-display text-2xl font-normal">{t("shifts.closeTitle")}</h2>
-            <p className="mt-2 text-sm text-mute">{t("shifts.closeHint")}</p>
-            <input
-              className="mt-4 w-full border border-line px-3 py-2"
+        <Dialog open title={t("shifts.closeTitle")} hint={t("shifts.closeHint")} onClose={() => setCloseId(null)}>
+          <Field label={t("shifts.colCounted")}>
+            <Input
               value={cashClose}
               onChange={(e) => setCashClose(e.target.value)}
               placeholder="0"
               inputMode="decimal"
               autoFocus
             />
+          </Field>
+          {closeShift.isError && (
+            <p className="text-sm text-rust">{(closeShift.error as Error).message}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button className="flex-1" onClick={() => closeShift.mutate(false)}>
+              {t("shifts.close")}
+            </Button>
+            <Button variant="ghost" onClick={() => setCloseId(null)}>
+              {t("common.back")}
+            </Button>
             {closeShift.isError && (
-              <p className="mt-2 text-sm text-rust">{(closeShift.error as Error).message}</p>
+              <Button variant="danger" onClick={() => closeShift.mutate(true)}>
+                {t("shifts.closeAnyway")}
+              </Button>
             )}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button className="flex-1" onClick={() => closeShift.mutate(false)}>
-                {t("shifts.close")}
-              </Button>
-              <Button variant="ghost" onClick={() => setCloseId(null)}>
-                {t("common.back")}
-              </Button>
-              {closeShift.isError && (
-                <Button variant="danger" onClick={() => closeShift.mutate(true)}>
-                  {t("shifts.closeAnyway")}
-                </Button>
-              )}
-            </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );
