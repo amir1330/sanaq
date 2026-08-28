@@ -30,6 +30,7 @@ export default {
         "cream-soft": "rgb(var(--cream-soft) / <alpha-value>)",
         navy: "rgb(var(--navy) / <alpha-value>)",
         gold: "rgb(var(--sun) / <alpha-value>)",
+        accent: "rgb(var(--accent-text) / <alpha-value>)",
         turq: "rgb(var(--sky) / <alpha-value>)",
         crema: "rgb(var(--sun) / <alpha-value>)",
         rust: "rgb(var(--alert) / <alpha-value>)",

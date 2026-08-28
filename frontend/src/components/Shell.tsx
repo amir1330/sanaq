@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import { Brand } from "./Mark";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { ShopBrand } from "./ShopBrand";
+import { SkipLink } from "./SkipLink";
 
 type NavItem = { to: string; label: string; icon: NavIconName; end?: boolean; primary?: boolean };
 type NavGroup = { id: string; label: string; items: NavItem[] };
@@ -167,6 +168,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
 
   return (
     <div className="min-h-screen bg-paper md:flex">
+      <SkipLink />
       <aside className="hidden w-rail shrink-0 flex-col border-r border-line bg-paper-2 md:fixed md:inset-y-0 md:left-0 md:flex">
         <div className="border-b border-line px-5 py-5">
           <button
@@ -247,7 +249,7 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col md:ml-rail">
-        <main className="page-enter mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 pb-24 sm:px-8 md:py-8 md:pb-10">
+        <main id="main-content" className="page-enter mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 pb-24 sm:px-8 md:py-8 md:pb-10">
           <Outlet />
         </main>
 

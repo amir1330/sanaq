@@ -41,6 +41,7 @@ const en: Messages = {
     sessionLoading: "Loading session…",
     sessionExpired: "Session expired",
     menu: "Menu",
+    skipToContent: "Skip to main content",
   },
   nav: {
     reports: "Reports",
@@ -491,6 +492,7 @@ const en: Messages = {
     headerNone: "Plain",
     pickProduct: "Add product",
     deleteColumn: "Delete column",
+    columnTitle: "Column title",
   },
   expenses: {
     kicker: "Money",

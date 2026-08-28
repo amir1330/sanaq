@@ -41,6 +41,7 @@ const kk: Messages = {
     sessionLoading: "Сессия жүктелуде…",
     sessionExpired: "Сессия аяқталды",
     menu: "Мәзір",
+    skipToContent: "Негізгі мазмұнға өту",
   },
   nav: {
     reports: "Есептер",
@@ -491,6 +492,7 @@ const kk: Messages = {
     headerNone: "Декорсыз",
     pickProduct: "Тауар қосу",
     deleteColumn: "Бағанды жою",
+    columnTitle: "Баған атауы",
   },
   expenses: {
     kicker: "Ақша",

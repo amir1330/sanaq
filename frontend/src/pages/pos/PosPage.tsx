@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { ReceivePanel } from "../../components/ReceivePanel";
+import { SkipLink } from "../../components/SkipLink";
 import { ShopBrand } from "../../components/ShopBrand";
 import { Banner, Button, MoreMenu } from "../../components/ui";
 import { money, payAction, payLabel } from "../../lib/utils";
@@ -827,7 +828,7 @@ export function PosPage() {
   );
 
   const productsColumn = (
-    <section className="flex h-full flex-col overflow-hidden bg-paper-2">
+    <section id="main-content" className="flex h-full flex-col overflow-hidden bg-paper-2">
       <div className="sticky top-0 z-10 border-b border-line bg-paper-2 p-4 sm:px-6 sm:pt-6 sm:pb-3">
         <input
           className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-4 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
@@ -842,6 +843,7 @@ export function PosPage() {
             void scanCode(code, { soft: !/^[0-9A-Za-z._-]{4,64}$/.test(code) });
           }}
           placeholder={t("pos.searchProducts")}
+          aria-label={t("pos.searchProducts")}
           autoComplete="off"
           enterKeyHint="done"
         />
@@ -1189,6 +1191,7 @@ export function PosPage() {
 
   return (
     <div className="h-dvh overflow-hidden bg-paper text-ink">
+      <SkipLink />
       <div
         className="h-full"
         style={{ zoom: SCALE_ZOOM[scale], height: `calc(100dvh / ${SCALE_ZOOM[scale]})` }}

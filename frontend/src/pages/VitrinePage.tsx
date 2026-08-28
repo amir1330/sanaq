@@ -180,7 +180,7 @@ function ColumnHeader({
             disabled={!canMoveUp}
             className={editToolBtn}
             onClick={onMoveUp}
-            title={t("vitrine.moveUp")}
+            aria-label={t("vitrine.moveUp")}
           >
             ↑
           </button>
@@ -189,11 +189,18 @@ function ColumnHeader({
             disabled={!canMoveDown}
             className={editToolBtn}
             onClick={onMoveDown}
-            title={t("vitrine.moveDown")}
+            aria-label={t("vitrine.moveDown")}
           >
             ↓
           </button>
-          {(["ornament", "line", "none"] as HeaderStyle[]).map((style) => (
+          {(["ornament", "line", "none"] as HeaderStyle[]).map((style) => {
+            const styleLabel =
+              style === "ornament"
+                ? t("vitrine.headerOrnament")
+                : style === "line"
+                  ? t("vitrine.headerLine")
+                  : t("vitrine.headerNone");
+            return (
             <button
               key={style}
               type="button"
@@ -203,17 +210,13 @@ function ColumnHeader({
                 headerStyle === style ? "border-ink bg-cream" : "text-faint",
               )}
               onClick={() => onStyleChange?.(style)}
-              title={
-                style === "ornament"
-                  ? t("vitrine.headerOrnament")
-                  : style === "line"
-                    ? t("vitrine.headerLine")
-                    : t("vitrine.headerNone")
-              }
+              aria-label={styleLabel}
+              aria-pressed={headerStyle === style}
             >
               {style === "ornament" ? "✦" : style === "line" ? "—" : "○"}
             </button>
-          ))}
+            );
+          })}
           {onDelete ? (
             <button type="button" className={editActionBtn} onClick={onDelete}>
               {t("vitrine.deleteColumn")}
@@ -225,6 +228,7 @@ function ColumnHeader({
         <input
           value={title}
           onChange={(e) => onTitleChange?.(e.target.value)}
+          aria-label={t("vitrine.columnTitle")}
           className="w-full max-w-[280px] rounded-lg border border-line bg-paper px-4 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.12em] text-ink outline-none focus:border-gold"
         />
       ) : (
@@ -357,7 +361,7 @@ function MenuRow({
           canMoveDown={canMoveDown}
         />
       ) : src ? (
-        <img src={src} alt="" className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-md object-cover" />
+        <img src={src} alt={label} className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-md object-cover" />
       ) : (
         <span className="grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center rounded-md bg-paper-2 font-display text-2xl text-maroon">
           {label.slice(0, 1)}

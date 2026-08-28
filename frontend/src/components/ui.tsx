@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useT } from "../i18n";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { cn } from "../lib/utils";
 
 export function Button({
@@ -16,7 +17,7 @@ export function Button({
     primary: "border-ink bg-ink text-paper hover:border-sun hover:bg-sun",
     ink: "border-ink bg-ink text-paper hover:border-sun hover:bg-sun",
     foam: "border-line-2 bg-paper text-ink hover:border-ink",
-    ghost: "border-transparent bg-transparent text-ink hover:text-sun",
+    ghost: "border-transparent bg-transparent text-ink hover:text-accent",
     quiet: "border-line bg-paper-2 text-ink-soft hover:border-line-2 hover:text-ink",
     danger: "border-maroon bg-maroon text-paper hover:bg-maroon-deep",
     sky: "border-sky bg-sky text-paper hover:bg-sky-deep",
@@ -175,11 +176,16 @@ function DialogBody({
   dark?: boolean;
 }) {
   const t = useT();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onClose);
+
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
       className={cn(
         "max-h-[90vh] w-full overflow-auto rounded-md border p-6 shadow-soft",
         dark ? "border-line-dark bg-roast text-cream" : "border-line bg-paper",
@@ -189,7 +195,9 @@ function DialogBody({
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-medium tracking-tight">{title}</h2>
+          <h2 id={titleId} className="font-display text-xl font-medium tracking-tight">
+            {title}
+          </h2>
           {hint && <p className={cn("mt-1.5 text-sm", dark ? "text-cream-soft" : "text-mute")}>{hint}</p>}
         </div>
         <button
@@ -234,7 +242,7 @@ export function PageTitle({
     <header className="mb-8 border-b border-line pb-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-sun">{kicker}</p>
+          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-accent">{kicker}</p>
           <h1 className="mt-2 font-display text-[28px] font-medium leading-tight tracking-tight text-ink sm:text-[32px]">
             {title}
           </h1>
@@ -265,7 +273,11 @@ export function Banner({
     warn: "border-maroon/30 bg-maroon/8 text-maroon",
     ok: "border-sky/30 bg-sky/8 text-sky",
   }[tone];
-  return <div className={cn("mb-4 rounded-md border px-4 py-3 text-sm", cls)}>{children}</div>;
+  return (
+    <div role="status" aria-live="polite" className={cn("mb-4 rounded-md border px-4 py-3 text-sm", cls)}>
+      {children}
+    </div>
+  );
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {

@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { Brand } from "../components/Mark";
+import { SkipLink } from "../components/SkipLink";
 import { Button, Field, Input } from "../components/ui";
 import { useT } from "../i18n";
 import { homePath, useAuth } from "../store/auth";
@@ -34,12 +35,13 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-paper md:grid md:grid-cols-2">
+      <SkipLink />
       <aside className="hidden border-r border-line bg-paper-2 px-10 py-12 md:flex md:flex-col md:justify-between">
         <Link to="/">
           <Brand className="text-[18px]" markClass="h-[18px] w-[26px]" />
         </Link>
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("login.kicker")}</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">{t("login.kicker")}</p>
           <h1 className="mt-4 max-w-[12ch] font-display text-[40px] font-medium leading-tight tracking-tight text-ink">
             {t("login.title")}
           </h1>
@@ -57,9 +59,9 @@ export function LoginPage() {
         </header>
 
         <div className="flex flex-1 items-center justify-center px-6 py-12">
-          <div className="w-full max-w-[400px] page-enter">
+          <div id="main-content" className="w-full max-w-[400px] page-enter">
             <div className="md:hidden">
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("login.kicker")}</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">{t("login.kicker")}</p>
               <h1 className="mt-3 font-display text-[32px] font-medium leading-tight">{t("login.title")}</h1>
             </div>
 

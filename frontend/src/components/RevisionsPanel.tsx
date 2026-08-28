@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useId } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { useLocale, useT } from "../i18n";
 import { dateLocaleTag } from "../lib/i18nName";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { money, qty } from "../lib/utils";
 import type { StockRevision, StockRevisionLine } from "../types";
 import { Button, Empty, Field, Input, Select } from "./ui";
@@ -401,17 +402,22 @@ function RevisionLinesDialog({
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const dateTag = dateLocaleTag(locale);
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, onClose);
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-roast/60 p-4" onClick={onClose} role="presentation">
       <div
+        ref={dialogRef}
         className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-paper p-7 shadow-soft"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-normal">
+            <h2 id={titleId} className="font-display text-2xl font-normal">
               {t("stock.revision")} #{revision.id}
             </h2>
             <p className="mt-1 text-sm text-mute">
@@ -419,7 +425,7 @@ function RevisionLinesDialog({
               {revision.comment ? ` · ${revision.comment}` : ""}
             </p>
           </div>
-          <button className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint" onClick={onClose}>
+          <button type="button" className="font-mono text-[10px] uppercase tracking-[0.08em] text-faint" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>

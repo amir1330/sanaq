@@ -42,6 +42,7 @@ export type Messages = {
     sessionLoading: string;
     sessionExpired: string;
     menu: string;
+    skipToContent: string;
   };
   nav: {
     reports: string;
@@ -495,6 +496,7 @@ export type Messages = {
     headerNone: string;
     pickProduct: string;
     deleteColumn: string;
+    columnTitle: string;
   };
   expenses: {
     kicker: string;

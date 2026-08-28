@@ -41,6 +41,7 @@ const ru: Messages = {
     sessionLoading: "Загружаем сессию…",
     sessionExpired: "Сессия истекла",
     menu: "Меню",
+    skipToContent: "К основному содержимому",
   },
   nav: {
     reports: "Отчёты",
@@ -491,6 +492,7 @@ const ru: Messages = {
     headerNone: "Без декора",
     pickProduct: "Добавить товар",
     deleteColumn: "Удалить колонку",
+    columnTitle: "Название колонки",
   },
   expenses: {
     kicker: "Деньги",

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { Glyph } from "../components/Glyph";
 import { Brand } from "../components/Mark";
+import { SkipLink } from "../components/SkipLink";
 import { Button, Field, Input } from "../components/ui";
 import { useT } from "../i18n";
 import { homePath, useAuth } from "../store/auth";
@@ -52,6 +53,7 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-paper">
+      <SkipLink />
       <header className="flex items-center justify-between border-b border-line px-6 py-5 md:px-12">
         <Brand className="text-[18px]" markClass="h-[18px] w-[26px]" />
         <nav className="flex items-center gap-4 text-[13px]">
@@ -74,9 +76,10 @@ export function LandingPage() {
         </nav>
       </header>
 
+      <main id="main-content">
       <section className="mx-auto grid max-w-[1080px] gap-10 px-6 py-14 md:grid-cols-[1.1fr_0.9fr] md:items-center md:px-12 md:py-20">
         <div className="page-enter">
-          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-sun">{t("landing.kicker")}</p>
+          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-accent">{t("landing.kicker")}</p>
           <h1 className="mt-4 max-w-[14ch] font-display text-[38px] font-medium leading-[1.08] tracking-tight text-ink md:text-[52px]">
             {t("landing.headline")}
           </h1>
@@ -127,7 +130,7 @@ export function LandingPage() {
       <section id="request" className="surface-roast bg-roast px-6 py-16 md:px-12">
         <div className="mx-auto grid max-w-[1080px] gap-10 md:grid-cols-2 md:items-start">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("landing.connectKicker")}</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">{t("landing.connectKicker")}</p>
             <h2 className="mt-3 max-w-[16ch] font-display text-[32px] font-medium leading-tight text-cream md:text-[40px]">
               {t("landing.requestTitle")}
             </h2>
@@ -138,7 +141,7 @@ export function LandingPage() {
           <div className="rounded-md border border-line-dark bg-roast-2 p-6 md:p-8">
             {done ? (
               <>
-                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-sun">{t("landing.requestDoneKicker")}</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">{t("landing.requestDoneKicker")}</p>
                 <h3 className="mt-3 font-display text-[24px] font-medium text-cream">{t("landing.requestDoneTitle")}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-cream-soft">{t("landing.requestDoneBody")}</p>
                 <Button variant="gold" size="lg" className="mt-8 w-full" onClick={() => setDone(false)}>
@@ -194,6 +197,7 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+      </main>
 
       <footer className="border-t border-line px-6 py-10 md:px-12">
         <div className="mx-auto flex max-w-[1080px] flex-col gap-8 md:flex-row md:items-start md:justify-between">
