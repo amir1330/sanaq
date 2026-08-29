@@ -328,6 +328,7 @@ export function ProductsPage() {
         onClose={closeEdit}
         title={editing?.id ? t("products.editTitle") : t("products.newTitle")}
         size="xl"
+        fillBody
       >
         {editing && (
           <ProductEditorForm

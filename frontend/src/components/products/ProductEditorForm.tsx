@@ -57,12 +57,13 @@ export function ProductEditorForm({
 }) {
   return (
     <form
-      className="space-y-5"
+      className="flex min-h-0 flex-1 flex-col"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate();
       }}
     >
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
         <PhotoField
           compact
@@ -287,7 +288,8 @@ export function ProductEditorForm({
       {save.isError && (
         <p role="alert" className="text-[15px] text-alert">{(save.error as Error).message}</p>
       )}
-      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t border-line bg-paper pt-5">
+      </div>
+      <div className="mt-4 flex shrink-0 flex-wrap gap-3 border-t border-line bg-paper pt-4">
         <Button type="submit" size="lg" className="min-w-36" disabled={save.isPending}>
           {save.isPending ? t("common.saving") : t("common.save")}
         </Button>

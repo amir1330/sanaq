@@ -61,7 +61,7 @@ export function PosMobileHeader({
             {t("pos.openShift")}
           </Button>
         )}
-        <NotificationBell className="h-10 w-10" />
+        <NotificationBell />
         <MoreMenu label="⋮" items={moreItems} />
       </div>
       <div className="flex items-center gap-2 text-[13px]">

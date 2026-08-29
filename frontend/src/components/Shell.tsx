@@ -225,7 +225,8 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
           <NavRailGroups groups={groups} />
         </nav>
 
-        <div className="border-t border-line px-3 py-3">
+        <div className="space-y-0.5 border-t border-line px-3 py-3">
+          <NotificationBell variant="rail" />
           {kind === "owner" ? (
             <NavLink
               to={footerLink.to}
@@ -249,9 +250,6 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col md:ml-rail">
-        <div className="fixed right-3 top-3 z-40 md:right-6 md:top-5">
-          <NotificationBell />
-        </div>
         <main id="main-content" className="page-enter mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 pb-24 sm:px-8 md:py-8 md:pb-10">
           <Outlet />
         </main>

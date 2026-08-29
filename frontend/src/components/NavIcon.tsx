@@ -16,7 +16,8 @@ export type NavIconName =
   | "more"
   | "vitrine"
   | "moves"
-  | "account";
+  | "account"
+  | "bell";
 
 const paths: Record<NavIconName, string> = {
   reports:
@@ -36,6 +37,7 @@ const paths: Record<NavIconName, string> = {
   vitrine: "M4 5h16v10H4V5zm2 2v6h12V7H6zm3 8h6",
   moves: "M4 7h16M4 12h10M4 17h14",
   account: "M9 11a3 3 0 106 0 3 3 0 00-6 0zm-6 9a9 9 0 0118 0",
+  bell: "M12 22a2 2 0 002-2H10a2 2 0 002 2zm6-6V9a6 6 0 10-12 0v7l-2 2h16l-2-2z",
 };
 
 export function NavIcon({

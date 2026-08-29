@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useT } from "../i18n";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { cn } from "../lib/utils";
@@ -138,6 +139,7 @@ export function Dialog({
   children,
   dark,
   size = "md",
+  fillBody = false,
 }: {
   open: boolean;
   title: string;
@@ -146,18 +148,31 @@ export function Dialog({
   children: ReactNode;
   dark?: boolean;
   size?: "md" | "lg" | "xl";
+  /** Pin footer actions: body scrolls inside, children should use flex column layout. */
+  fillBody?: boolean;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
-  return (
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-roast/70 p-3 sm:p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 grid place-items-center bg-roast/70 p-3 sm:p-4 backdrop-blur-[2px]"
       onClick={onClose}
       role="presentation"
     >
-      <DialogBody title={title} hint={hint} onClose={onClose} size={size} dark={dark}>
+      <DialogBody title={title} hint={hint} onClose={onClose} size={size} dark={dark} fillBody={fillBody}>
         {children}
       </DialogBody>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -168,6 +183,7 @@ function DialogBody({
   children,
   size,
   dark,
+  fillBody,
 }: {
   title: string;
   hint?: string;
@@ -175,6 +191,7 @@ function DialogBody({
   children: ReactNode;
   size: "md" | "lg" | "xl";
   dark?: boolean;
+  fillBody?: boolean;
 }) {
   const t = useT();
   const titleId = useId();
@@ -212,7 +229,14 @@ function DialogBody({
           {t("common.close")}
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">{children}</div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 px-5 py-5 sm:px-6",
+          fillBody ? "flex flex-col overflow-hidden" : "overflow-y-auto overscroll-contain",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

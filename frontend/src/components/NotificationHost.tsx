@@ -8,36 +8,14 @@ import {
   type AppNotification,
   type NotificationTone,
 } from "../store/notifications";
+import { NavIcon } from "./NavIcon";
 import { Button } from "./ui";
 
-const toneStyles: Record<
-  NotificationTone,
-  { ring: string; icon: string; iconBg: string; label: string }
-> = {
-  ok: {
-    ring: "border-confirm/30",
-    icon: "✓",
-    iconBg: "bg-confirm text-paper",
-    label: "text-confirm",
-  },
-  info: {
-    ring: "border-sun/35",
-    icon: "i",
-    iconBg: "bg-sun text-paper",
-    label: "text-sun",
-  },
-  warn: {
-    ring: "border-sun/40",
-    icon: "!",
-    iconBg: "bg-sun text-paper",
-    label: "text-accent-text",
-  },
-  error: {
-    ring: "border-maroon/35",
-    icon: "×",
-    iconBg: "bg-maroon text-paper",
-    label: "text-maroon",
-  },
+const toneStyles: Record<NotificationTone, { accent: string; label: string }> = {
+  ok: { accent: "border-l-confirm", label: "text-confirm" },
+  info: { accent: "border-l-sun", label: "text-ink" },
+  warn: { accent: "border-l-sun", label: "text-accent-text" },
+  error: { accent: "border-l-maroon", label: "text-maroon" },
 };
 
 function formatWhen(ts: number, t: (key: string, vars?: Record<string, string | number>) => string) {
@@ -65,34 +43,25 @@ function NotificationCard({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-lg border bg-paper shadow-soft notification-enter",
-        style.ring,
-        compact ? "p-3.5" : "p-4",
+        "relative overflow-hidden rounded-md border border-line bg-paper shadow-soft notification-enter border-l-[3px]",
+        style.accent,
+        compact ? "px-4 py-3" : "px-4 py-3.5",
       )}
       role={compact ? "status" : "listitem"}
       aria-live={compact ? "polite" : undefined}
     >
-      <div className="flex gap-3">
-        <div
-          className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-bold",
-            style.iconBg,
-          )}
-          aria-hidden
-        >
-          {style.icon}
-        </div>
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           {item.title ? (
             <p className={cn("font-display text-[15px] font-medium leading-snug", style.label)}>
               {item.title}
             </p>
           ) : null}
-          <p className={cn("text-[13.5px] leading-snug text-ink", item.title ? "mt-0.5" : "")}>
+          <p className={cn("text-[13.5px] leading-snug text-ink-soft", item.title ? "mt-0.5" : "")}>
             {item.message}
           </p>
           {!compact && (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-faint">
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-faint">
               {formatWhen(item.createdAt, t)}
             </p>
           )}
@@ -100,18 +69,18 @@ function NotificationCard({
         {compact && onDismiss && (
           <button
             type="button"
-            className="shrink-0 self-start rounded-md px-2 py-1 text-[12px] text-ink-soft hover:bg-paper-2 hover:text-ink"
+            className="shrink-0 rounded-md px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-faint hover:bg-paper-2 hover:text-ink"
             onClick={onDismiss}
             aria-label={t("common.close")}
           >
-            ×
+            {t("common.close")}
           </button>
         )}
       </div>
       {compact && onOpenCenter && (
         <button
           type="button"
-          className="mt-2.5 text-left text-[12px] text-ink-soft underline hover:text-ink"
+          className="mt-2 text-left font-mono text-[10px] uppercase tracking-[0.08em] text-faint hover:text-ink"
           onClick={onOpenCenter}
         >
           {t("notifications.openCenter")}
@@ -132,7 +101,7 @@ function ToastStack() {
 
   return (
     <div
-      className="pointer-events-none fixed right-3 top-3 z-[90] flex w-[min(100vw-1.5rem,22rem)] flex-col gap-2.5 sm:right-5 sm:top-5"
+      className="pointer-events-none fixed bottom-4 right-4 z-40 flex w-[min(100vw-2rem,20rem)] flex-col gap-2 sm:bottom-6 sm:right-6"
       aria-label={t("notifications.title")}
     >
       {visible.map((n) => (
@@ -160,11 +129,16 @@ function NotificationCenterPanel() {
 
   useEffect(() => {
     if (!centerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setCenterOpen(false);
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [centerOpen, setCenterOpen]);
 
   if (!centerOpen) return null;
@@ -173,25 +147,27 @@ function NotificationCenterPanel() {
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[95] bg-ink/25 backdrop-blur-[2px]"
+        className="fixed inset-0 z-[60] bg-roast/70 backdrop-blur-[2px]"
         aria-label={t("common.close")}
         onClick={() => setCenterOpen(false)}
       />
       <aside
         ref={panelRef}
-        className="fixed inset-y-0 right-0 z-[96] flex w-full max-w-md flex-col border-l border-line bg-paper shadow-soft notification-panel-enter"
+        className="fixed inset-y-0 right-0 z-[61] flex w-full max-w-md flex-col border-l border-line bg-paper shadow-soft notification-panel-enter"
         aria-labelledby="notification-center-title"
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
           <div>
-            <h2 id="notification-center-title" className="font-display text-[20px] font-normal">
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-accent">
               {t("notifications.title")}
+            </p>
+            <h2 id="notification-center-title" className="mt-1 font-display text-[22px] font-normal">
+              {t("notifications.subtitle")}
             </h2>
-            <p className="mt-0.5 text-[13px] text-ink-soft">{t("notifications.subtitle")}</p>
           </div>
           <button
             type="button"
-            className="rounded-md px-3 py-2 text-[13px] text-ink-soft hover:bg-paper-2 hover:text-ink"
+            className="min-h-11 shrink-0 rounded-md px-3 font-mono text-[11px] uppercase tracking-[0.08em] text-faint hover:bg-paper-2 hover:text-ink"
             onClick={() => setCenterOpen(false)}
           >
             {t("common.close")}
@@ -212,14 +188,14 @@ function NotificationCenterPanel() {
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {items.length === 0 ? (
             <div className="flex h-full min-h-[12rem] flex-col items-center justify-center text-center">
-              <div className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-paper-2 text-[22px] text-faint">
-                ◌
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-md border border-line bg-cream">
+                <NavIcon name="bell" className="h-5 w-5 text-faint" />
               </div>
               <p className="font-display text-[17px] text-ink-soft">{t("notifications.empty")}</p>
               <p className="mt-1 max-w-[16rem] text-[13px] text-faint">{t("notifications.emptyHint")}</p>
             </div>
           ) : (
-            <ul className="space-y-3" role="list">
+            <ul className="space-y-2.5" role="list">
               {items.map((n) => (
                 <li key={n.id}>
                   <NotificationCard item={n} />
@@ -234,19 +210,53 @@ function NotificationCenterPanel() {
   );
 }
 
-export function NotificationBell({ className }: { className?: string }) {
+export function NotificationBell({
+  className,
+  variant = "icon",
+}: {
+  className?: string;
+  variant?: "icon" | "rail";
+}) {
   const t = useT();
   const items = useNotifications((s) => s.items);
   const centerOpen = useNotifications((s) => s.centerOpen);
   const toggleCenter = useNotifications((s) => s.toggleCenter);
   const unread = unreadCount(items);
 
+  if (variant === "rail") {
+    return (
+      <button
+        type="button"
+        className={cn(
+          "flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2.5 text-[14px] font-medium transition touch-manipulation",
+          centerOpen
+            ? "bg-paper-2 text-ink"
+            : "text-ink-soft hover:bg-paper-2 hover:text-ink",
+          className,
+        )}
+        onClick={toggleCenter}
+        aria-expanded={centerOpen}
+        aria-label={
+          unread > 0 ? t("notifications.bellUnread", { n: unread }) : t("notifications.bell")
+        }
+      >
+        <NavIcon name="bell" />
+        <span className="min-w-0 truncate">{t("notifications.bell")}</span>
+        {unread > 0 ? (
+          <span className="ml-auto shrink-0 font-mono text-[11px] font-semibold tabular-nums text-sun">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        ) : null}
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
       className={cn(
-        "relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line-2 bg-paper text-[18px] transition hover:border-ink hover:bg-paper-2 touch-manipulation",
-        centerOpen && "border-ink bg-paper-2",
+        "relative grid h-12 w-12 shrink-0 place-items-center rounded-md border border-transparent text-ink-soft transition hover:border-line hover:bg-paper-2 hover:text-ink touch-manipulation",
+        centerOpen && "border-line bg-paper-2 text-ink",
         className,
       )}
       onClick={toggleCenter}
@@ -255,11 +265,9 @@ export function NotificationBell({ className }: { className?: string }) {
         unread > 0 ? t("notifications.bellUnread", { n: unread }) : t("notifications.bell")
       }
     >
-      <span aria-hidden className="leading-none">
-        🔔
-      </span>
+      <NavIcon name="bell" className="h-5 w-5" />
       {unread > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 grid min-h-[1.125rem] min-w-[1.125rem] place-items-center rounded-full bg-sun px-1 font-mono text-[10px] font-bold text-paper">
+        <span className="absolute right-1 top-1 grid min-h-[1rem] min-w-[1rem] place-items-center rounded-full bg-sun px-0.5 font-mono text-[9px] font-bold leading-none text-paper">
           {unread > 9 ? "9+" : unread}
         </span>
       )}

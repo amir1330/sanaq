@@ -142,7 +142,7 @@ export function PosSidebar({
             {t("pos.openShift")}
           </Button>
         )}
-        <NotificationBell className="h-10 w-10" />
+        <NotificationBell />
         <MoreMenu label="⋮" items={moreItems} />
       </div>
     </div>
