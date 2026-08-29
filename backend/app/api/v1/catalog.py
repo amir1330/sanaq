@@ -597,30 +597,30 @@ async def _upsert_variants(
 
     defaults = [v for v in variants if v.is_default]
     if len(defaults) > 1:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Только один вариант может быть по умолчанию")
+        raise api_error(status.HTTP_400_BAD_REQUEST, "variant_multiple_defaults")
 
     seen_sku: set[str] = set()
     seen_barcode: set[str] = set()
     for idx, body in enumerate(variants):
         name = body.name.strip()
         if not name:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название варианта")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "variant_name_empty")
         sku = _norm_sku(body.sku)
         barcode = _norm_barcode(body.barcode)
         if sku:
             if sku in seen_sku:
-                raise HTTPException(status.HTTP_409_CONFLICT, f"Артикул варианта уже занят: {sku}")
+                raise api_error(status.HTTP_409_CONFLICT, "variant_sku_taken", sku=sku)
             seen_sku.add(sku)
         if barcode:
             if barcode in seen_barcode:
-                raise HTTPException(status.HTTP_409_CONFLICT, f"Штрихкод варианта уже занят: {barcode}")
+                raise api_error(status.HTTP_409_CONFLICT, "variant_barcode_taken", barcode=barcode)
             seen_barcode.add(barcode)
 
         variant: ProductVariant | None = None
         if body.id is not None:
             variant = by_id.get(body.id)
             if variant is None or variant.product_id != product.id:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, f"Вариант {body.id} не найден")
+                raise api_error(status.HTTP_404_NOT_FOUND, "variant_not_found", id=body.id)
         if variant is None:
             variant = ProductVariant(product_id=product.id)
             session.add(variant)
@@ -710,9 +710,9 @@ async def put_vitrine_layout(
     for col_idx, col_in in enumerate(body.columns):
         title = col_in.title.strip()
         if not title:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое название колонки")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "vitrine_column_title_empty")
         if col_in.header_style not in ("ornament", "line", "none"):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неверный стиль заголовка")
+            raise api_error(status.HTTP_400_BAD_REQUEST, "vitrine_header_style_invalid")
         column = VitrineColumn(
             shop_id=shop_id,
             title=title,
@@ -724,8 +724,8 @@ async def put_vitrine_layout(
         for item_idx, item_in in enumerate(col_in.items):
             product = await session.get(Product, item_in.product_id)
             if product is None or product.shop_id != shop_id:
-                raise HTTPException(
-                    status.HTTP_404_NOT_FOUND, f"Товар {item_in.product_id} не найден"
+                raise api_error(
+                    status.HTTP_404_NOT_FOUND, "product_not_found", id=item_in.product_id
                 )
             session.add(
                 VitrineItem(

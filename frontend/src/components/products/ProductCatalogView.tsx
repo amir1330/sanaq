@@ -1,6 +1,7 @@
 import { Button, Input, MoreMenu, pill } from "../ui";
 import { localizedName } from "../../lib/i18nName";
-import { money, publicUrl } from "../../lib/utils";
+import { productPriceLabel } from "../../lib/productVariants";
+import { publicUrl } from "../../lib/utils";
 import type { Locale } from "../../i18n/types";
 import type { Category, Product } from "../../types";
 
@@ -211,7 +212,7 @@ export function ProductCatalogView({
                           </div>
                         </td>
                         <td className="px-2 py-3.5 text-right font-mono text-[15px] font-semibold tabular-nums">
-                          {money(p.sale_price)}
+                          {productPriceLabel(p)}
                         </td>
                         <td className="pr-5 py-3.5 text-right text-[14px] text-mute">
                           {p.is_active ? t("products.active") : t("products.hidden")}
@@ -249,7 +250,7 @@ export function ProductCatalogView({
                       {p.barcode ? (
                         <p className="mt-1 truncate font-mono text-[11px] text-mute">{p.barcode}</p>
                       ) : null}
-                      <p className="mt-2 font-mono text-[15px] font-semibold">{money(p.sale_price)}</p>
+                      <p className="mt-2 font-mono text-[15px] font-semibold">{productPriceLabel(p)}</p>
                     </div>
                   </button>
                 );

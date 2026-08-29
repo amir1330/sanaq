@@ -194,6 +194,11 @@ export type Messages = {
       product_not_found: string;
       category_not_found: string;
       service_no_variants: string;
+      variant_multiple_defaults: string;
+      variant_name_empty: string;
+      variant_sku_taken: string;
+      variant_barcode_taken: string;
+      variant_not_found: string;
       stock_item_not_in_shop: string;
       shift_not_found: string;
       shift_already_open: string;
@@ -465,6 +470,12 @@ export type Messages = {
     variantsHint: string;
     variantPreset: string;
     addVariant: string;
+    variantUntitled: string;
+    variantsEmpty: string;
+    variantEdit: string;
+    removeVariant: string;
+    variantRecipeHint: string;
+    pricePerVariantHint: string;
     variantName: string;
     variantNamePh: string;
     variantDefault: string;

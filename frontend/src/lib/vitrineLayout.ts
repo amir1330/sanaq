@@ -1,9 +1,11 @@
 import { localizedName } from "./i18nName";
 import { activeVariants } from "./productVariants";
 import type { Locale } from "../i18n/types";
-import type { Category, Product, VitrineColumn } from "../types";
+import type { Category, Product, ProductVariant, VitrineColumn } from "../types";
 
 export type HeaderStyle = "ornament" | "line" | "none";
+
+export type VariantColumn = { sortOrder: number; label: string };
 
 export type EditorItem = {
   key: string;
@@ -28,16 +30,28 @@ export function hasVariantPrices(product: Product) {
   return activeVariants(product).length > 0;
 }
 
-export function collectVariantNames(products: Product[]): string[] {
-  const order = new Map<string, number>();
+export function collectVariantColumns(products: Product[], locale: Locale): VariantColumn[] {
+  const byOrder = new Map<number, VariantColumn>();
   for (const p of products) {
     for (const v of [...activeVariants(p)].sort((a, b) => a.sort_order - b.sort_order)) {
-      if (!order.has(v.name)) order.set(v.name, v.sort_order);
+      if (!byOrder.has(v.sort_order)) {
+        byOrder.set(v.sort_order, {
+          sortOrder: v.sort_order,
+          label: localizedName(v, locale) || v.name,
+        });
+      }
     }
   }
-  return [...order.entries()]
-    .sort((a, b) => a[1] - b[1])
-    .map(([name]) => name);
+  return [...byOrder.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** @deprecated use collectVariantColumns */
+export function collectVariantNames(products: Product[]): string[] {
+  return collectVariantColumns(products, "ru").map((c) => c.label);
+}
+
+export function variantAtSortOrder(product: Product, sortOrder: number): ProductVariant | undefined {
+  return activeVariants(product).find((v) => v.sort_order === sortOrder);
 }
 
 export function savedToEditor(cols: VitrineColumn[]): EditorColumn[] {

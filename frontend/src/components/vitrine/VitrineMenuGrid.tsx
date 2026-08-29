@@ -21,12 +21,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState, type ReactNode } from "react";
 import { Glyph } from "../Glyph";
 import {
-  activeVariants,
-  collectVariantNames,
+  collectVariantColumns,
   hasVariantPrices,
+  variantAtSortOrder,
   type EditorColumn,
   type EditorItem,
   type HeaderStyle,
+  type VariantColumn,
 } from "../../lib/vitrineLayout";
 import { useLocale, useT } from "../../i18n";
 import { localizedName } from "../../lib/i18nName";
@@ -131,14 +132,14 @@ function ColumnHeader({
   );
 }
 
-function VariantHeaderRow({ variantNames }: { variantNames: string[] }) {
+function VariantHeaderRow({ variantColumns }: { variantColumns: VariantColumn[] }) {
   return (
     <li className="flex items-center gap-2 px-1 pb-1 text-[12px] uppercase tracking-wide text-faint md:gap-3 md:px-2">
       <span className="w-10 shrink-0 md:w-12" />
       <span className="min-w-0 flex-1" />
-      {variantNames.map((n) => (
-        <span key={n} className="w-12 shrink-0 text-center md:w-14">
-          {n}
+      {variantColumns.map((col) => (
+        <span key={col.sortOrder} className="w-12 shrink-0 text-center md:w-14">
+          {col.label}
         </span>
       ))}
       <span className="w-8 shrink-0" />
@@ -148,14 +149,14 @@ function VariantHeaderRow({ variantNames }: { variantNames: string[] }) {
 
 function MenuRowBody({
   product,
-  variantNames,
+  variantColumns,
   striped,
   editMode,
   onRemove,
   dragHandle,
 }: {
   product: Product;
-  variantNames: string[];
+  variantColumns: VariantColumn[];
   striped?: boolean;
   editMode?: boolean;
   onRemove?: () => void;
@@ -180,11 +181,11 @@ function MenuRowBody({
         <h3 className="min-w-0 flex-1 truncate font-display text-[22px] font-normal leading-none md:text-[28px]">
           {label}
         </h3>
-        {variantNames.map((n) => {
-          const v = activeVariants(product).find((x) => x.name === n);
+        {variantColumns.map((col) => {
+          const v = variantAtSortOrder(product, col.sortOrder);
           return (
             <span
-              key={n}
+              key={col.sortOrder}
               className="w-12 shrink-0 text-center font-mono text-[15px] tabular-nums text-gold md:w-14 md:text-[17px]"
             >
               {v ? money(v.sale_price) : "—"}
@@ -259,14 +260,14 @@ function MenuRowBody({
 function SortableMenuItem({
   item,
   columnKey,
-  variantNames,
+  variantColumns,
   striped,
   editMode,
   onRemove,
 }: {
   item: EditorItem;
   columnKey: string;
-  variantNames: string[];
+  variantColumns: VariantColumn[];
   striped: boolean;
   editMode: boolean;
   onRemove: () => void;
@@ -287,7 +288,7 @@ function SortableMenuItem({
     <div ref={setNodeRef} style={style}>
       <MenuRowBody
         product={item.product}
-        variantNames={variantNames}
+        variantColumns={variantColumns}
         striped={striped}
         editMode={editMode}
         onRemove={onRemove}
@@ -377,6 +378,7 @@ export function VitrineMenuGrid({
   onAddColumn: () => void;
 }) {
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const [activeDrag, setActiveDrag] = useState<{ type: "column" | "item"; id: string } | null>(null);
 
   const sensors = useSensors(
@@ -444,13 +446,13 @@ export function VitrineMenuGrid({
     <div className={cn("vitrine-menu-grid grid flex-1 auto-rows-min gap-x-0 gap-y-10 py-6 md:gap-y-12", gridCols)}>
       {columns.map((col, colIdx) => {
         const productsInCol = col.items.map((i) => i.product);
-        const variantNames = collectVariantNames(productsInCol);
-        const hasVariantTable = variantNames.length > 0;
+        const variantColumns = collectVariantColumns(productsInCol, locale);
+        const hasVariantTable = variantColumns.length > 0;
         let rowIdx = 0;
 
         const list = (
           <ul className="space-y-0.5">
-            {hasVariantTable && <VariantHeaderRow variantNames={variantNames} />}
+            {hasVariantTable && <VariantHeaderRow variantColumns={variantColumns} />}
             <SortableContext items={col.items.map((i) => i.key)} strategy={verticalListSortingStrategy}>
               {col.items.map((item) => {
                 const striped = rowIdx % 2 === 1;
@@ -460,7 +462,7 @@ export function VitrineMenuGrid({
                     key={item.key}
                     item={item}
                     columnKey={col.key}
-                    variantNames={variantNames}
+                    variantColumns={variantColumns}
                     striped={striped}
                     editMode={editMode}
                     onRemove={() => {
@@ -521,7 +523,7 @@ export function VitrineMenuGrid({
           <div className="rounded-md bg-paper shadow-soft ring-1 ring-line">
             <MenuRowBody
               product={activeItem.item.product}
-              variantNames={collectVariantNames(activeItem.col.items.map((i) => i.product))}
+              variantColumns={collectVariantColumns(activeItem.col.items.map((i) => i.product), locale)}
               editMode
             />
           </div>

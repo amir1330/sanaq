@@ -1,9 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { StockSearchPicker } from "../StockSearchPicker";
 import { Button, Check, Field, Input } from "../ui";
 import { makeInternalBarcode } from "../../lib/barcode";
 import { money } from "../../lib/utils";
-import type { Draft, IngRow, VariantRow } from "../../pages/owner/products/types";
+import { emptyVariant, type Draft, type IngRow, type VariantRow } from "../../pages/owner/products/types";
 import type { StockItem } from "../../types";
 
 export function ProductRecipeSection({
@@ -90,50 +90,90 @@ export function ProductVariantsSection({
   onApplySizePreset: () => void;
   onPickVariantIngredient: (variantIdx: number, item: StockItem) => void;
 }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    if (activeIdx >= editing.variants.length) {
+      setActiveIdx(Math.max(0, editing.variants.length - 1));
+    }
+  }, [activeIdx, editing.variants.length]);
+
+  function addVariant() {
+    const next = [...editing.variants, emptyVariant(editing.variants.length === 0)];
+    setEditing({ ...editing, variants: next });
+    setActiveIdx(next.length - 1);
+  }
+
+  const active = editing.variants[activeIdx];
+
   return (
     <div className="space-y-4 rounded-lg bg-cream px-4 py-4 sm:px-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[14.5px] font-medium">{t("products.variants")}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="quiet" onClick={onApplySizePreset}>
-            {t("products.variantPreset")}
-          </Button>
-          <Button
-            type="button"
-            variant="quiet"
-            onClick={() =>
-              setEditing({
-                ...editing,
-                variants: [...editing.variants, {
-                  name: "",
-                  name_kk: "",
-                  name_en: "",
-                  sale_price: "",
-                  barcode: "",
-                  is_default: editing.variants.length === 0,
-                  is_active: true,
-                  ingredients: [],
-                }],
-              })
-            }
-          >
-            {t("products.addVariant")}
-          </Button>
+      <div className="sticky top-0 z-[1] -mx-1 space-y-3 bg-cream px-1 pb-1 pt-0.5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-[14.5px] font-medium">{t("products.variants")}</p>
+            <p className="mt-0.5 text-[12.5px] text-mute">{t("products.variantsHint")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="quiet" onClick={onApplySizePreset}>
+              {t("products.variantPreset")}
+            </Button>
+            <Button type="button" variant="primary" onClick={addVariant}>
+              {t("products.addVariant")}
+            </Button>
+          </div>
         </div>
+
+        {editing.variants.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {editing.variants.map((v, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setActiveIdx(idx)}
+                className={`shrink-0 rounded-full border px-3.5 py-2 text-[13px] font-medium transition ${
+                  idx === activeIdx
+                    ? "border-ink bg-ink text-paper"
+                    : "border-line-2 bg-paper text-ink-soft hover:border-ink"
+                }`}
+              >
+                {v.name.trim() || t("products.variantUntitled", { n: idx + 1 })}
+                {v.is_default ? " · ★" : ""}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <p className="text-[12.5px] text-mute">{t("products.variantsHint")}</p>
-      {editing.variants.map((v, vIdx) => (
+
+      {editing.variants.length === 0 ? (
+        <div className="rounded-md border border-dashed border-line bg-paper px-4 py-8 text-center">
+          <p className="text-[14px] text-mute">{t("products.variantsEmpty")}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button type="button" variant="quiet" onClick={onApplySizePreset}>
+              {t("products.variantPreset")}
+            </Button>
+            <Button type="button" variant="primary" onClick={addVariant}>
+              {t("products.addVariant")}
+            </Button>
+          </div>
+        </div>
+      ) : active ? (
         <VariantEditor
-          key={vIdx}
           t={t}
-          variant={v}
-          variantIdx={vIdx}
+          variant={active}
+          variantIdx={activeIdx}
+          variantCount={editing.variants.length}
           editing={editing}
           setEditing={setEditing}
           shopId={shopId}
           onPickVariantIngredient={onPickVariantIngredient}
+          onRemove={() => {
+            const next = editing.variants.filter((_, i) => i !== activeIdx);
+            setEditing({ ...editing, variants: next });
+            setActiveIdx(Math.max(0, activeIdx - 1));
+          }}
         />
-      ))}
+      ) : null}
     </div>
   );
 }
@@ -142,25 +182,39 @@ function VariantEditor({
   t,
   variant,
   variantIdx,
+  variantCount,
   editing,
   setEditing,
   shopId,
   onPickVariantIngredient,
+  onRemove,
 }: {
   t: (key: string, vars?: Record<string, string | number>) => string;
   variant: VariantRow;
   variantIdx: number;
+  variantCount: number;
   editing: Draft;
   setEditing: Dispatch<SetStateAction<Draft | null>>;
   shopId: number;
   onPickVariantIngredient: (variantIdx: number, item: StockItem) => void;
+  onRemove: () => void;
 }) {
   const v = variant;
   const vIdx = variantIdx;
 
   return (
-    <div className="space-y-2 rounded-md border border-line bg-paper p-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div className="space-y-3 rounded-md border border-line bg-paper p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-faint">
+          {t("products.variantEdit", { n: vIdx + 1, total: variantCount })}
+        </p>
+        {variantCount > 1 && (
+          <Button type="button" variant="ghost" onClick={onRemove}>
+            {t("products.removeVariant")}
+          </Button>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label={t("products.variantName")}>
           <Input
             value={v.name}
@@ -170,6 +224,7 @@ function VariantEditor({
               setEditing({ ...editing, variants });
             }}
             placeholder={t("products.variantNamePh")}
+            autoFocus
           />
         </Field>
         <Field label={t("products.price")}>
@@ -181,6 +236,7 @@ function VariantEditor({
               setEditing({ ...editing, variants });
             }}
             inputMode="decimal"
+            placeholder={t("products.pricePh")}
           />
         </Field>
       </div>
@@ -212,34 +268,21 @@ function VariantEditor({
           </Button>
         </div>
       </Field>
-      <div className="flex flex-wrap items-center gap-3">
-        <Check
-          checked={v.is_default}
-          onChange={(is_default) => {
-            const variants = editing.variants.map((row, i) => ({
-              ...row,
-              is_default: is_default ? i === vIdx : false,
-            }));
-            setEditing({ ...editing, variants });
-          }}
-        >
-          {t("products.variantDefault")}
-        </Check>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() =>
-            setEditing({
-              ...editing,
-              variants: editing.variants.filter((_, i) => i !== vIdx),
-            })
-          }
-        >
-          {t("common.remove")}
-        </Button>
-      </div>
-      <div className="space-y-2">
-        <p className="text-[12.5px] text-mute">{t("products.recipe")}</p>
+      <Check
+        checked={v.is_default}
+        onChange={(is_default) => {
+          const variants = editing.variants.map((row, i) => ({
+            ...row,
+            is_default: is_default ? i === vIdx : false,
+          }));
+          setEditing({ ...editing, variants });
+        }}
+      >
+        {t("products.variantDefault")}
+      </Check>
+      <div className="space-y-2 border-t border-line pt-3">
+        <p className="text-[13px] font-medium">{t("products.recipe")}</p>
+        <p className="text-[12.5px] text-mute">{t("products.variantRecipeHint")}</p>
         {v.ingredients.map((row, idx) => (
           <div key={idx} className="grid grid-cols-[1fr_6.5rem_auto] gap-2">
             <div className="rounded-md border border-line bg-cream px-3 py-2 text-sm">

@@ -13,6 +13,7 @@ import {
   draftFromProduct,
   emptyDraft,
   emptyVariant,
+  normalizeVariantsForSave,
   PAGE_SIZE,
   readViewMode,
   VIEW_KEY,
@@ -77,38 +78,28 @@ export function ProductsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!editing?.name.trim()) throw new Error(t("products.needName"));
-      if (!editing.sale_price.trim() || Number.isNaN(Number(editing.sale_price.replace(",", ".")))) {
+      const variants =
+        editing.is_service || !editing.has_variants ? [] : normalizeVariantsForSave(editing.variants);
+      if (editing.has_variants && !editing.is_service && variants.length === 0) {
+        throw new Error(t("products.needVariant"));
+      }
+      const priceFromVariants =
+        variants.length > 0
+          ? String(Math.min(...variants.map((v) => Number(v.sale_price))))
+          : editing.sale_price.replace(",", ".");
+      if (
+        !priceFromVariants.trim() ||
+        Number.isNaN(Number(priceFromVariants)) ||
+        Number(priceFromVariants) < 0
+      ) {
         throw new Error(t("products.needPrice"));
       }
-      const price = editing.sale_price.replace(",", ".");
+      const price = priceFromVariants;
       const ingredients = editing.is_service
         ? []
         : (editing.ingredients ?? [])
             .filter((i) => i.stock_item_id && i.quantity)
             .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity }));
-      const variants =
-        editing.is_service || !editing.has_variants
-          ? []
-          : editing.variants
-              .filter((v) => v.name.trim() && v.sale_price.trim())
-              .map((v, idx) => ({
-                id: v.id,
-                name: v.name.trim(),
-                name_kk: v.name_kk.trim() || null,
-                name_en: v.name_en.trim() || null,
-                sort_order: idx,
-                sale_price: v.sale_price.replace(",", "."),
-                sku: null,
-                barcode: v.barcode.trim() || null,
-                is_default: v.is_default,
-                is_active: v.is_active,
-                ingredients: v.ingredients
-                  .filter((i) => i.stock_item_id && i.quantity)
-                  .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity })),
-              }));
-      if (editing.has_variants && !editing.is_service && variants.length === 0) {
-        throw new Error(t("products.needVariant"));
-      }
       let id = editing.id;
       if (id) {
         await api.patchProduct(shopId, id, {
@@ -116,7 +107,7 @@ export function ProductsPage() {
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
           sku: null,
-          barcode: editing.barcode.trim() || null,
+          barcode: editing.has_variants ? null : editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id,
           is_active: editing.is_active,
@@ -132,7 +123,7 @@ export function ProductsPage() {
           name_kk: editing.name_kk.trim() || null,
           name_en: editing.name_en.trim() || null,
           sku: null,
-          barcode: editing.barcode.trim() || null,
+          barcode: editing.has_variants ? null : editing.barcode.trim() || null,
           sale_price: price,
           category_id: editing.category_id || null,
           is_active: editing.is_active,
@@ -222,10 +213,11 @@ export function ProductsPage() {
     setEditing({
       ...editing,
       has_variants: true,
+      barcode: "",
       variants: labels.map((name, i) => ({
         ...emptyVariant(i === 1),
         name,
-        sale_price: editing.sale_price,
+        sale_price: editing.sale_price || "",
       })),
     });
   }

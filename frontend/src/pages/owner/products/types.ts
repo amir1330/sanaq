@@ -127,3 +127,28 @@ export function emptyDraft(categoryId?: number | null): Draft {
     variants: [],
   };
 }
+
+/** Prepare variant rows for API: ensure default, valid prices, stable sort_order. */
+export function normalizeVariantsForSave(variants: VariantRow[]) {
+  const rows = variants
+    .filter((v) => v.name.trim() && v.sale_price.trim())
+    .map((v, idx) => ({
+      id: v.id,
+      name: v.name.trim(),
+      name_kk: v.name_kk.trim() || null,
+      name_en: v.name_en.trim() || null,
+      sort_order: idx,
+      sale_price: v.sale_price.replace(",", "."),
+      sku: null as string | null,
+      barcode: v.barcode.trim() || null,
+      is_default: v.is_default,
+      is_active: v.is_active,
+      ingredients: v.ingredients
+        .filter((i) => i.stock_item_id && i.quantity)
+        .map((i) => ({ stock_item_id: Number(i.stock_item_id), quantity: i.quantity })),
+    }));
+  if (rows.length > 0 && !rows.some((v) => v.is_default)) {
+    rows[0] = { ...rows[0], is_default: true };
+  }
+  return rows;
+}

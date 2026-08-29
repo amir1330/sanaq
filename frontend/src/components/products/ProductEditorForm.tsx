@@ -107,8 +107,12 @@ export function ProductEditorForm({
             onChange={(e) => setEditing({ ...editing, sale_price: e.target.value })}
             inputMode="decimal"
             placeholder={t("products.pricePh")}
+            disabled={editing.has_variants}
           />
         </Field>
+        {editing.has_variants && (
+          <p className="text-[12.5px] text-mute">{t("products.pricePerVariantHint")}</p>
+        )}
         <Field label={t("products.category")}>
           <Select
             value={editing.category_id ?? ""}
