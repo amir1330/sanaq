@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ShopBrand } from "../ShopBrand";
 import { Button, MoreMenu } from "../ui";
+import { NotificationBell } from "../NotificationHost";
 import { localizedName } from "../../lib/i18nName";
 import { money } from "../../lib/utils";
 import type { Locale } from "../../i18n/types";
@@ -60,6 +61,7 @@ export function PosMobileHeader({
             {t("pos.openShift")}
           </Button>
         )}
+        <NotificationBell className="h-10 w-10" />
         <MoreMenu label="⋮" items={moreItems} />
       </div>
       <div className="flex items-center gap-2 text-[13px]">

@@ -11,6 +11,7 @@ import { OWNER_MOBILE_TABS, OWNER_MORE_SECTIONS } from "./navRoutes";
 import { NavIcon, type NavIconName } from "./NavIcon";
 import { ShopBrand } from "./ShopBrand";
 import { SkipLink } from "./SkipLink";
+import { NotificationBell } from "./NotificationHost";
 
 export function Shell({ kind }: { kind: "owner" | "admin" }) {
   const t = useT();
@@ -248,6 +249,9 @@ export function Shell({ kind }: { kind: "owner" | "admin" }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col md:ml-rail">
+        <div className="fixed right-3 top-3 z-40 md:right-6 md:top-5">
+          <NotificationBell />
+        </div>
         <main id="main-content" className="page-enter mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 pb-24 sm:px-8 md:py-8 md:pb-10">
           <Outlet />
         </main>

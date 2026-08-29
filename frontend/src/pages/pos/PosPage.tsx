@@ -9,6 +9,7 @@ import { PosShiftDialog, PosVariantPickDialog } from "../../components/pos/PosSh
 import { PosSidebar } from "../../components/pos/PosSidebar";
 import { ReceivePanel } from "../../components/ReceivePanel";
 import { SkipLink } from "../../components/SkipLink";
+import { notify } from "../../lib/notify";
 import { cartTotals, type Discount } from "../../lib/discount";
 import { localizedName } from "../../lib/i18nName";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
@@ -40,10 +41,10 @@ export function PosPage() {
   const setScale = useUiScale((s) => s.setScale);
   const [categoryId, setCategoryId] = useState<number | "all">("all");
   const [cart, setCart] = useState<Line[]>([]);
-  const [notice, setNotice] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
   const [cashOpen, setCashOpen] = useState("");
   const [cashClose, setCashClose] = useState("");
   const [moveAmount, setMoveAmount] = useState("");
+  const [moveComment, setMoveComment] = useState("");
   const [panel, setPanel] = useState<PosPanel>("none");
   const [refundTarget, setRefundTarget] = useState<ShiftSale | null>(null);
   const [restoreStock, setRestoreStock] = useState(false);
@@ -182,15 +183,12 @@ export function PosPage() {
 
   function addWithVariant(product: Product, variant: ProductVariant | null) {
     if (!shiftOpen) {
-      setNotice({ tone: "warn", text: t("pos.needShift") });
+      notify.warn(t("pos.needShift"));
       setPanel("open");
       return;
     }
     if (salesFrozen) {
-      setNotice({
-        tone: "warn",
-        text: t("pos.revisionSales", { id: revisionId! }),
-      });
+      notify.warn(t("pos.revisionSales", { id: revisionId! }));
       return;
     }
     const vId = variant?.id ?? null;
@@ -221,15 +219,12 @@ export function PosPage() {
       return;
     }
     if (!shiftOpen) {
-      setNotice({ tone: "warn", text: t("pos.needShift") });
+      notify.warn(t("pos.needShift"));
       setPanel("open");
       return;
     }
     if (salesFrozen) {
-      setNotice({
-        tone: "warn",
-        text: t("pos.revisionSales", { id: revisionId! }),
-      });
+      notify.warn(t("pos.revisionSales", { id: revisionId! }));
       return;
     }
     setVariantPick(product);
@@ -255,12 +250,9 @@ export function PosPage() {
       const label = matched
         ? `${localizedName(product, locale)} — ${localizedName(matched, locale)}`
         : localizedName(product, locale);
-      setNotice({
-        tone: "ok",
-        text: t("pos.scanAdded", { name: label }),
-      });
+      notify.ok(t("pos.scanAdded", { name: label }));
     } catch {
-      if (!soft) setNotice({ tone: "warn", text: t("pos.scanNotFound", { code }) });
+      if (!soft) notify.warn(t("pos.scanNotFound", { code }));
     } finally {
       scanLock.current = false;
     }
@@ -357,13 +349,15 @@ export function PosPage() {
       setReceiptDiscountEdit(false);
       setCashPayOpen(false);
       setTendered(0);
-      setNotice({
-        tone: sale.alerts.length || sale.fiscal_status === "failed" ? "warn" : "ok",
-        text: parts.join(" "),
-      });
+      const saleText = parts.join(" ");
+      if (sale.alerts.length || sale.fiscal_status === "failed") {
+        notify.warn(saleText);
+      } else {
+        notify.ok(saleText);
+      }
       void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     },
-    onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
+    onError: (err: Error) => notify.warn(err.message),
   });
 
   const changeDue = Math.max(0, Math.round((tendered - total) * 100) / 100);
@@ -388,7 +382,7 @@ export function PosPage() {
     mutationFn: () => api.openShift(sid, Number(cashOpen || 0), seller?.id, registerId ?? undefined),
     onSuccess: () => {
       setPanel("none");
-      setNotice({ tone: "ok", text: t("pos.shiftOpened") });
+      notify.ok(t("pos.shiftOpened"));
       void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
       void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
     },
@@ -397,17 +391,16 @@ export function PosPage() {
     setPanel("none");
     const z = s.z_report_number ? ` ${t("pos.zReport", { n: s.z_report_number })}` : "";
     const diff = Number(s.cash_difference ?? 0);
-    setNotice({
-      tone: diff === 0 ? "ok" : "warn",
-      text:
-        (diff === 0
-          ? t("pos.shiftClosedOk", { cash: money(s.closing_cash) })
-          : t("pos.shiftClosedDiff", {
-              expected: money(s.expected_cash),
-              counted: money(s.closing_cash),
-              diff: money(s.cash_difference),
-            })) + z,
-    });
+    const closeText =
+      (diff === 0
+        ? t("pos.shiftClosedOk", { cash: money(s.closing_cash) })
+        : t("pos.shiftClosedDiff", {
+            expected: money(s.expected_cash),
+            counted: money(s.closing_cash),
+            diff: money(s.cash_difference),
+          })) + z;
+    if (diff === 0) notify.ok(closeText);
+    else notify.warn(closeText);
     void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     void qc.invalidateQueries({ queryKey: ["cash-registers", sid] });
   });
@@ -417,16 +410,15 @@ export function PosPage() {
       setRefundTarget(null);
       setRestoreStock(false);
       setPanel("none");
-      setNotice({
-        tone: "ok",
-        text: restore
+      notify.ok(
+        restore
           ? t("pos.refundOkRestored", { id: sale.id })
           : t("pos.refundOkKept", { id: sale.id }),
-      });
+      );
       void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
       void qc.invalidateQueries({ queryKey: ["stock", sid] });
     },
-    onError: (err: Error) => setNotice({ tone: "warn", text: err.message }),
+    onError: (err: Error) => notify.warn(err.message),
   });
 
   const cashMove = useMutation({
@@ -434,21 +426,23 @@ export function PosPage() {
       api.cashMove(shift.data!.id, {
         type,
         amount: Number(moveAmount),
-        comment: type === "withdrawal" ? t("pos.moveOut") : t("pos.moveIn"),
+        comment:
+          moveComment.trim() ||
+          (type === "withdrawal" ? t("pos.moveOut") : t("pos.moveIn")),
       }),
     onSuccess: (_, type) => {
       setPanel("none");
       setMoveAmount("");
-      setNotice({
-        tone: "ok",
-        text: type === "deposit" ? t("pos.cashInOk") : t("pos.cashOutOk"),
-      });
+      setMoveComment("");
+      notify.ok(type === "deposit" ? t("pos.cashInOk") : t("pos.cashOutOk"));
       void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     },
+    onError: (err: Error) => notify.warn(err.message),
   });
 
   function openCashPanel(type: "deposit" | "withdrawal") {
     setMoveAmount("");
+    setMoveComment("");
     cashMove.reset();
     setPanel(type);
   }
@@ -568,10 +562,7 @@ export function PosPage() {
             disabled: salesFrozen,
             onClick: () => {
               if (salesFrozen) {
-                setNotice({
-                  tone: "warn" as const,
-                  text: t("pos.receiveBlocked", { id: revisionId! }),
-                });
+                notify.warn(t("pos.receiveBlocked", { id: revisionId! }));
                 return;
               }
               setReceiveOpen(true);
@@ -634,8 +625,6 @@ export function PosPage() {
         if (!code) return;
         void scanCode(code, { soft: !/^[0-9A-Za-z._-]{4,64}$/.test(code) });
       }}
-      notice={notice}
-      onDismissNotice={() => setNotice(null)}
       shiftOpen={shiftOpen}
       salesFrozen={salesFrozen}
       revisionId={revisionId}
@@ -799,6 +788,8 @@ export function PosPage() {
         revisionId={revisionId}
         moveAmount={moveAmount}
         onMoveAmountChange={setMoveAmount}
+        moveComment={moveComment}
+        onMoveCommentChange={setMoveComment}
         cashMove={cashMove}
       />
       {receiveOpen && <ReceivePanel shopId={sid} onClose={() => setReceiveOpen(false)} />}

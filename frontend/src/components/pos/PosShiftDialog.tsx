@@ -38,6 +38,8 @@ export function PosShiftDialog({
   revisionId,
   moveAmount,
   onMoveAmountChange,
+  moveComment,
+  onMoveCommentChange,
   cashMove,
 }: {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -70,6 +72,8 @@ export function PosShiftDialog({
   revisionId: number | null;
   moveAmount: string;
   onMoveAmountChange: (value: string) => void;
+  moveComment: string;
+  onMoveCommentChange: (value: string) => void;
   cashMove: UseMutationResult<unknown, Error, "deposit" | "withdrawal", unknown>;
 }) {
   if (panel === "none") return null;
@@ -322,6 +326,8 @@ export function PosShiftDialog({
           shift={shift}
           moveAmount={moveAmount}
           onMoveAmountChange={onMoveAmountChange}
+          moveComment={moveComment}
+          onMoveCommentChange={onMoveCommentChange}
           cashMove={cashMove}
           onClose={onClose}
         />
@@ -333,6 +339,8 @@ export function PosShiftDialog({
           shift={shift}
           moveAmount={moveAmount}
           onMoveAmountChange={onMoveAmountChange}
+          moveComment={moveComment}
+          onMoveCommentChange={onMoveCommentChange}
           cashMove={cashMove}
           onClose={onClose}
         />
@@ -347,6 +355,8 @@ function CashMoveForm({
   shift,
   moveAmount,
   onMoveAmountChange,
+  moveComment,
+  onMoveCommentChange,
   cashMove,
   onClose,
 }: {
@@ -355,12 +365,15 @@ function CashMoveForm({
   shift: Shift | null | undefined;
   moveAmount: string;
   onMoveAmountChange: (value: string) => void;
+  moveComment: string;
+  onMoveCommentChange: (value: string) => void;
   cashMove: UseMutationResult<unknown, Error, "deposit" | "withdrawal", unknown>;
   onClose: () => void;
 }) {
   const amount = Number(moveAmount);
   const after =
     Number(shift?.expected_cash ?? 0) + (kind === "deposit" ? amount : -amount);
+  const reasonOk = kind === "deposit" || moveComment.trim().length > 0;
 
   return (
     <>
@@ -377,6 +390,25 @@ function CashMoveForm({
           autoFocus
         />
       </label>
+      <label className="mt-4 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+        {t("pos.moveReason")}
+        {kind === "deposit" ? ` (${t("common.optional")})` : ""}
+        <textarea
+          className="mt-2 min-h-[4.5rem] w-full resize-y rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-3 text-[15px] text-ink outline-none focus:border-ink"
+          value={moveComment}
+          onChange={(e) => onMoveCommentChange(e.target.value)}
+          placeholder={t("pos.moveReasonPlaceholder")}
+          rows={2}
+        />
+      </label>
+      <p className="mt-1.5 text-[12px] text-ink-soft">
+        {kind === "withdrawal" ? t("pos.moveReasonWithdrawHint") : t("pos.moveReasonDepositHint")}
+      </p>
+      {kind === "withdrawal" && moveAmount && !moveComment.trim() && (
+        <p className="mt-2 text-sm text-alert" role="alert">
+          {t("pos.moveReasonRequired")}
+        </p>
+      )}
       {amount > 0 && (
         <p className="mt-3 text-sm text-ink-soft">
           {t("pos.afterMove", { n: money(after) })}
@@ -391,7 +423,7 @@ function CashMoveForm({
         <Button
           variant={kind === "withdrawal" ? "danger" : "confirm"}
           className="flex-1"
-          disabled={!moveAmount || amount <= 0 || cashMove.isPending}
+          disabled={!moveAmount || amount <= 0 || !reasonOk || cashMove.isPending}
           onClick={() => cashMove.mutate(kind)}
         >
           {cashMove.isPending

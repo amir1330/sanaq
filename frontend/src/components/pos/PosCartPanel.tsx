@@ -27,8 +27,6 @@ export function PosProductsPanel({
   categoryId,
   categories,
   onCategoryChange,
-  notice,
-  onDismissNotice,
   shiftOpen,
   salesFrozen,
   revisionId,
@@ -48,8 +46,6 @@ export function PosProductsPanel({
   categoryId?: number | "all";
   categories?: Category[];
   onCategoryChange?: (id: number | "all") => void;
-  notice: { tone: "ok" | "warn"; text: string } | null;
-  onDismissNotice: () => void;
   shiftOpen: boolean;
   salesFrozen: boolean;
   revisionId: number | null;
@@ -107,14 +103,6 @@ export function PosProductsPanel({
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 sm:pt-3">
-        {notice && (
-          <Banner tone={notice.tone}>
-            {notice.text}{" "}
-            <button type="button" className="underline" onClick={onDismissNotice}>
-              {t("pos.hide")}
-            </button>
-          </Banner>
-        )}
         {!shiftOpen && <Banner tone="warn">{t("pos.closedBanner")}</Banner>}
         {salesFrozen && <Banner tone="warn">{t("pos.revisionBanner", { id: revisionId! })}</Banner>}
         <div className="grid grid-cols-2 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3">

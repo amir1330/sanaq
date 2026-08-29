@@ -44,6 +44,19 @@ export type Messages = {
     menu: string;
     skipToContent: string;
   };
+  notifications: {
+    title: string;
+    subtitle: string;
+    empty: string;
+    emptyHint: string;
+    markAllRead: string;
+    clearAll: string;
+    justNow: string;
+    minutesAgo: string;
+    openCenter: string;
+    bell: string;
+    bellUnread: string;
+  };
   nav: {
     reports: string;
     products: string;
@@ -314,6 +327,11 @@ export type Messages = {
     moveIn: string;
     cashInOk: string;
     cashOutOk: string;
+    moveReason: string;
+    moveReasonWithdrawHint: string;
+    moveReasonDepositHint: string;
+    moveReasonRequired: string;
+    moveReasonPlaceholder: string;
     tillFallback: string;
     tillLabel: string;
     shiftOpen: string;
