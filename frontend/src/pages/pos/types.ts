@@ -8,11 +8,9 @@ export type Line = {
   discount?: Discount | null;
 };
 
-export type MobileTab = "products" | "cart" | "shift";
-
 export type DiscountDraft = { type: Discount["type"]; value: string };
 
-export type PosPanel = "none" | "open" | "close" | "move" | "seller" | "receipts";
+export type PosPanel = "none" | "open" | "close" | "deposit" | "withdrawal" | "seller" | "receipts";
 
 export function lineKey(productId: number, variantId: number | null | undefined) {
   return `${productId}:${variantId ?? ""}`;

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Banner, Button } from "../ui";
 import { DiscountEditor } from "./DiscountEditor";
@@ -13,7 +13,7 @@ import {
   type DiscountDraft,
   type Line,
 } from "../../pages/pos/types";
-import type { Product } from "../../types";
+import type { Category, Product } from "../../types";
 
 type CartTotals = ReturnType<typeof cartTotals>;
 
@@ -23,6 +23,10 @@ export function PosProductsPanel({
   productSearch,
   onProductSearchChange,
   onSearchEnter,
+  searchInputRef,
+  categoryId,
+  categories,
+  onCategoryChange,
   notice,
   onDismissNotice,
   shiftOpen,
@@ -40,6 +44,10 @@ export function PosProductsPanel({
   productSearch: string;
   onProductSearchChange: (value: string) => void;
   onSearchEnter: () => void;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
+  categoryId?: number | "all";
+  categories?: Category[];
+  onCategoryChange?: (id: number | "all") => void;
   notice: { tone: "ok" | "warn"; text: string } | null;
   onDismissNotice: () => void;
   shiftOpen: boolean;
@@ -54,9 +62,37 @@ export function PosProductsPanel({
 }) {
   return (
     <section id="main-content" className="flex h-full flex-col overflow-hidden bg-paper-2">
-      <div className="sticky top-0 z-10 border-b border-line bg-paper-2 p-4 sm:px-6 sm:pt-6 sm:pb-3">
+      <div className="sticky top-0 z-10 space-y-2 border-b border-line bg-paper-2 p-3 sm:px-6 sm:pt-6 sm:pb-3">
+        {categories && onCategoryChange && categoryId !== undefined && (
+          <div className="lg:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => onCategoryChange("all")}
+                className={`shrink-0 rounded-full px-3.5 py-2 text-[13px] font-medium ${
+                  categoryId === "all" ? "bg-ink text-paper" : "bg-paper-2 text-ink-soft"
+                }`}
+              >
+                {t("pos.allProducts")}
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onCategoryChange(c.id)}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-[13px] font-medium ${
+                    categoryId === c.id ? "bg-ink text-paper" : "bg-paper-2 text-ink-soft"
+                  }`}
+                >
+                  {localizedName(c, locale)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <input
-          className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-4 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+          ref={searchInputRef}
+          className="w-full rounded-md border-[1.5px] border-line-2 bg-paper px-4 py-3 text-[15px] text-ink outline-none focus:border-ink"
           value={productSearch}
           onChange={(e) => onProductSearchChange(e.target.value)}
           onKeyDown={(e) => {
@@ -67,7 +103,7 @@ export function PosProductsPanel({
           placeholder={t("pos.searchProducts")}
           aria-label={t("pos.searchProducts")}
           autoComplete="off"
-          enterKeyHint="done"
+          enterKeyHint="search"
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 sm:pt-3">
@@ -150,6 +186,9 @@ export function PosCartPanel({
   onOpenCashPay,
   onResetTender,
   onAddNote,
+  layout = "sidebar",
+  cartExpanded = true,
+  onToggleCartExpanded,
 }: {
   t: (key: string, vars?: Record<string, string | number>) => string;
   locale: Locale;
@@ -181,11 +220,37 @@ export function PosCartPanel({
   onOpenCashPay: () => void;
   onResetTender: () => void;
   onAddNote: (n: number) => void;
+  layout?: "sidebar" | "sheet";
+  cartExpanded?: boolean;
+  onToggleCartExpanded?: () => void;
 }) {
+  const isSheet = layout === "sheet";
+
   return (
-    <aside className="flex h-full flex-col overflow-y-auto px-5 py-6">
-      <h4 className="mb-4 shrink-0 font-display text-[19px] font-normal">{t("pos.cart")}</h4>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+    <aside
+      className={
+        isSheet
+          ? "flex max-h-[min(58vh,520px)] flex-col overflow-hidden border-t border-line bg-paper shadow-soft"
+          : "flex h-full flex-col overflow-y-auto px-5 py-6"
+      }
+    >
+      {isSheet && (
+        <button
+          type="button"
+          className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3 text-left"
+          onClick={onToggleCartExpanded}
+          aria-expanded={cartExpanded}
+        >
+          <span className="font-display text-[17px]">
+            {t("pos.cart")}
+            {cart.length > 0 ? ` · ${cart.length}` : ""}
+          </span>
+          <span className="font-mono text-[15px] font-semibold text-gold">{money(total)}</span>
+        </button>
+      )}
+      {!isSheet && <h4 className="mb-4 shrink-0 font-display text-[19px] font-normal">{t("pos.cart")}</h4>}
+      {( !isSheet || cartExpanded) && (
+      <div className={`flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto ${isSheet ? "px-4 py-3" : ""}`}>
         {cart.length === 0 && (
           <p className="py-5 text-center text-[13px] text-ink-soft">{t("pos.cartEmpty")}</p>
         )}
@@ -299,7 +364,8 @@ export function PosCartPanel({
           );
         })}
       </div>
-      <div className="sticky bottom-0 mt-3.5 border-t border-line bg-paper pt-4">
+      )}
+      <div className={`sticky bottom-0 border-t border-line bg-paper pt-4 ${isSheet ? "px-4 pb-3" : "mt-3.5"}`}>
         {canDiscount && (
           <div className="mb-3">
             <div className="mb-1 flex items-center justify-between text-[12.5px]">

@@ -36,8 +36,6 @@ export function PosShiftDialog({
   refund,
   salesFrozen,
   revisionId,
-  moveType,
-  onMoveTypeChange,
   moveAmount,
   onMoveAmountChange,
   cashMove,
@@ -70,11 +68,9 @@ export function PosShiftDialog({
   refund: UseMutationResult<unknown, Error, boolean, unknown>;
   salesFrozen: boolean;
   revisionId: number | null;
-  moveType: "deposit" | "withdrawal";
-  onMoveTypeChange: (type: "deposit" | "withdrawal") => void;
   moveAmount: string;
   onMoveAmountChange: (value: string) => void;
-  cashMove: UseMutationResult<unknown, Error, void, unknown>;
+  cashMove: UseMutationResult<unknown, Error, "deposit" | "withdrawal", unknown>;
 }) {
   if (panel === "none") return null;
 
@@ -319,70 +315,96 @@ export function PosShiftDialog({
           </div>
         </>
       )}
-      {panel === "move" && (
-        <>
-          <p className="rounded-md bg-paper-2 px-3 py-2 font-mono text-[13px]">
-            {t("pos.drawerNow", { n: money(shift?.expected_cash) })}
-          </p>
-          <div className="mt-4 flex gap-2">
-            <Button
-              variant={moveType === "deposit" ? "confirm" : "quiet"}
-              className="flex-1"
-              onClick={() => onMoveTypeChange("deposit")}
-            >
-              {t("pos.moveIn")}
-            </Button>
-            <Button
-              variant={moveType === "withdrawal" ? "danger" : "quiet"}
-              className="flex-1"
-              onClick={() => onMoveTypeChange("withdrawal")}
-            >
-              {t("pos.moveOut")}
-            </Button>
-          </div>
-          <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-            {t("expenses.amount")}, ₸
-            <input
-              className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
-              value={moveAmount}
-              onChange={(e) => onMoveAmountChange(e.target.value)}
-              inputMode="decimal"
-              autoFocus
-            />
-          </label>
-          {Number(moveAmount) > 0 && (
-            <p className="mt-3 text-sm text-ink-soft">
-              {t("pos.afterMove", {
-                n: money(
-                  Number(shift?.expected_cash ?? 0) +
-                    (moveType === "deposit" ? Number(moveAmount) : -Number(moveAmount)),
-                ),
-              })}
-            </p>
-          )}
-          {cashMove.isError && (
-            <p className="mt-3 text-sm text-alert">{(cashMove.error as Error).message}</p>
-          )}
-          <div className="mt-6 flex gap-3">
-            <Button
-              variant={moveType === "withdrawal" ? "danger" : "confirm"}
-              className="flex-1"
-              disabled={!moveAmount || Number(moveAmount) <= 0 || cashMove.isPending}
-              onClick={() => cashMove.mutate()}
-            >
-              {cashMove.isPending
-                ? t("pos.writing")
-                : moveType === "withdrawal"
-                  ? t("pos.moveOut")
-                  : t("pos.moveIn")}
-            </Button>
-            <Button variant="ghost" className="text-ink-soft" onClick={onClose}>
-              {t("common.back")}
-            </Button>
-          </div>
-        </>
+      {panel === "deposit" && (
+        <CashMoveForm
+          t={t}
+          kind="deposit"
+          shift={shift}
+          moveAmount={moveAmount}
+          onMoveAmountChange={onMoveAmountChange}
+          cashMove={cashMove}
+          onClose={onClose}
+        />
+      )}
+      {panel === "withdrawal" && (
+        <CashMoveForm
+          t={t}
+          kind="withdrawal"
+          shift={shift}
+          moveAmount={moveAmount}
+          onMoveAmountChange={onMoveAmountChange}
+          cashMove={cashMove}
+          onClose={onClose}
+        />
       )}
     </Dialog>
+  );
+}
+
+function CashMoveForm({
+  t,
+  kind,
+  shift,
+  moveAmount,
+  onMoveAmountChange,
+  cashMove,
+  onClose,
+}: {
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  kind: "deposit" | "withdrawal";
+  shift: Shift | null | undefined;
+  moveAmount: string;
+  onMoveAmountChange: (value: string) => void;
+  cashMove: UseMutationResult<unknown, Error, "deposit" | "withdrawal", unknown>;
+  onClose: () => void;
+}) {
+  const amount = Number(moveAmount);
+  const after =
+    Number(shift?.expected_cash ?? 0) + (kind === "deposit" ? amount : -amount);
+
+  return (
+    <>
+      <p className="rounded-md bg-paper-2 px-3 py-2 font-mono text-[13px]">
+        {t("pos.drawerNow", { n: money(shift?.expected_cash) })}
+      </p>
+      <label className="mt-5 block font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+        {t("expenses.amount")}, ₸
+        <input
+          className="mt-2 w-full rounded-md border-[1.5px] border-line-2 bg-cream px-4 py-3 text-[17px] text-ink outline-none focus:border-ink"
+          value={moveAmount}
+          onChange={(e) => onMoveAmountChange(e.target.value)}
+          inputMode="decimal"
+          autoFocus
+        />
+      </label>
+      {amount > 0 && (
+        <p className="mt-3 text-sm text-ink-soft">
+          {t("pos.afterMove", { n: money(after) })}
+        </p>
+      )}
+      {cashMove.isError && (
+        <p className="mt-3 text-sm text-alert" role="alert">
+          {(cashMove.error as Error).message}
+        </p>
+      )}
+      <div className="mt-6 flex gap-3">
+        <Button
+          variant={kind === "withdrawal" ? "danger" : "confirm"}
+          className="flex-1"
+          disabled={!moveAmount || amount <= 0 || cashMove.isPending}
+          onClick={() => cashMove.mutate(kind)}
+        >
+          {cashMove.isPending
+            ? t("pos.writing")
+            : kind === "withdrawal"
+              ? t("pos.moveOut")
+              : t("pos.moveIn")}
+        </Button>
+        <Button variant="ghost" className="text-ink-soft" onClick={onClose}>
+          {t("common.back")}
+        </Button>
+      </div>
+    </>
   );
 }
 

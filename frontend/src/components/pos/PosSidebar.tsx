@@ -4,7 +4,6 @@ import { Button, MoreMenu } from "../ui";
 import { localizedName } from "../../lib/i18nName";
 import { money } from "../../lib/utils";
 import type { Locale } from "../../i18n/types";
-import type { MobileTab } from "../../pages/pos/types";
 import type { CashRegister, Category, Shop, Shift } from "../../types";
 
 export function PosSidebar({
@@ -28,7 +27,6 @@ export function PosSidebar({
   categoryId,
   onCategoryChange,
   categories,
-  onMobileTabChange,
   financeOpen,
   onToggleFinance,
 }: {
@@ -52,7 +50,6 @@ export function PosSidebar({
   categoryId: number | "all";
   onCategoryChange: (id: number | "all") => void;
   categories: Category[] | undefined;
-  onMobileTabChange: (tab: MobileTab) => void;
   financeOpen: boolean;
   onToggleFinance: () => void;
 }) {
@@ -157,10 +154,7 @@ export function PosSidebar({
           className={`min-h-11 w-full rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
             categoryId === "all" ? "bg-paper-2 font-semibold text-ink" : "text-ink-soft"
           }`}
-          onClick={() => {
-            onCategoryChange("all");
-            onMobileTabChange("products");
-          }}
+          onClick={() => onCategoryChange("all")}
         >
           {t("pos.allProducts")}
         </button>
@@ -171,10 +165,7 @@ export function PosSidebar({
             className={`min-h-11 w-full rounded-md px-3.5 py-[11px] text-left text-[13.5px] ${
               categoryId === c.id ? "bg-paper-2 font-semibold text-ink" : "text-ink-soft"
             }`}
-            onClick={() => {
-              onCategoryChange(c.id);
-              onMobileTabChange("products");
-            }}
+            onClick={() => onCategoryChange(c.id)}
           >
             {localizedName(c, locale)}
           </button>

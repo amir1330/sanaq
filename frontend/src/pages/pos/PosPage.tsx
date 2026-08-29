@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { PosCartPanel, PosProductsPanel } from "../../components/pos/PosCartPanel";
+import { PosMobileHeader } from "../../components/pos/PosMobileChrome";
 import { PosShiftDialog, PosVariantPickDialog } from "../../components/pos/PosShiftDialog";
 import { PosSidebar } from "../../components/pos/PosSidebar";
 import { ReceivePanel } from "../../components/ReceivePanel";
@@ -25,7 +26,6 @@ import {
   PRODUCT_PAGE,
   type DiscountDraft,
   type Line,
-  type MobileTab,
   type PosPanel,
 } from "./types";
 
@@ -44,15 +44,15 @@ export function PosPage() {
   const [cashOpen, setCashOpen] = useState("");
   const [cashClose, setCashClose] = useState("");
   const [moveAmount, setMoveAmount] = useState("");
-  const [moveType, setMoveType] = useState<"deposit" | "withdrawal">("withdrawal");
   const [panel, setPanel] = useState<PosPanel>("none");
   const [refundTarget, setRefundTarget] = useState<ShiftSale | null>(null);
   const [restoreStock, setRestoreStock] = useState(false);
   const [seller, setSeller] = useState<{ id: number; name: string } | null>(null);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [registerId, setRegisterId] = useState<number | null>(null);
-  const [mobileTab, setMobileTab] = useState<MobileTab>("products");
+  const [mobileCartExpanded, setMobileCartExpanded] = useState(false);
   const [financeOpen, setFinanceOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [productSearch, setProductSearch] = useState("");
   const debouncedSearch = useDebouncedValue(productSearch, 250);
   const [receiptDiscount, setReceiptDiscount] = useState<Discount | null>(null);
@@ -184,7 +184,6 @@ export function PosPage() {
     if (!shiftOpen) {
       setNotice({ tone: "warn", text: t("pos.needShift") });
       setPanel("open");
-      setMobileTab("shift");
       return;
     }
     if (salesFrozen) {
@@ -224,7 +223,6 @@ export function PosPage() {
     if (!shiftOpen) {
       setNotice({ tone: "warn", text: t("pos.needShift") });
       setPanel("open");
-      setMobileTab("shift");
       return;
     }
     if (salesFrozen) {
@@ -261,7 +259,6 @@ export function PosPage() {
         tone: "ok",
         text: t("pos.scanAdded", { name: label }),
       });
-      setMobileTab("cart");
     } catch {
       if (!soft) setNotice({ tone: "warn", text: t("pos.scanNotFound", { code }) });
     } finally {
@@ -375,7 +372,7 @@ export function PosPage() {
   function openCashPay() {
     setCashPayOpen(true);
     setTendered(0);
-    setMobileTab("cart");
+    setMobileCartExpanded(true);
   }
 
   function addNote(n: number) {
@@ -433,22 +430,47 @@ export function PosPage() {
   });
 
   const cashMove = useMutation({
-    mutationFn: () =>
+    mutationFn: (type: "deposit" | "withdrawal") =>
       api.cashMove(shift.data!.id, {
-        type: moveType,
+        type,
         amount: Number(moveAmount),
-        comment: moveType === "withdrawal" ? t("pos.moveOut") : t("pos.moveIn"),
+        comment: type === "withdrawal" ? t("pos.moveOut") : t("pos.moveIn"),
       }),
-    onSuccess: () => {
+    onSuccess: (_, type) => {
       setPanel("none");
       setMoveAmount("");
       setNotice({
         tone: "ok",
-        text: moveType === "deposit" ? t("pos.cashInOk") : t("pos.cashOutOk"),
+        text: type === "deposit" ? t("pos.cashInOk") : t("pos.cashOutOk"),
       });
       void qc.invalidateQueries({ queryKey: ["shift", sid, registerId] });
     },
   });
+
+  function openCashPanel(type: "deposit" | "withdrawal") {
+    setMoveAmount("");
+    cashMove.reset();
+    setPanel(type);
+  }
+
+  const closePosPanel = useCallback(() => {
+    if (refundTarget) {
+      setRefundTarget(null);
+      setRestoreStock(false);
+      return;
+    }
+    if (panel === "receipts") {
+      setFindReceiptId("");
+      setFindReceiptError(null);
+    }
+    setPanel("none");
+  }, [panel, refundTarget]);
+
+  useEffect(() => {
+    if (!user || panel !== "none" || receiveOpen || variantPick) return;
+    const id = window.setTimeout(() => searchInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(id);
+  }, [user, panel, receiveOpen, variantPick]);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -460,19 +482,6 @@ export function PosPage() {
   const sellerName = seller?.name ?? user.full_name;
   const tillName = currentRegister?.name ?? t("pos.tillFallback");
 
-  function closePosPanel() {
-    if (refundTarget) {
-      setRefundTarget(null);
-      setRestoreStock(false);
-      return;
-    }
-    if (panel === "receipts") {
-      setFindReceiptId("");
-      setFindReceiptError(null);
-    }
-    setPanel("none");
-  }
-
   const panelTitle =
     panel === "open"
       ? t("pos.openShiftTitle")
@@ -482,13 +491,13 @@ export function PosPage() {
           ? t("pos.sellerTitle")
           : panel === "receipts" && refundTarget
             ? t("pos.refundTitle", { id: refundTarget.id })
-            : panel === "receipts"
+              : panel === "receipts"
               ? t("pos.receipts")
-              : panel === "move"
-                ? moveType === "withdrawal"
+              : panel === "deposit"
+                ? t("pos.drawerInTitle")
+                : panel === "withdrawal"
                   ? t("pos.drawerOutTitle")
-                  : t("pos.drawerInTitle")
-                : "";
+                  : "";
 
   const panelHint =
     panel === "open"
@@ -503,11 +512,11 @@ export function PosPage() {
             ? `${money(refundTarget.total_amount)} · ${payLabel(refundTarget.payment_type)}. ${t("pos.refundAlwaysMoney")}`
             : panel === "receipts"
               ? t("pos.receiptsHint")
-              : panel === "move"
-                ? moveType === "withdrawal"
+              : panel === "deposit"
+                ? t("pos.drawerInHint")
+                : panel === "withdrawal"
                   ? t("pos.drawerOutHint")
-                  : t("pos.drawerInHint")
-                : undefined;
+                  : undefined;
 
   const moreItems: Array<{ label: string; onClick?: () => void; disabled?: boolean; custom?: ReactNode }> = [
     {
@@ -543,12 +552,12 @@ export function PosPage() {
             onClick: () => setPanel("receipts"),
           },
           {
-            label: t("pos.drawer"),
-            onClick: () => {
-              setMoveType("withdrawal" as const);
-              setMoveAmount("");
-              setPanel("move");
-            },
+            label: t("pos.moveIn"),
+            onClick: () => openCashPanel("deposit"),
+          },
+          {
+            label: t("pos.moveOut"),
+            onClick: () => openCashPanel("withdrawal"),
           },
         ]
       : []),
@@ -605,7 +614,6 @@ export function PosPage() {
       categoryId={categoryId}
       onCategoryChange={setCategoryId}
       categories={categories.data}
-      onMobileTabChange={setMobileTab}
       financeOpen={financeOpen}
       onToggleFinance={() => setFinanceOpen((v) => !v)}
     />
@@ -617,6 +625,10 @@ export function PosPage() {
       locale={locale}
       productSearch={productSearch}
       onProductSearchChange={setProductSearch}
+      searchInputRef={searchInputRef}
+      categoryId={categoryId}
+      categories={categories.data}
+      onCategoryChange={setCategoryId}
       onSearchEnter={() => {
         const code = productSearch.trim();
         if (!code) return;
@@ -671,6 +683,44 @@ export function PosPage() {
     />
   );
 
+  const mobileCartPanel = (
+    <PosCartPanel
+      t={t}
+      locale={locale}
+      cart={cart}
+      setCart={setCart}
+      canDiscount={canDiscount}
+      lineDiscountEdit={lineDiscountEdit}
+      setLineDiscountEdit={setLineDiscountEdit}
+      lineDiscountDraft={lineDiscountDraft}
+      setLineDiscountDraft={setLineDiscountDraft}
+      receiptDiscount={receiptDiscount}
+      setReceiptDiscount={setReceiptDiscount}
+      receiptDiscountEdit={receiptDiscountEdit}
+      setReceiptDiscountEdit={setReceiptDiscountEdit}
+      receiptDiscountDraft={receiptDiscountDraft}
+      setReceiptDiscountDraft={setReceiptDiscountDraft}
+      applyDraft={applyDraft}
+      changeQty={changeQty}
+      totals={totals}
+      total={total}
+      shiftOpen={shiftOpen}
+      salesFrozen={salesFrozen}
+      cashPayOpen={cashPayOpen}
+      tendered={tendered}
+      setTendered={setTendered}
+      changeDue={changeDue}
+      tenderEnough={tenderEnough}
+      sell={sell}
+      onOpenCashPay={openCashPay}
+      onResetTender={resetTender}
+      onAddNote={addNote}
+      layout="sheet"
+      cartExpanded={mobileCartExpanded}
+      onToggleCartExpanded={() => setMobileCartExpanded((v) => !v)}
+    />
+  );
+
   return (
     <div className="h-dvh overflow-hidden bg-paper text-ink">
       <SkipLink />
@@ -685,34 +735,31 @@ export function PosPage() {
         </div>
 
         <div className="flex h-full flex-col lg:hidden">
-          <div className="min-h-0 flex-1 overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
-            <div className={`h-full ${mobileTab === "shift" ? "block" : "hidden"}`}>{sidebar}</div>
-            <div className={`h-full ${mobileTab === "products" ? "block" : "hidden"}`}>{productsPanel}</div>
-            <div className={`h-full ${mobileTab === "cart" ? "block" : "hidden"}`}>{cartPanel}</div>
-          </div>
-          <nav className="fixed bottom-0 left-0 right-0 z-20 grid grid-cols-3 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)]">
-            {(
-              [
-                { id: "products" as const, label: t("pos.tabProducts") },
-                { id: "cart" as const, label: t("pos.tabCart") },
-                { id: "shift" as const, label: t("pos.tabShift") },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMobileTab(tab.id)}
-                className={`flex min-h-14 flex-col items-center justify-center text-[12.5px] font-semibold ${
-                  mobileTab === tab.id ? "bg-paper-2 text-ink" : "text-ink-soft"
-                }`}
-              >
-                {tab.label}
-                {tab.id === "cart" && cart.length > 0 && (
-                  <span className="mt-0.5 font-mono text-[10px] text-gold">{cart.length}</span>
-                )}
-              </button>
-            ))}
-          </nav>
+          <PosMobileHeader
+            t={t}
+            currentShop={currentShop}
+            isBarista={isBarista}
+            sellerName={sellerName}
+            tillName={tillName}
+            headerOpen={headerOpen}
+            onToggleHeader={() => setHeaderOpen((v) => !v)}
+            onOpenSellerPanel={() => setPanel("seller")}
+            multiTill={multiTill}
+            registerList={registerList}
+            registerId={registerId}
+            onPickRegister={pickRegister}
+            shift={shift.data}
+            onOpenShift={() => setPanel("open")}
+            onCloseShift={() => {
+              setCashClose("");
+              setPanel("close");
+            }}
+            moreItems={moreItems}
+            financeOpen={financeOpen}
+            onToggleFinance={() => setFinanceOpen((v) => !v)}
+          />
+          <div className="min-h-0 flex-1 overflow-hidden">{productsPanel}</div>
+          {mobileCartPanel}
         </div>
       </div>
 
@@ -730,11 +777,7 @@ export function PosPage() {
         cashClose={cashClose}
         onCashCloseChange={setCashClose}
         closeShift={closeShift}
-        onOpenMovePanel={() => {
-          setMoveType("withdrawal");
-          setMoveAmount("");
-          setPanel("move");
-        }}
+        onOpenMovePanel={() => openCashPanel("withdrawal")}
         crew={crew.data}
         sellerId={seller?.id}
         onChooseSeller={chooseSeller}
@@ -754,8 +797,6 @@ export function PosPage() {
         refund={refund}
         salesFrozen={salesFrozen}
         revisionId={revisionId}
-        moveType={moveType}
-        onMoveTypeChange={setMoveType}
         moveAmount={moveAmount}
         onMoveAmountChange={setMoveAmount}
         cashMove={cashMove}
